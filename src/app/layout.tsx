@@ -8,7 +8,11 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 
 export const metadata: Metadata = {
   title: "Blackleaf — Grow Monitor",
-  description: "Monitore e acompanhe seu cultivo de forma inteligente.",
+  description: "Tecnologia • Cannabis • Exclusividade",
+  icons: {
+    icon: "/logo-icon.png",
+    apple: "/logo-icon.png",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

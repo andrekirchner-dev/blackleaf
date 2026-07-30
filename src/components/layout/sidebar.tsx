@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
@@ -30,15 +31,16 @@ export function Sidebar() {
   return (
     <aside className="hidden md:flex flex-col w-60 min-h-screen bg-sidebar border-r border-sidebar-border shrink-0">
       {/* Logo */}
-      <div className="flex items-center gap-3 px-5 py-6 border-b border-sidebar-border">
-        <div className="w-9 h-9 rounded-lg bg-primary/10 border border-primary/30 flex items-center justify-center">
-          <LeafIcon />
+      <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
+        <div className="relative w-8 h-8 shrink-0">
+          <Image src="/logo-icon.png" alt="Blackleaf" fill className="object-contain" />
         </div>
         <div>
-          <span className="font-bold text-lg leading-tight text-foreground">
-            Black<span className="text-primary">leaf</span>
+          <span className="font-bold text-base leading-tight tracking-wider uppercase">
+            <span className="text-foreground">Black</span>
+            <span className="text-accent">leaf</span>
           </span>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-widest">Grow Monitor</p>
+          <p className="text-[9px] text-muted-foreground uppercase tracking-widest">Grow Monitor</p>
         </div>
       </div>
 
@@ -94,11 +96,3 @@ export function Sidebar() {
   );
 }
 
-function LeafIcon() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path d="M12 2C12 2 4 7 4 14C4 18.418 7.582 22 12 22C16.418 22 20 18.418 20 14C20 7 12 2 12 2Z" fill="oklch(0.65 0.19 142)" fillOpacity="0.85" />
-      <line x1="12" y1="15" x2="12" y2="22" stroke="oklch(0.65 0.19 142)" strokeWidth="2" strokeLinecap="round" />
-    </svg>
-  );
-}

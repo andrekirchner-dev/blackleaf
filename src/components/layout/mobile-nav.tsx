@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
@@ -25,7 +26,13 @@ export function MobileNav() {
     <>
       <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-border bg-sidebar sticky top-0 z-40">
         <div className="flex items-center gap-2">
-          <span className="font-bold text-lg">Black<span className="text-primary">leaf</span></span>
+          <div className="relative w-7 h-7">
+            <Image src="/logo-icon.png" alt="Blackleaf" fill className="object-contain" />
+          </div>
+          <span className="font-bold text-base tracking-wider uppercase">
+            <span className="text-foreground">Black</span>
+            <span className="text-accent">leaf</span>
+          </span>
         </div>
         <button onClick={() => setOpen(true)} className="text-foreground p-1">
           <Menu size={22} />
@@ -37,7 +44,10 @@ export function MobileNav() {
           <div className="absolute inset-0 bg-black/60" onClick={() => setOpen(false)} />
           <div className="absolute left-0 top-0 bottom-0 w-72 bg-sidebar border-r border-sidebar-border flex flex-col">
             <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border">
-              <span className="font-bold text-xl">Black<span className="text-primary">leaf</span></span>
+              <span className="font-bold text-xl tracking-wider uppercase">
+              <span className="text-foreground">Black</span>
+              <span className="text-accent">leaf</span>
+            </span>
               <button onClick={() => setOpen(false)} className="text-muted-foreground">
                 <X size={20} />
               </button>
