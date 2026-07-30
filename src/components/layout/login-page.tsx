@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/auth-context";
 import { Button } from "@/components/ui/button";
 
 export function LoginPage() {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, signingIn, authError } = useAuth();
 
   return (
     <div className="min-h-screen bg-background flex flex-col items-center justify-center relative overflow-hidden">
@@ -68,11 +68,21 @@ export function LoginPage() {
           </p>
           <Button
             onClick={signInWithGoogle}
-            className="w-full gap-3 font-semibold h-12 text-sm bg-accent text-accent-foreground hover:bg-accent/90"
+            disabled={signingIn}
+            className="w-full gap-3 font-semibold h-12 text-sm bg-accent text-accent-foreground hover:bg-accent/90 disabled:opacity-70"
           >
-            <GoogleIcon />
-            Entrar com Google
+            {signingIn ? (
+              <div className="w-4 h-4 rounded-full border-2 border-accent-foreground/40 border-t-accent-foreground animate-spin" />
+            ) : (
+              <GoogleIcon />
+            )}
+            {signingIn ? "Redirecionando..." : "Entrar com Google"}
           </Button>
+          {authError && (
+            <p className="mt-3 text-xs text-destructive text-center bg-destructive/10 rounded-lg px-3 py-2">
+              {authError}
+            </p>
+          )}
         </div>
 
         <p className="text-xs text-muted-foreground/50">
