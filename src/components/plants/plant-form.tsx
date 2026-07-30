@@ -12,12 +12,78 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Leaf, Loader2 } from "lucide-react";
+import { ChevronDown, Leaf, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+const STAGE_EMOJI: Record<GrowStage, string> = {
+  semente: "🌱",
+  muda: "🌿",
+  vegetativo: "🍃",
+  floracao: "🌸",
+  colheita: "✂️",
+  secagem: "🍂",
+};
+
+const MEDIUM_SHORT: Record<string, string> = {
+  terra: "Terra",
+  coco: "Coco",
+  hidro: "Hidro",
+  aeroponia: "Aeroponia",
+};
+
+const ENV_EMOJI: Record<string, string> = {
+  indoor: "🏠",
+  outdoor: "🌤️",
+  greenhouse: "🌿",
+};
 
 interface PlantFormProps {
   plant?: Plant;
+}
+
+function Section({
+  id,
+  title,
+  summary,
+  open,
+  onToggle,
+  children,
+}: {
+  id: string;
+  title: string;
+  summary?: string;
+  open: boolean;
+  onToggle: (id: string) => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="border border-border rounded-xl overflow-hidden bg-card">
+      <button
+        type="button"
+        onClick={() => onToggle(id)}
+        className="w-full flex items-center justify-between px-4 py-3.5 text-left hover:bg-muted/30 transition-colors"
+      >
+        <span className="text-sm font-semibold text-foreground">{title}</span>
+        <div className="flex items-center gap-2">
+          {summary && !open && (
+            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{summary}</span>
+          )}
+          <ChevronDown
+            size={15}
+            className={cn(
+              "text-muted-foreground transition-transform duration-200 shrink-0",
+              open && "rotate-180"
+            )}
+          />
+        </div>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 border-t border-border space-y-4 pt-4">
+          {children}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function PlantForm({ plant }: PlantFormProps) {
@@ -26,6 +92,7 @@ export function PlantForm({ plant }: PlantFormProps) {
   const { spaces } = useSpaces();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [open, setOpen] = useState<Set<string>>(new Set(["identificacao"]));
 
   const [form, setForm] = useState({
     name: plant?.name ?? "",
@@ -43,11 +110,20 @@ export function PlantForm({ plant }: PlantFormProps) {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
+  function toggle(id: string) {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
     if (!form.name.trim() || !form.strain.trim()) {
       setError("Nome e strain são obrigatórios.");
+      setOpen((prev) => new Set([...prev, "identificacao"]));
       return;
     }
     setLoading(true);
@@ -80,205 +156,215 @@ export function PlantForm({ plant }: PlantFormProps) {
     }
   }
 
+  const selectedSpace = spaces.find((s) => s.id === form.spaceId);
+
   return (
-    <form onSubmit={handleSubmit} className="space-y-6 max-w-2xl mx-auto">
-      <div>
-        <h1 className="text-2xl font-bold flex items-center gap-2">
-          <Leaf size={22} className="text-primary" />
+    <form onSubmit={handleSubmit} className="space-y-3 max-w-2xl mx-auto">
+      <div className="mb-5">
+        <h1 className="text-xl font-bold flex items-center gap-2">
+          <Leaf size={20} className="text-primary" />
           {plant ? "Editar Planta" : "Nova Planta"}
         </h1>
         <p className="text-sm text-muted-foreground mt-0.5">
-          {plant ? "Atualize as informações da sua planta." : "Cadastre uma nova planta no seu cultivo."}
+          {plant ? "Atualize as informações da sua planta." : "Preencha os dados do seu novo cultivo."}
         </p>
       </div>
 
       {/* Identificação */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Identificação</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="name">Nome da planta *</Label>
-              <Input
-                id="name"
-                placeholder="Ex: Planta 01, Mary Jane..."
-                value={form.name}
-                onChange={(e) => set("name", e.target.value)}
-                className="bg-background border-border"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="strain">Strain / Genética *</Label>
-              <Input
-                id="strain"
-                placeholder="Ex: OG Kush, Blue Dream..."
-                value={form.strain}
-                onChange={(e) => set("strain", e.target.value)}
-                className="bg-background border-border"
-              />
-            </div>
+      <Section
+        id="identificacao"
+        title="Identificação"
+        summary={form.name || form.strain ? [form.name, form.strain].filter(Boolean).join(" · ") : undefined}
+        open={open.has("identificacao")}
+        onToggle={toggle}
+      >
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="name">Nome da planta *</Label>
+            <Input
+              id="name"
+              placeholder="Ex: Planta 01, Mary Jane..."
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              className="bg-background border-border"
+            />
           </div>
-        </CardContent>
-      </Card>
+          <div className="space-y-1.5">
+            <Label htmlFor="strain">Strain / Genética *</Label>
+            <Input
+              id="strain"
+              placeholder="Ex: OG Kush, Blue Dream..."
+              value={form.strain}
+              onChange={(e) => set("strain", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+        </div>
+      </Section>
 
       {/* Fase */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Fase Atual</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-            {STAGE_ORDER.map((s) => (
+      <Section
+        id="fase"
+        title="Fase Atual"
+        summary={`${STAGE_EMOJI[form.stage]} ${STAGE_LABELS[form.stage]}`}
+        open={open.has("fase")}
+        onToggle={toggle}
+      >
+        <div className="grid grid-cols-2 gap-2">
+          {STAGE_ORDER.map((s) => (
+            <button
+              key={s}
+              type="button"
+              onClick={() => set("stage", s)}
+              className={cn(
+                "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all",
+                form.stage === s
+                  ? "bg-primary/10 border-primary/40 text-primary"
+                  : "bg-background border-border text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <span className="text-base">{STAGE_EMOJI[s]}</span>
+              <span>{STAGE_LABELS[s]}</span>
+            </button>
+          ))}
+        </div>
+      </Section>
+
+      {/* Cultivo */}
+      <Section
+        id="cultivo"
+        title="Configuração do Cultivo"
+        summary={[ENV_LABELS[form.environment], MEDIUM_SHORT[form.medium], form.potSize ? `${form.potSize}L` : ""].filter(Boolean).join(" · ")}
+        open={open.has("cultivo")}
+        onToggle={toggle}
+      >
+        {/* Ambiente */}
+        <div className="space-y-1.5">
+          <Label>Ambiente</Label>
+          <div className="flex gap-2">
+            {(Object.keys(ENV_LABELS) as GrowEnv[]).map((env) => (
               <button
-                key={s}
+                key={env}
                 type="button"
-                onClick={() => set("stage", s)}
-                className={`flex flex-col items-center gap-1.5 p-3 rounded-xl border text-xs font-medium transition-all ${
-                  form.stage === s
+                onClick={() => set("environment", env)}
+                className={cn(
+                  "flex-1 flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-medium transition-all",
+                  form.environment === env
                     ? "bg-primary/10 border-primary/40 text-primary"
-                    : "bg-background border-border text-muted-foreground hover:border-border/80 hover:text-foreground"
-                }`}
+                    : "bg-background border-border text-muted-foreground hover:text-foreground"
+                )}
               >
-                <StageIcon stage={s} active={form.stage === s} />
-                {STAGE_LABELS[s]}
+                <span className="text-base">{ENV_EMOJI[env]}</span>
+                <span>{ENV_LABELS[env]}</span>
               </button>
             ))}
           </div>
-        </CardContent>
-      </Card>
+        </div>
 
-      {/* Configuração */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Configuração do Cultivo</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {/* Ambiente */}
-            <div className="space-y-1.5">
-              <Label>Ambiente</Label>
-              <div className="flex gap-2">
-                {(Object.keys(ENV_LABELS) as GrowEnv[]).map((env) => (
+        {/* Substrato */}
+        <div className="space-y-1.5">
+          <Label>Substrato</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {(Object.keys(MEDIUM_LABELS) as Medium[]).map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => set("medium", m)}
+                className={cn(
+                  "py-2.5 px-3 rounded-xl border text-xs font-medium transition-all",
+                  form.medium === m
+                    ? "bg-primary/10 border-primary/40 text-primary"
+                    : "bg-background border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {MEDIUM_SHORT[m]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Datas e Vaso */}
+        <div className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="germinationDate">Data de Germinação</Label>
+            <Input
+              id="germinationDate"
+              type="date"
+              value={form.germinationDate}
+              onChange={(e) => set("germinationDate", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="potSize">Tamanho do Vaso (litros)</Label>
+            <Input
+              id="potSize"
+              type="number"
+              min="1"
+              placeholder="Ex: 15"
+              value={form.potSize}
+              onChange={(e) => set("potSize", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+        </div>
+
+        {/* Espaço */}
+        {spaces.length > 0 && (
+          <div className="space-y-1.5">
+            <Label>Espaço de Cultivo</Label>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => set("spaceId", "")}
+                className={cn(
+                  "py-2.5 px-3 rounded-xl border text-xs font-medium transition-all text-left",
+                  !form.spaceId
+                    ? "bg-primary/10 border-primary/40 text-primary"
+                    : "bg-background border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                Sem espaço
+              </button>
+              {spaces.map((s) => {
+                const meta = getSpaceMeta(s.type);
+                return (
                   <button
-                    key={env}
+                    key={s.id}
                     type="button"
-                    onClick={() => set("environment", env)}
-                    className={`flex-1 py-2 px-3 rounded-lg border text-xs font-medium transition-all ${
-                      form.environment === env
+                    onClick={() => set("spaceId", s.id)}
+                    className={cn(
+                      "py-2.5 px-3 rounded-xl border text-xs font-medium transition-all text-left flex items-center gap-1.5",
+                      form.spaceId === s.id
                         ? "bg-primary/10 border-primary/40 text-primary"
                         : "bg-background border-border text-muted-foreground hover:text-foreground"
-                    }`}
+                    )}
                   >
-                    {ENV_LABELS[env]}
+                    <span>{meta.emoji}</span>
+                    <span className="truncate">{s.name}</span>
                   </button>
-                ))}
-              </div>
-            </div>
-
-            {/* Substrato */}
-            <div className="space-y-1.5">
-              <Label>Substrato</Label>
-              <div className="grid grid-cols-2 gap-2">
-                {(Object.keys(MEDIUM_LABELS) as Medium[]).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => set("medium", m)}
-                    className={`py-2 px-3 rounded-lg border text-xs font-medium transition-all ${
-                      form.medium === m
-                        ? "bg-primary/10 border-primary/40 text-primary"
-                        : "bg-background border-border text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {MEDIUM_LABELS[m]}
-                  </button>
-                ))}
-              </div>
+                );
+              })}
             </div>
           </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="space-y-1.5">
-              <Label htmlFor="germinationDate">Data de Germinação</Label>
-              <Input
-                id="germinationDate"
-                type="date"
-                value={form.germinationDate}
-                onChange={(e) => set("germinationDate", e.target.value)}
-                className="bg-background border-border"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="potSize">Tamanho do Vaso (litros)</Label>
-              <Input
-                id="potSize"
-                type="number"
-                min="1"
-                placeholder="Ex: 15"
-                value={form.potSize}
-                onChange={(e) => set("potSize", e.target.value)}
-                className="bg-background border-border"
-              />
-            </div>
-          </div>
-
-          {spaces.length > 0 && (
-            <div className="space-y-1.5">
-              <Label>Espaço de Cultivo</Label>
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  onClick={() => set("spaceId", "")}
-                  className={cn(
-                    "py-2 px-3 rounded-lg border text-xs font-medium transition-all text-left",
-                    !form.spaceId
-                      ? "bg-primary/10 border-primary/40 text-primary"
-                      : "bg-background border-border text-muted-foreground hover:text-foreground"
-                  )}
-                >
-                  Sem espaço
-                </button>
-                {spaces.map((s) => {
-                  const meta = getSpaceMeta(s.type);
-                  return (
-                    <button
-                      key={s.id}
-                      type="button"
-                      onClick={() => set("spaceId", s.id)}
-                      className={cn(
-                        "py-2 px-3 rounded-lg border text-xs font-medium transition-all text-left flex items-center gap-1.5",
-                        form.spaceId === s.id
-                          ? "bg-primary/10 border-primary/40 text-primary"
-                          : "bg-background border-border text-muted-foreground hover:text-foreground"
-                      )}
-                    >
-                      <span>{meta.emoji}</span>
-                      <span className="truncate">{s.name}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+        )}
+      </Section>
 
       {/* Observações */}
-      <Card className="bg-card border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Observações</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Textarea
-            placeholder="Anotações gerais sobre esta planta..."
-            value={form.notes}
-            onChange={(e) => set("notes", e.target.value)}
-            className="bg-background border-border min-h-[100px] resize-none"
-          />
-        </CardContent>
-      </Card>
+      <Section
+        id="notas"
+        title="Observações"
+        summary={form.notes ? form.notes.slice(0, 40) + (form.notes.length > 40 ? "…" : "") : undefined}
+        open={open.has("notas")}
+        onToggle={toggle}
+      >
+        <Textarea
+          placeholder="Anotações gerais sobre esta planta..."
+          value={form.notes}
+          onChange={(e) => set("notes", e.target.value)}
+          className="bg-background border-border min-h-[100px] resize-none"
+        />
+      </Section>
 
       {error && (
         <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 px-4 py-2.5 rounded-lg">
@@ -286,7 +372,7 @@ export function PlantForm({ plant }: PlantFormProps) {
         </p>
       )}
 
-      <div className="flex gap-3 justify-end">
+      <div className="flex gap-3 justify-end pt-2">
         <Button
           type="button"
           variant="outline"
@@ -309,16 +395,4 @@ export function PlantForm({ plant }: PlantFormProps) {
       </div>
     </form>
   );
-}
-
-function StageIcon({ stage, active }: { stage: GrowStage; active: boolean }) {
-  const icons: Record<GrowStage, string> = {
-    semente: "🌱",
-    muda: "🌿",
-    vegetativo: "🍃",
-    floracao: "🌸",
-    colheita: "✂️",
-    secagem: "🍂",
-  };
-  return <span className={`text-lg ${active ? "" : "opacity-60"}`}>{icons[stage]}</span>;
 }
