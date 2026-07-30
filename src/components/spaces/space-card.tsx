@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { deleteSpace } from "@/lib/spaces";
 import { getSpaceMeta, getLightMeta } from "@/lib/space-constants";
 import type { GrowSpace, Plant } from "@/lib/types";
@@ -39,13 +40,13 @@ export function SpaceCard({ space, plants, onEdit, onDeleted }: SpaceCardProps) 
     <div className="bg-card border border-border rounded-2xl p-4 flex flex-col gap-3 hover:border-primary/30 transition-colors">
       {/* Header */}
       <div className="flex items-start justify-between gap-2">
-        <div className="flex items-center gap-2.5">
-          <span className="text-2xl">{spaceMeta.emoji}</span>
-          <div>
-            <p className="font-semibold text-foreground text-sm leading-tight">{space.name}</p>
+        <Link href={`/spaces/${space.id}`} className="flex items-center gap-2.5 flex-1 min-w-0 hover:opacity-80 transition-opacity">
+          <span className="text-2xl shrink-0">{spaceMeta.emoji}</span>
+          <div className="min-w-0">
+            <p className="font-semibold text-foreground text-sm leading-tight truncate">{space.name}</p>
             <p className="text-xs text-muted-foreground">{spaceMeta.label}</p>
           </div>
-        </div>
+        </Link>
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => onEdit(space)}

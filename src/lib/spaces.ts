@@ -5,6 +5,7 @@ import {
   deleteDoc,
   doc,
   getDocs,
+  getDoc,
   query,
   where,
   orderBy,
@@ -33,6 +34,12 @@ export async function updateSpace(id: string, data: Partial<GrowSpace>) {
 
 export async function deleteSpace(id: string) {
   await deleteDoc(doc(db, COLLECTION, id));
+}
+
+export async function getSpace(id: string): Promise<GrowSpace | null> {
+  const snap = await getDoc(doc(db, COLLECTION, id));
+  if (!snap.exists()) return null;
+  return { id: snap.id, ...snap.data() } as GrowSpace;
 }
 
 export async function getUserSpaces(userId: string): Promise<GrowSpace[]> {
