@@ -5,7 +5,6 @@ import {
   User,
   onAuthStateChanged,
   signInWithRedirect,
-  getRedirectResult,
   signOut,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
@@ -28,19 +27,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Handle redirect result after Google redirects back
-    getRedirectResult(auth)
-      .then((result) => {
-        if (result?.user) setUser(result.user);
-      })
-      .catch((err) => {
-        console.error("Redirect result error:", err);
-        setAuthError(friendlyError(err.code));
-      });
-
+    // onAuthStateChanged handles auth state after redirect automatically
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
+      if (u) setSigningIn(false);
     });
     return unsub;
   }, []);
@@ -50,6 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSigningIn(true);
     try {
       await signInWithRedirect(auth, googleProvider);
+      // Page redirects away — code below won't run until user returns
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
       setAuthError(friendlyError(code));
@@ -78,13 +70,13 @@ export function useAuth() {
 function friendlyError(code?: string): string {
   switch (code) {
     case "auth/popup-blocked":
-      return "Popup bloqueado pelo navegador. Tente novamente ou libere popups.";
+      return "Popup bloqueado. Tente novamente ou libere popups no navegador.";
     case "auth/popup-closed-by-user":
       return "Login cancelado.";
     case "auth/network-request-failed":
       return "Erro de rede. Verifique sua conexão.";
     case "auth/unauthorized-domain":
-      return "Domínio não autorizado no Firebase. Verifique as configurações.";
+      return "Domínio não autorizado. Verifique as configurações do Firebase.";
     case "auth/cancelled-popup-request":
       return "";
     default:
