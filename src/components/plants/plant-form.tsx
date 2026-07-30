@@ -4,6 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { createPlant, updatePlant } from "@/lib/plants";
+import { useSpaces } from "@/hooks/use-spaces";
+import { getSpaceMeta } from "@/lib/space-constants";
 import { STAGE_LABELS, STAGE_ORDER, ENV_LABELS, MEDIUM_LABELS } from "@/lib/constants";
 import type { Plant, GrowStage, GrowEnv, Medium } from "@/lib/types";
 import { Button } from "@/components/ui/button";
@@ -12,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Leaf, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface PlantFormProps {
   plant?: Plant;
@@ -20,6 +23,7 @@ interface PlantFormProps {
 export function PlantForm({ plant }: PlantFormProps) {
   const { user } = useAuth();
   const router = useRouter();
+  const { spaces } = useSpaces();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -31,6 +35,7 @@ export function PlantForm({ plant }: PlantFormProps) {
     medium: (plant?.medium ?? "terra") as Medium,
     germinationDate: plant?.germinationDate ?? new Date().toISOString().split("T")[0],
     potSize: plant?.potSize?.toString() ?? "",
+    spaceId: plant?.spaceId ?? "",
     notes: plant?.notes ?? "",
   });
 
@@ -57,6 +62,7 @@ export function PlantForm({ plant }: PlantFormProps) {
         germinationDate: form.germinationDate,
         stageChangedAt: plant?.stageChangedAt ?? new Date().toISOString(),
         potSize: form.potSize ? Number(form.potSize) : undefined,
+        spaceId: form.spaceId || undefined,
         notes: form.notes.trim() || undefined,
         photoUrl: plant?.photoUrl,
       };
@@ -217,6 +223,45 @@ export function PlantForm({ plant }: PlantFormProps) {
               />
             </div>
           </div>
+
+          {spaces.length > 0 && (
+            <div className="space-y-1.5">
+              <Label>Espaço de Cultivo</Label>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => set("spaceId", "")}
+                  className={cn(
+                    "py-2 px-3 rounded-lg border text-xs font-medium transition-all text-left",
+                    !form.spaceId
+                      ? "bg-primary/10 border-primary/40 text-primary"
+                      : "bg-background border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  Sem espaço
+                </button>
+                {spaces.map((s) => {
+                  const meta = getSpaceMeta(s.type);
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => set("spaceId", s.id)}
+                      className={cn(
+                        "py-2 px-3 rounded-lg border text-xs font-medium transition-all text-left flex items-center gap-1.5",
+                        form.spaceId === s.id
+                          ? "bg-primary/10 border-primary/40 text-primary"
+                          : "bg-background border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <span>{meta.emoji}</span>
+                      <span className="truncate">{s.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

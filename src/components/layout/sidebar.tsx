@@ -13,11 +13,13 @@ import {
   Settings,
   LogOut,
   FlaskConical,
+  LayoutGrid,
 } from "lucide-react";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/plants", label: "Plantas", icon: Leaf },
+  { href: "/spaces", label: "Espaços", icon: LayoutGrid },
   { href: "/diary", label: "Diário", icon: BookOpen },
   { href: "/environment", label: "Ambiente", icon: Thermometer },
   { href: "/nutrients", label: "Nutrientes", icon: FlaskConical },

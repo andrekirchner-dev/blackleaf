@@ -6,11 +6,12 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { cn } from "@/lib/utils";
-import { LayoutDashboard, Leaf, BookOpen, Thermometer, Menu, X, FlaskConical, Settings } from "lucide-react";
+import { LayoutDashboard, Leaf, BookOpen, Thermometer, Menu, X, FlaskConical, Settings, LayoutGrid } from "lucide-react";
 
 const nav = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/plants", label: "Plantas", icon: Leaf },
+  { href: "/spaces", label: "Espaços", icon: LayoutGrid },
   { href: "/diary", label: "Diário", icon: BookOpen },
   { href: "/environment", label: "Ambiente", icon: Thermometer },
   { href: "/nutrients", label: "Nutrientes", icon: FlaskConical },
