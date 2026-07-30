@@ -40,10 +40,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setSigningIn(true);
     try {
       await signInWithPopup(auth, googleProvider);
-      // onAuthStateChanged fires automatically after popup closes
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
-      // User just closed the popup — not an error
+      const message = (err as { message?: string }).message;
+      console.error("[Blackleaf Auth]", { code, message, err });
       if (
         code === "auth/popup-closed-by-user" ||
         code === "auth/cancelled-popup-request"
@@ -51,7 +51,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSigningIn(false);
         return;
       }
-      setAuthError(friendlyError(code));
+      // Show raw code/message so we can diagnose
+      setAuthError(code ? `Erro: ${code}` : `Erro: ${message ?? "desconhecido"}`);
       setSigningIn(false);
     }
   }
