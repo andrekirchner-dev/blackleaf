@@ -4,7 +4,7 @@ import { createContext, useContext, useEffect, useState } from "react";
 import {
   User,
   onAuthStateChanged,
-  signInWithRedirect,
+  signInWithPopup,
   signOut,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
@@ -27,11 +27,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
-    // onAuthStateChanged handles auth state after redirect automatically
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
-      if (u) setSigningIn(false);
+      setSigningIn(false);
     });
     return unsub;
   }, []);
@@ -40,10 +39,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
     setSigningIn(true);
     try {
-      await signInWithRedirect(auth, googleProvider);
-      // Page redirects away — code below won't run until user returns
+      await signInWithPopup(auth, googleProvider);
+      // onAuthStateChanged fires automatically after popup closes
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
+      // User just closed the popup — not an error
+      if (
+        code === "auth/popup-closed-by-user" ||
+        code === "auth/cancelled-popup-request"
+      ) {
+        setSigningIn(false);
+        return;
+      }
       setAuthError(friendlyError(code));
       setSigningIn(false);
     }
@@ -55,7 +62,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, loading, signingIn, authError, signInWithGoogle, logout }}>
+    <AuthContext.Provider
+      value={{ user, loading, signingIn, authError, signInWithGoogle, logout }}
+    >
       {children}
     </AuthContext.Provider>
   );
@@ -70,15 +79,13 @@ export function useAuth() {
 function friendlyError(code?: string): string {
   switch (code) {
     case "auth/popup-blocked":
-      return "Popup bloqueado. Tente novamente ou libere popups no navegador.";
-    case "auth/popup-closed-by-user":
-      return "Login cancelado.";
+      return "Popup bloqueado pelo navegador. Libere popups para este site e tente novamente.";
     case "auth/network-request-failed":
       return "Erro de rede. Verifique sua conexão.";
     case "auth/unauthorized-domain":
-      return "Domínio não autorizado. Verifique as configurações do Firebase.";
-    case "auth/cancelled-popup-request":
-      return "";
+      return "Domínio não autorizado no Firebase. Verifique as configurações.";
+    case "auth/internal-error":
+      return "Erro interno. Tente novamente em alguns instantes.";
     default:
       return code ? `Erro: ${code}` : "Erro ao fazer login. Tente novamente.";
   }
