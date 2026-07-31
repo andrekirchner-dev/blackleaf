@@ -18,17 +18,151 @@ import {
   Settings,
   LayoutGrid,
   LogOut,
+  ShoppingCart,
+  Bug,
+  Scissors,
+  Microscope,
+  ChevronDown,
 } from "lucide-react";
 
-const nav = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-  { href: "/plants", label: "Plantas", icon: Leaf },
-  { href: "/spaces", label: "Espaços", icon: LayoutGrid },
-  { href: "/diary", label: "Diário", icon: BookOpen },
-  { href: "/environment", label: "Ambiente", icon: Thermometer },
-  { href: "/nutrients", label: "Nutrientes", icon: FlaskConical },
-  { href: "/settings", label: "Config", icon: Settings },
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ElementType;
+}
+
+interface NavGroup {
+  label: string;
+  collapsible?: boolean;
+  items: NavItem[];
+}
+
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: "Cultivo",
+    collapsible: true,
+    items: [
+      { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+      { href: "/spaces", label: "Espaços", icon: LayoutGrid },
+      { href: "/plants", label: "Plantas", icon: Leaf },
+      { href: "/environment", label: "Ambiente", icon: Thermometer },
+      { href: "/nutrients", label: "Nutrientes", icon: FlaskConical },
+    ],
+  },
+  {
+    label: "Diário",
+    collapsible: false,
+    items: [
+      { href: "/diary", label: "Diário", icon: BookOpen },
+    ],
+  },
+  {
+    label: "Compras",
+    collapsible: false,
+    items: [
+      { href: "/shopping", label: "Lista de Compras", icon: ShoppingCart },
+    ],
+  },
+  {
+    label: "Ferramentas",
+    collapsible: true,
+    items: [
+      { href: "/tools/pests", label: "Pragas", icon: Bug },
+      { href: "/tools/nutrients", label: "Nutrientes", icon: Microscope },
+      { href: "/tools/training", label: "Treinamento", icon: Scissors },
+    ],
+  },
 ];
+
+function MobileGroupSection({
+  group,
+  pathname,
+  onClose,
+  itemIndex,
+}: {
+  group: NavGroup;
+  pathname: string;
+  onClose: () => void;
+  itemIndex: number;
+}) {
+  const hasActive = group.items.some(
+    (item) => pathname === item.href || pathname.startsWith(item.href + "/")
+  );
+  const [open, setOpen] = useState(!group.collapsible || hasActive || itemIndex < 2);
+
+  return (
+    <div className="space-y-0.5">
+      {group.collapsible ? (
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="w-full flex items-center justify-between px-3 py-1.5 group"
+        >
+          <span className="text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60 group-hover:text-muted-foreground transition-colors">
+            {group.label}
+          </span>
+          <ChevronDown
+            size={11}
+            className={cn("text-muted-foreground/40 transition-transform", open && "rotate-180")}
+          />
+        </button>
+      ) : (
+        <p className="px-3 py-1.5 text-[10px] uppercase tracking-widest font-semibold text-muted-foreground/60">
+          {group.label}
+        </p>
+      )}
+
+      <AnimatePresence initial={false}>
+        {(!group.collapsible || open) && (
+          <motion.div
+            initial={group.collapsible ? { height: 0, opacity: 0 } : false}
+            animate={{ height: "auto", opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.22, ease: "easeInOut" }}
+            className="overflow-hidden"
+          >
+            <div className="space-y-0.5">
+              {group.items.map((item, i) => {
+                const active = pathname === item.href || pathname.startsWith(item.href + "/");
+                const Icon = item.icon;
+                return (
+                  <motion.div
+                    key={item.href}
+                    initial={{ opacity: 0, x: -12 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: i * 0.03, duration: 0.2 }}
+                  >
+                    <Link
+                      href={item.href}
+                      onClick={onClose}
+                      className={cn(
+                        "relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all overflow-hidden",
+                        active
+                          ? "bg-primary/10 text-primary border border-primary/20"
+                          : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
+                      )}
+                    >
+                      {active && (
+                        <span className="absolute left-0 top-2 bottom-2 w-0.5 bg-primary rounded-full" />
+                      )}
+                      <Icon
+                        size={16}
+                        className={active ? "text-primary" : "text-muted-foreground"}
+                      />
+                      {item.label}
+                      {active && (
+                        <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_rgba(34,197,94,0.8)]" />
+                      )}
+                    </Link>
+                  </motion.div>
+                );
+              })}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
 
 export function MobileNav() {
   const [open, setOpen] = useState(false);
@@ -65,7 +199,6 @@ export function MobileNav() {
       <AnimatePresence>
         {open && (
           <div className="fixed inset-0 z-50 md:hidden">
-            {/* Backdrop */}
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -75,7 +208,6 @@ export function MobileNav() {
               onClick={() => setOpen(false)}
             />
 
-            {/* Drawer */}
             <motion.div
               initial={{ x: "-100%" }}
               animate={{ x: 0 }}
@@ -84,7 +216,7 @@ export function MobileNav() {
               className="absolute left-0 top-0 bottom-0 w-72 bg-sidebar border-r border-sidebar-border flex flex-col"
             >
               {/* Header */}
-              <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border">
+              <div className="flex items-center justify-between px-5 py-5 border-b border-sidebar-border shrink-0">
                 <div className="flex items-center gap-2.5">
                   <div className="relative w-7 h-7 shrink-0">
                     <div className="absolute inset-0 rounded-full bg-primary/20 blur-sm animate-glow-pulse" />
@@ -111,47 +243,38 @@ export function MobileNav() {
               </div>
 
               {/* Nav */}
-              <nav className="flex-1 px-3 py-4 space-y-0.5">
-                {nav.map(({ href, label, icon: Icon }, i) => {
-                  const active =
-                    pathname === href || pathname.startsWith(href + "/");
-                  return (
-                    <motion.div
-                      key={href}
-                      initial={{ opacity: 0, x: -16 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: i * 0.04, duration: 0.25 }}
-                    >
-                      <Link
-                        href={href}
-                        onClick={() => setOpen(false)}
-                        className={cn(
-                          "relative flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-all overflow-hidden",
-                          active
-                            ? "bg-primary/10 text-primary border border-primary/20"
-                            : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
-                        )}
-                      >
-                        {active && (
-                          <span className="absolute left-0 top-2 bottom-2 w-0.5 bg-primary rounded-full" />
-                        )}
-                        <Icon
-                          size={17}
-                          className={active ? "text-primary" : "text-muted-foreground"}
-                        />
-                        {label}
-                        {active && (
-                          <span className="ml-auto w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_rgba(34,197,94,0.8)]" />
-                        )}
-                      </Link>
-                    </motion.div>
-                  );
-                })}
+              <nav className="flex-1 px-3 py-4 space-y-3 overflow-y-auto">
+                {NAV_GROUPS.map((group, i) => (
+                  <MobileGroupSection
+                    key={group.label}
+                    group={group}
+                    pathname={pathname}
+                    onClose={() => setOpen(false)}
+                    itemIndex={i}
+                  />
+                ))}
+
+                {/* Settings at bottom of nav */}
+                <div className="pt-2">
+                  <Link
+                    href="/settings"
+                    onClick={() => setOpen(false)}
+                    className={cn(
+                      "relative flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                      pathname === "/settings"
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
+                    )}
+                  >
+                    <Settings size={16} className={pathname === "/settings" ? "text-primary" : "text-muted-foreground"} />
+                    Configurações
+                  </Link>
+                </div>
               </nav>
 
               {/* User footer */}
               {user && (
-                <div className="px-5 py-4 border-t border-sidebar-border flex items-center gap-3">
+                <div className="px-5 py-4 border-t border-sidebar-border flex items-center gap-3 shrink-0">
                   <img
                     src={user.photoURL || ""}
                     alt=""

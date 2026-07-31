@@ -1,0 +1,298 @@
+export type StressLevel = "low" | "medium" | "high";
+export type Difficulty = "beginner" | "intermediate" | "advanced";
+export type GrowStage = "seedling" | "veg" | "early-flower" | "flower";
+
+export interface TrainingTechnique {
+  id: string;
+  name: string;
+  acronym?: string;
+  emoji: string;
+  stressLevel: StressLevel;
+  difficulty: Difficulty;
+  idealStage: GrowStage[];
+  autoflowerFriendly: boolean;
+  description: string;
+  benefits: string[];
+  risks: string[];
+  howTo: string[];
+  timeImpact?: string;
+}
+
+export const TRAINING_TECHNIQUES: TrainingTechnique[] = [
+  {
+    id: "lst",
+    name: "Low Stress Training",
+    acronym: "LST",
+    emoji: "🌿",
+    stressLevel: "low",
+    difficulty: "beginner",
+    idealStage: ["seedling", "veg"],
+    autoflowerFriendly: true,
+    description: "Técnica de baixo estresse que consiste em dobrar e amarrar os caules laterais para criar um dossel plano. Quebra a dominância apical sem cortar a planta, permitindo que todas as colas recebam luz igualmente.",
+    benefits: [
+      "Múltiplas colas no mesmo nível das luzes — yields maiores",
+      "Sem tempo de recuperação (planta continua crescendo normalmente)",
+      "Ideal para autoflowers (que não toleram HST)",
+      "Aumenta o número de pontos de crescimento lateral",
+      "Controla a altura em espaços baixos",
+    ],
+    risks: [
+      "Caules podem crescer retos novamente se não forem refixados",
+      "Exige atenção constante durante o vegetativo",
+      "Caules muito velhos e lenhosos podem quebrar ao dobrar",
+    ],
+    howTo: [
+      "Começar cedo — quando os caules ainda são flexíveis (4–6 nós)",
+      "Dobrar o caule principal em direção ao lado oposto do sol/luz",
+      "Fixar com grampo, clipe ou amarração no substrato",
+      "Repetir com os brotos laterais que crescerem acima do nível desejado",
+      "Ajustar e redirecionar os brotos a cada 2–3 dias",
+      "Antes da floração, soltar as amarrações e deixar os brotos se fixar naturalmente",
+    ],
+    timeImpact: "Nenhum — não adiciona tempo ao ciclo",
+  },
+  {
+    id: "topping",
+    name: "Topping",
+    emoji: "✂️",
+    stressLevel: "high",
+    difficulty: "beginner",
+    idealStage: ["veg"],
+    autoflowerFriendly: false,
+    description: "Remoção completa do ápice do caule principal para quebrar a dominância apical. O resultado são dois novos brotos principais a partir do ponto de corte, dobrando as colas potenciais.",
+    benefits: [
+      "Cria imediatamente dois caules principais",
+      "Promove crescimento lateral vigoroso",
+      "Aumenta significativamente o número de colas",
+      "Base para outras técnicas como manifolding",
+    ],
+    risks: [
+      "Adiciona 5–10 dias ao vegetativo para recuperação",
+      "Risco de infecção se feito com ferramenta suja",
+      "Stress em excesso pode afetar autoflowers irrecuperavelmente",
+      "Não deve ser feito em floração",
+    ],
+    howTo: [
+      "Aguardar a planta desenvolver pelo menos 4–6 nós verdadeiros",
+      "Esterilizar tesoura ou bisturi com álcool isopropílico",
+      "Cortar limpo logo acima do último par de folhas (nó mais novo)",
+      "O corte revela dois novos brotos que se desenvolvem como colas principais",
+      "Repetir o topping em cada novo caule principal para 4, 8 colas, etc.",
+      "Aguardar recuperação de 5–7 dias antes de nova manipulação",
+    ],
+    timeImpact: "Adiciona ~1 semana ao vegetativo por topping",
+  },
+  {
+    id: "fimming",
+    name: "FIMming",
+    acronym: "FIM",
+    emoji: "✂️",
+    stressLevel: "medium",
+    difficulty: "intermediate",
+    idealStage: ["veg"],
+    autoflowerFriendly: false,
+    description: "Versão menos agressiva do topping — em vez de remover o ápice completamente, apenas o topo do broto apical é danificado (raspado). Pode gerar 4 novos brotos em vez de 2, com menos estresse.",
+    benefits: [
+      "Potencialmente 4 novos brotos (vs. 2 do topping)",
+      "Menos estresse que o topping — recuperação mais rápida",
+      "Menor tempo de espera para continuar o treinamento",
+    ],
+    risks: [
+      "Maior taxa de falha — resultado pode ser apenas 1 cola dominante",
+      "Técnica mais difícil de executar corretamente",
+      "Resultado inconsistente comparado ao topping",
+    ],
+    howTo: [
+      "Identificar o novo crescimento apical mais recente (broto verde claro no topo)",
+      "Com tesoura esterilizada, cortar apenas ~75% do broto apical (não o todo)",
+      "O resultado deve ser um toco com tecido meristemático exposto",
+      "Observar nos dias seguintes — devem surgir 4 brotos no lugar de 1",
+      "Se surgir apenas 1 ou 2, tente topping na próxima vez",
+    ],
+    timeImpact: "Adiciona ~5 dias ao vegetativo",
+  },
+  {
+    id: "scrog",
+    name: "Screen of Green",
+    acronym: "ScrOG",
+    emoji: "🔲",
+    stressLevel: "low",
+    difficulty: "intermediate",
+    idealStage: ["veg", "early-flower"],
+    autoflowerFriendly: false,
+    description: "Tela horizontal instalada acima das plantas. Os brotos são entrelaçados pela tela à medida que crescem, criando um dossel absolutamente plano que maximiza a exposição à luz.",
+    benefits: [
+      "Máxima exposição luminosa — cada broto fica equidistante da luz",
+      "Dossel plano = distribuição uniforme de luz e calor",
+      "A tela serve de suporte para buds pesados na floração",
+      "Ideal para grow rooms com altura limitada",
+      "Alta eficiência de espaço — poucas plantas, alto yield",
+    ],
+    risks: [
+      "Requer estrutura adicional (tela, suportes)",
+      "Trabalhoso — exige manejo diário durante o vegetativo",
+      "Dificulta a remoção de plantas individuais se necessário",
+      "Não é ideal para múltiplas plantas de genótipos diferentes",
+    ],
+    howTo: [
+      "Instalar tela a ~20–30cm acima do substrato (ajustar conforme espaço)",
+      "Deixar a planta crescer até atingir a tela",
+      "Dobrar e entrelaçar cada broto que sobe pela tela para crescer horizontalmente",
+      "Preencher a tela até 50–70% antes de iniciar floração",
+      "Na floração, parar de treinar e deixar os brotos crescerem verticalmente pela tela",
+      "Retirar folhas grandes que bloqueiam buracos da tela abaixo do dossel",
+    ],
+    timeImpact: "Vegetativo mais longo (+2–4 semanas) para preencher a tela",
+  },
+  {
+    id: "sog",
+    name: "Sea of Green",
+    acronym: "SoG",
+    emoji: "🌊",
+    stressLevel: "low",
+    difficulty: "beginner",
+    idealStage: ["seedling", "veg"],
+    autoflowerFriendly: true,
+    description: "Estratégia de cultivo com muitas plantas pequenas que entram em floração cedo (4–5 semanas de veg). Em vez de treinar poucos exemplares para ter muitas colas, usa-se o número de plantas em si para criar o 'mar verde'.",
+    benefits: [
+      "Colheita mais rápida — vegetativo curto",
+      "Sem necessidade de treinamento extenso",
+      "Dossel uniforme naturalmente",
+      "Ideal para clones genéticamente idênticos",
+    ],
+    risks: [
+      "Requer mais plantas e portanto mais sementes/clones e custo",
+      "Pode ser proibido em jurisdições com limite de plantas",
+      "Pouca margem para erro — plantas entram em floração muito jovens",
+    ],
+    howTo: [
+      "Usar muitas plantas pequenas — densidades de 9–16 plantas/m²",
+      "Vegetativo curto: 4–5 semanas (ou 3–4 semanas com clones)",
+      "Iniciar floração (12/12) enquanto as plantas são pequenas",
+      "Uma cola principal por planta — sem treinamento necessário",
+      "Garantir que todas as plantas sejam da mesma genética para dossel uniforme",
+    ],
+    timeImpact: "Vegetativo mais curto — ciclo total mais rápido",
+  },
+  {
+    id: "supercropping",
+    name: "Super Cropping",
+    emoji: "💪",
+    stressLevel: "high",
+    difficulty: "intermediate",
+    idealStage: ["veg"],
+    autoflowerFriendly: false,
+    description: "Técnica de dobramento extremo de caules já lenhosos. O interior do caule é amolecido antes de dobrar em ângulo severo (90°), forçando a planta a criar um calo de cicatrização e redistribuir fluxo de nutrientes.",
+    benefits: [
+      "Controla plantas que cresceram demais no vegetativo",
+      "O calo de cicatrização aumenta o fluxo de nutrientes naquele ponto",
+      "Estimula resposta de estresse positiva",
+      "Não remove tecido — todo o crescimento é preservado",
+    ],
+    risks: [
+      "Quebra acidental do caule se feito incorretamente",
+      "Tempo de recuperação de alguns dias",
+      "Risco de infecção no ponto de dobramento",
+    ],
+    howTo: [
+      "Identificar o caule a ser dobrado (preferencialmente veg tardio)",
+      "Com os dedos polegar e indicador, esmagar suavemente o interior do caule no ponto desejado",
+      "Girar os dedos até sentir que o interior está amolecido (sem quebrar a casca externa)",
+      "Dobrar o caule amolecido no ângulo desejado (até 90°)",
+      "Fixar com amarração ou prender contra o substrato/suporte",
+      "O calo de cicatrização aparece em 3–5 dias — sinal de sucesso",
+    ],
+    timeImpact: "Sem impacto no calendário se feito corretamente",
+  },
+  {
+    id: "manifolding",
+    name: "Manifolding / Mainlining",
+    emoji: "🌳",
+    stressLevel: "high",
+    difficulty: "intermediate",
+    idealStage: ["veg"],
+    autoflowerFriendly: false,
+    description: "Sequência estruturada de dois toppings para criar uma base simétrica com múltiplos caules principais a partir de um único ponto ('manifold'). Resulta em plantas uniformes com colas longas e espessas.",
+    benefits: [
+      "Estrutura extremamente simétrica e uniforme",
+      "Buds maiores e mais longos que com topping simples",
+      "Igual distância de cada cola ao substrato — absorção uniforme",
+      "Alta compatibilidade com ScrOG",
+    ],
+    risks: [
+      "Processo lento — mínimo 3–4 semanas extras no vegetativo",
+      "Complexidade moderada — exige paciência",
+      "Não funciona para autoflowers",
+    ],
+    howTo: [
+      "Passo 1: Topping o ápice quando a planta tiver 3–4 nós",
+      "Remover todos os brotos abaixo do ponto de corte, deixando apenas os 2 novos brotos principais",
+      "Aguardar crescimento de ~5–7 dias",
+      "Passo 2: Topping novamente cada um dos 2 brotos principais",
+      "Resultado: 4 caules principais igualmente posicionados a partir do mesmo nó base",
+      "Aplicar LST para manter todos os 4 caules no mesmo nível horizontal",
+    ],
+    timeImpact: "Adiciona 3–5 semanas ao vegetativo",
+  },
+  {
+    id: "defoliation",
+    name: "Desfolha (Defoliation)",
+    emoji: "🍂",
+    stressLevel: "medium",
+    difficulty: "intermediate",
+    idealStage: ["early-flower"],
+    autoflowerFriendly: false,
+    description: "Remoção estratégica das folhas fan maiores no início da floração para expor os pontos de crescimento de buds à luz e melhorar a circulação de ar. Aumenta a densidade e tamanho dos buds.",
+    benefits: [
+      "Buds mais densos e maiores por maior exposição à luz",
+      "Melhor circulação de ar — reduz risco de mold e botrytis",
+      "Nutrientes das folhas removidas são redirecionados para os buds",
+      "Facilita inspeção visual da planta inteira",
+    ],
+    risks: [
+      "Estresse excessivo se removidas folhas demais",
+      "Timing crítico — somente no início da floração",
+      "Contraproducente em plantas debilitadas ou com deficiências",
+      "Não funciona bem em autoflowers ou em ambientes frios",
+    ],
+    howTo: [
+      "Realizar somente em plantas saudáveis com vegetativo completo",
+      "Primeira desfolha: semana 1–2 após mudança para 12/12",
+      "Remover apenas as folhas fan grandes que bloqueiam sites de buds ou a tela (em ScrOG)",
+      "Nunca remover mais de 20–30% das folhas de uma vez",
+      "Segunda desfolha opcional: semana 3–4 da floração, apenas folhas grandes que bloqueiam luz",
+      "Parar qualquer desfolha após semana 5 de floração",
+    ],
+    timeImpact: "Nenhum impacto se feito no timing correto",
+  },
+  {
+    id: "lollipopping",
+    name: "Lollipopping",
+    emoji: "🍭",
+    stressLevel: "medium",
+    difficulty: "beginner",
+    idealStage: ["early-flower"],
+    autoflowerFriendly: false,
+    description: "Remoção dos brotos e folhas do terço inferior da planta para concentrar toda a energia nos buds superiores. A planta passa a ter aparência de pirulito — caule limpo na base, folhagem densa no topo.",
+    benefits: [
+      "Elimina buds popcorn ineficientes do baixo da planta",
+      "Concentra energia nos buds superiores de qualidade",
+      "Melhora drasticamente a circulação de ar na base",
+      "Reduz risco de mofo e doenças fúngicas",
+      "Mais fácil de pulverizar preventivamente",
+    ],
+    risks: [
+      "Remover demais pode reduzir o crescimento geral",
+      "Folhas no terço médio realizam fotossíntese importante",
+      "Não recomendado em plantas pequenas ou jovens",
+    ],
+    howTo: [
+      "Realizar na transição para floração ou nas primeiras 2 semanas de floração",
+      "Identificar o terço inferior da planta (abaixo da zona de luz)",
+      "Remover todos os brotos secundários e folhas grandes nessa região",
+      "Manter o terço médio intacto — apenas podar brotos claramente sombreados",
+      "Terço superior = zona de crescimento — não tocar",
+    ],
+    timeImpact: "Nenhum — realizado na entrada da floração",
+  },
+];

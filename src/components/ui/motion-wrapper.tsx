@@ -16,13 +16,19 @@ const item = {
   },
 };
 
-export function MotionPage({ children }: { children: React.ReactNode }) {
+export function MotionPage({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
   return (
     <motion.div
       variants={container}
       initial="hidden"
       animate="show"
-      className="contents"
+      className={className ?? "contents"}
     >
       {children}
     </motion.div>
