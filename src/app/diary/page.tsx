@@ -14,6 +14,7 @@ import type { DiaryEntry } from "@/lib/types";
 import { format, parseISO, isToday, isYesterday, isSameDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 
 export default function DiaryPage() {
   const { entries, loading: loadingDiary, refresh } = useDiary();
@@ -60,8 +61,10 @@ export default function DiaryPage() {
   const loading = loadingDiary || loadingPlants;
 
   return (
+    <MotionPage>
     <div className="space-y-5 max-w-3xl mx-auto">
       {/* Header */}
+      <MotionItem>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Diário de Cultivo</h1>
@@ -80,8 +83,10 @@ export default function DiaryPage() {
           Novo Registro
         </Button>
       </div>
+      </MotionItem>
 
       {/* Filters */}
+      <MotionItem>
       {(plants.length > 0 || entries.length > 0) && (
         <div className="space-y-2">
           {/* Plant filter */}
@@ -145,8 +150,10 @@ export default function DiaryPage() {
           </div>
         </div>
       )}
+      </MotionItem>
 
       {/* Content */}
+      <MotionItem>
       {loading ? (
         <div className="space-y-3">
           {Array.from({ length: 3 }).map((_, i) => (
@@ -198,6 +205,7 @@ export default function DiaryPage() {
           ))}
         </div>
       )}
+      </MotionItem>
 
       {/* New entry sheet */}
       <Sheet open={open} onOpenChange={setOpen}>
@@ -217,6 +225,7 @@ export default function DiaryPage() {
         </SheetContent>
       </Sheet>
     </div>
+    </MotionPage>
   );
 }
 

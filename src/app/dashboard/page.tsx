@@ -18,6 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 
 function fmt(date: string) {
   try {
@@ -105,8 +106,10 @@ export default function DashboardPage() {
   const loading = loadingPlants || loadingSpaces;
 
   return (
+    <MotionPage>
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
+      <MotionItem>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
@@ -121,8 +124,10 @@ export default function DashboardPage() {
           </Button>
         </Link>
       </div>
+      </MotionItem>
 
       {/* Quick stats */}
+      <MotionItem>
       <div className="grid grid-cols-3 gap-3">
         {loading ? (
           Array.from({ length: 3 }, (_, i) => (
@@ -160,8 +165,10 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+      </MotionItem>
 
       {/* Active Spaces */}
+      <MotionItem>
       {(spaces.length > 0 || unallocatedPlants.length > 0) && (
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
@@ -197,8 +204,10 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
+      </MotionItem>
 
       {/* Grow Calendar */}
+      <MotionItem>
       <div>
         <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-accent" />
@@ -210,8 +219,10 @@ export default function DashboardPage() {
           <GrowCalendar plants={plants} styles={styles} />
         )}
       </div>
+      </MotionItem>
 
       {/* Environmental Charts */}
+      <MotionItem>
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -290,6 +301,7 @@ export default function DashboardPage() {
           />
         </div>
       </div>
+      </MotionItem>
 
       {/* Space plants sheet */}
       {activeSheet && (
@@ -305,5 +317,6 @@ export default function DashboardPage() {
         />
       )}
     </div>
+    </MotionPage>
   );
 }

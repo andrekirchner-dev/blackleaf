@@ -13,6 +13,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { LogOut, User, Shield, Leaf, Plus, Trash2, Loader2, ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 
 function uid() {
   return Math.random().toString(36).slice(2);
@@ -87,13 +88,17 @@ export default function SettingsPage() {
   const EVENT_EMOJIS = ["📌", "💡", "✂️", "💧", "🌿", "🍄", "⚗️", "🔄", "⚠️", "🌸", "🌱", "🪴"];
 
   return (
+    <MotionPage>
     <div className="space-y-6 max-w-2xl mx-auto">
+      <MotionItem>
       <div>
         <h1 className="text-2xl font-bold">Configurações</h1>
         <p className="text-sm text-muted-foreground mt-0.5">Gerencie sua conta e preferências</p>
       </div>
+      </MotionItem>
 
       {/* Profile */}
+      <MotionItem>
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -117,8 +122,10 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+      </MotionItem>
 
       {/* Grow Styles */}
+      <MotionItem>
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -221,8 +228,10 @@ export default function SettingsPage() {
           )}
         </CardContent>
       </Card>
+      </MotionItem>
 
       {/* Account */}
+      <MotionItem>
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-base font-semibold flex items-center gap-2">
@@ -237,6 +246,7 @@ export default function SettingsPage() {
           </Button>
         </CardContent>
       </Card>
+      </MotionItem>
 
       {/* New grow style dialog */}
       <Dialog open={showNewStyle} onOpenChange={setShowNewStyle}>
@@ -396,5 +406,6 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </MotionPage>
   );
 }

@@ -10,6 +10,7 @@ import { usePlants } from "@/hooks/use-plants";
 import { Skeleton } from "@/components/ui/skeleton";
 import { STAGE_LABELS, STAGE_ORDER } from "@/lib/constants";
 import type { GrowStage } from "@/lib/types";
+import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 
 export default function PlantsPage() {
   const { plants, loading } = usePlants();
@@ -27,7 +28,9 @@ export default function PlantsPage() {
   }, [plants, search, stageFilter]);
 
   return (
+    <MotionPage>
     <div className="space-y-6 max-w-6xl mx-auto">
+      <MotionItem>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Plantas</h1>
@@ -42,8 +45,10 @@ export default function PlantsPage() {
           </Button>
         </Link>
       </div>
+      </MotionItem>
 
       {/* Filtros */}
+      <MotionItem>
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
           <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -80,8 +85,10 @@ export default function PlantsPage() {
           ))}
         </div>
       </div>
+      </MotionItem>
 
       {/* Grid */}
+      <MotionItem>
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
@@ -115,6 +122,8 @@ export default function PlantsPage() {
           Nenhuma planta encontrada com esses filtros.
         </div>
       )}
+      </MotionItem>
     </div>
+    </MotionPage>
   );
 }

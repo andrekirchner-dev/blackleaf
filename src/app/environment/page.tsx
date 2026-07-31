@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Thermometer, Droplets, Wind, Plus, Trash2, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
+import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 
 function fmt(date: string) {
   try {
@@ -119,7 +120,9 @@ export default function EnvironmentPage() {
   }));
 
   return (
+    <MotionPage>
     <div className="space-y-6 max-w-5xl mx-auto">
+      <MotionItem>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold">Ambiente</h1>
@@ -130,8 +133,10 @@ export default function EnvironmentPage() {
           Registrar
         </Button>
       </div>
+      </MotionItem>
 
       {/* Current readings */}
+      <MotionItem>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
           {
@@ -183,16 +188,20 @@ export default function EnvironmentPage() {
           </Card>
         ))}
       </div>
+      </MotionItem>
 
       {/* Charts */}
+      <MotionItem>
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         <EnvChart title="Temperatura" unit="°C" data={toChartData("temperature")} color="#f97316" refMin={20} refMax={28} />
         <EnvChart title="Umidade" unit="%" data={toChartData("humidity")} color="#3b82f6" refMin={40} refMax={70} decimals={0} />
         <EnvChart title="VPD" unit=" kPa" data={vpdData} color="#a855f7" refMin={0.4} refMax={1.2} />
         <EnvChart title="CO₂" unit=" ppm" data={toChartData("co2")} color="#22c55e" refMin={700} refMax={1500} decimals={0} />
       </div>
+      </MotionItem>
 
       {/* History */}
+      <MotionItem>
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
           <CardTitle className="text-sm font-semibold">Histórico de registros</CardTitle>
@@ -237,6 +246,7 @@ export default function EnvironmentPage() {
           )}
         </CardContent>
       </Card>
+      </MotionItem>
 
       {/* Record dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
@@ -303,5 +313,6 @@ export default function EnvironmentPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </MotionPage>
   );
 }

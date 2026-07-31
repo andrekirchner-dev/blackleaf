@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { LayoutGrid, Plus } from "lucide-react";
 import type { GrowSpace } from "@/lib/types";
+import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 
 export default function SpacesPage() {
   const { spaces, loading, refresh } = useSpaces();
@@ -33,8 +34,10 @@ export default function SpacesPage() {
   }
 
   return (
+    <MotionPage>
     <div className="p-4 md:p-6 space-y-6">
       {/* Header */}
+      <MotionItem>
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
@@ -54,8 +57,10 @@ export default function SpacesPage() {
           Novo Espaço
         </Button>
       </div>
+      </MotionItem>
 
       {/* Content */}
+      <MotionItem>
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => (
@@ -87,6 +92,7 @@ export default function SpacesPage() {
           ))}
         </div>
       )}
+      </MotionItem>
 
       {/* Sheet */}
       <Sheet open={sheetOpen} onOpenChange={setSheetOpen}>
@@ -104,5 +110,6 @@ export default function SpacesPage() {
         </SheetContent>
       </Sheet>
     </div>
+    </MotionPage>
   );
 }
