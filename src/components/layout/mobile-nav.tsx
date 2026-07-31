@@ -22,6 +22,7 @@ import {
   Bug,
   Scissors,
   Microscope,
+  Stethoscope,
   ChevronDown,
 } from "lucide-react";
 
@@ -68,6 +69,7 @@ const NAV_GROUPS: NavGroup[] = [
     collapsible: true,
     items: [
       { href: "/tools/pests", label: "Pragas", icon: Bug },
+      { href: "/tools/diseases", label: "Doenças", icon: Stethoscope },
       { href: "/tools/nutrients", label: "Nutrientes", icon: Microscope },
       { href: "/tools/training", label: "Treinamento", icon: Scissors },
     ],
