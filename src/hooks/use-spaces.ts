@@ -16,6 +16,8 @@ export function useSpaces() {
     try {
       const data = await getUserSpaces(user.uid);
       setSpaces(data);
+    } catch (err) {
+      console.error("[useSpaces] load error:", err);
     } finally {
       setLoading(false);
     }

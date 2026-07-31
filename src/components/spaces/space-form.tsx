@@ -86,12 +86,12 @@ export function SpaceForm({ space, onSuccess, onCancel }: SpaceFormProps) {
         depthCm: Number(form.depthCm) || 0,
         heightCm: Number(form.heightCm) || 0,
         lightType: form.lightType,
-        lightWatts: form.lightWatts ? Number(form.lightWatts) : undefined,
         lightSchedule: form.lightSchedule,
         ventInputs:  ventilations.length ? ventInputs  : 1,
         ventOutputs: ventilations.length ? ventOutputs : 1,
         ventilations,
-        notes: form.notes.trim() || undefined,
+        ...(form.lightWatts ? { lightWatts: Number(form.lightWatts) } : {}),
+        ...(form.notes.trim() ? { notes: form.notes.trim() } : {}),
       };
       if (space) {
         await updateSpace(space.id, payload);
@@ -99,8 +99,10 @@ export function SpaceForm({ space, onSuccess, onCancel }: SpaceFormProps) {
         await createSpace(user.uid, payload);
       }
       onSuccess();
-    } catch {
-      setError("Erro ao salvar espaço. Tente novamente.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[SpaceForm] save error:", msg);
+      setError(`Erro ao salvar espaço: ${msg}`);
     } finally {
       setLoading(false);
     }
