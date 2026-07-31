@@ -32,6 +32,7 @@ export function DiaryForm({ plants, defaultPlantId, onSuccess, onCancel }: Diary
     date: new Date().toISOString().slice(0, 16),
     notes: "",
     ph: "",
+    phRunoff: "",
     ec: "",
     waterAmount: "",
   });
@@ -52,6 +53,7 @@ export function DiaryForm({ plants, defaultPlantId, onSuccess, onCancel }: Diary
         date: form.date,
         notes: form.notes.trim(),
         ph: form.ph ? Number(form.ph) : undefined,
+        phRunoff: form.phRunoff ? Number(form.phRunoff) : undefined,
         ec: form.ec ? Number(form.ec) : undefined,
         waterAmount: form.waterAmount ? Number(form.waterAmount) : undefined,
       });
@@ -129,37 +131,53 @@ export function DiaryForm({ plants, defaultPlantId, onSuccess, onCancel }: Diary
 
       {/* Campos por tipo */}
       {showPhEc && (
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1.5">
-            <Label htmlFor="ph">pH da água</Label>
-            <Input
-              id="ph"
-              type="number"
-              step="0.1"
-              min="0"
-              max="14"
-              placeholder="Ex: 6.2"
-              value={form.ph}
-              onChange={(e) => set("ph", e.target.value)}
-              className="bg-background border-border"
-            />
-          </div>
-          {form.type === "nutrientes" && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label htmlFor="ec">EC (mS/cm)</Label>
+              <Label htmlFor="ph">pH entrada (Run-in)</Label>
               <Input
-                id="ec"
+                id="ph"
                 type="number"
                 step="0.1"
                 min="0"
-                placeholder="Ex: 1.4"
-                value={form.ec}
-                onChange={(e) => set("ec", e.target.value)}
+                max="14"
+                placeholder="Ex: 6.2"
+                value={form.ph}
+                onChange={(e) => set("ph", e.target.value)}
                 className="bg-background border-border"
               />
             </div>
-          )}
-          {form.type === "rega" && (
+            <div className="space-y-1.5">
+              <Label htmlFor="phRunoff">pH saída (Run-off)</Label>
+              <Input
+                id="phRunoff"
+                type="number"
+                step="0.1"
+                min="0"
+                max="14"
+                placeholder="Ex: 6.8"
+                value={form.phRunoff}
+                onChange={(e) => set("phRunoff", e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            {form.type === "nutrientes" && (
+              <div className="space-y-1.5">
+                <Label htmlFor="ec">EC (mS/cm)</Label>
+                <Input
+                  id="ec"
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  placeholder="Ex: 1.4"
+                  value={form.ec}
+                  onChange={(e) => set("ec", e.target.value)}
+                  className="bg-background border-border"
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label htmlFor="waterAmount">Volume (mL)</Label>
               <Input
@@ -172,23 +190,7 @@ export function DiaryForm({ plants, defaultPlantId, onSuccess, onCancel }: Diary
                 className="bg-background border-border"
               />
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Volume para nutrientes */}
-      {form.type === "nutrientes" && (
-        <div className="space-y-1.5">
-          <Label htmlFor="waterAmountNutr">Volume (mL)</Label>
-          <Input
-            id="waterAmountNutr"
-            type="number"
-            min="0"
-            placeholder="Ex: 1000"
-            value={form.waterAmount}
-            onChange={(e) => set("waterAmount", e.target.value)}
-            className="bg-background border-border"
-          />
+          </div>
         </div>
       )}
 

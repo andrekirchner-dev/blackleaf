@@ -6,6 +6,7 @@ export type LightType = "led" | "hps" | "cmh" | "cfl" | "fluorescente" | "natura
 export type GeneticType = "sativa" | "indica" | "hibrida" | "autoflowering";
 export type VentRole = "entrada" | "saida" | "circulacao";
 export type VentType = "inline" | "axial" | "clip" | "extrator" | "oscilante";
+export type FeedingType = "organico" | "organomineral" | "mineral" | "hidroponico";
 
 export interface VentilationUnit {
   id: string;
@@ -33,15 +34,36 @@ export interface GrowSpace {
   createdAt: string;
 }
 
+export interface GrowStyleEvent {
+  weekOffset: number;
+  label: string;
+  emoji: string;
+  type: "milestone" | "action" | "warning";
+}
+
+export interface GrowStyle {
+  id: string;
+  userId: string;
+  name: string;
+  description?: string;
+  feedingType: FeedingType;
+  vegWeeks: number;
+  isPreset?: boolean;
+  events: GrowStyleEvent[];
+  createdAt: string;
+}
+
 export interface Plant {
   id: string;
   userId: string;
   spaceId?: string;
+  growStyleId?: string;
   name: string;
   strain: string;
   bank?: string;
   genetics?: GeneticType;
   floweringWeeks?: number;
+  vegWeeks?: number;
   thcEstimate?: string;
   cbdEstimate?: string;
   yieldIndoor?: string;
@@ -68,6 +90,7 @@ export interface DiaryEntry {
   type: "rega" | "nutrientes" | "poda" | "treinamento" | "observacao" | "foto";
   notes: string;
   ph?: number;
+  phRunoff?: number;
   ec?: number;
   waterAmount?: number;
   photoUrl?: string;
@@ -77,10 +100,9 @@ export interface DiaryEntry {
 export interface GrowEnvironment {
   id: string;
   userId: string;
-  name: string;
+  spaceId?: string;
   temperature?: number;
   humidity?: number;
   co2?: number;
-  lightSchedule?: string;
   recordedAt: string;
 }

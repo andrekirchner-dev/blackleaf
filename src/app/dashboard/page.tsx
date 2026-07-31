@@ -1,37 +1,118 @@
 "use client";
 
+import { useMemo, useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { usePlants } from "@/hooks/use-plants";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Leaf, Droplets, Sun, TrendingUp, Plus } from "lucide-react";
+import { useSpaces } from "@/hooks/use-spaces";
+import { useEnvironment } from "@/hooks/use-environment";
+import { useDiary } from "@/hooks/use-diary";
+import { useGrowStyles } from "@/hooks/use-grow-styles";
+import { calcVPD } from "@/lib/environment";
+import { SpaceStatusCard } from "@/components/dashboard/space-status-card";
+import { SpacePlantsSheet } from "@/components/dashboard/space-plants-sheet";
+import { GrowCalendar } from "@/components/dashboard/grow-calendar";
+import { EnvChart } from "@/components/dashboard/env-chart";
 import { Button } from "@/components/ui/button";
+import { Leaf, Sun, CalendarDays, Thermometer, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import Link from "next/link";
-import { PlantCard } from "@/components/plants/plant-card";
-import { STAGE_LABELS, STAGE_COLORS, STAGE_ORDER } from "@/lib/constants";
+import { format } from "date-fns";
+import { ptBR } from "date-fns/locale";
+
+function fmt(date: string) {
+  try {
+    return format(new Date(date), "dd/MM", { locale: ptBR });
+  } catch {
+    return date.slice(5, 10);
+  }
+}
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { plants, loading } = usePlants();
+  const { plants, loading: loadingPlants, refresh: refreshPlants } = usePlants();
+  const { spaces, loading: loadingSpaces } = useSpaces();
+  const { records } = useEnvironment();
+  const { entries, refresh: refreshDiary } = useDiary();
+  const { styles } = useGrowStyles();
+
+  const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
+  const [selectedChartSpace, setSelectedChartSpace] = useState<string>("__all__");
+
   const firstName = user?.displayName?.split(" ")[0] ?? "Grower";
 
   const inFlower = plants.filter((p) => p.stage === "floracao").length;
-  const stageCount = STAGE_ORDER.reduce<Record<string, number>>((acc, s) => {
-    acc[s] = plants.filter((p) => p.stage === s).length;
-    return acc;
-  }, {});
+  const inVeg = plants.filter((p) => p.stage === "vegetativo").length;
+
+  // Spaces with plants
+  const spacesWithPlants = useMemo(
+    () => spaces.map((s) => ({
+      space: s,
+      plants: plants.filter((p) => p.spaceId === s.id),
+    })),
+    [spaces, plants]
+  );
+
+  const unallocatedPlants = plants.filter((p) => !p.spaceId);
+
+  // Build chart data (last 14 readings for the selected space)
+  const filteredRecords = useMemo(() => {
+    if (selectedChartSpace === "__all__") return records;
+    return records.filter((r) => r.spaceId === selectedChartSpace);
+  }, [records, selectedChartSpace]);
+
+  const chartRecords = useMemo(
+    () => [...filteredRecords].reverse().slice(-14),
+    [filteredRecords]
+  );
+
+  function toChartData(key: "temperature" | "humidity" | "co2") {
+    return chartRecords.map((r) => ({
+      label: fmt(r.recordedAt),
+      value: r[key] ?? null,
+    }));
+  }
+
+  const vpdData = useMemo(() => chartRecords.map((r) => ({
+    label: fmt(r.recordedAt),
+    value:
+      r.temperature != null && r.humidity != null
+        ? calcVPD(r.temperature, r.humidity)
+        : null,
+  })), [chartRecords]);
+
+  // pH run-in / run-off from diary
+  const filteredEntries = useMemo(() => {
+    const withPh = entries.filter((e) => e.ph != null || e.phRunoff != null);
+    if (selectedChartSpace === "__all__") return withPh.slice(-14).reverse();
+    const spaceObj = spaces.find((s) => s.id === selectedChartSpace);
+    if (!spaceObj) return withPh.slice(-14).reverse();
+    const spPlantIds = plants.filter((p) => p.spaceId === selectedChartSpace).map((p) => p.id);
+    return withPh.filter((e) => spPlantIds.includes(e.plantId)).slice(-14).reverse();
+  }, [entries, selectedChartSpace, spaces, plants]);
+
+  const phInData = filteredEntries.map((e) => ({
+    label: fmt(e.date),
+    value: e.ph ?? null,
+  }));
+
+  const phOutData = filteredEntries.map((e) => ({
+    label: fmt(e.date),
+    value: e.phRunoff ?? null,
+  }));
+
+  const activeSheet = spacesWithPlants.find((s) => s.space.id === activeSpaceId);
+
+  const loading = loadingPlants || loadingSpaces;
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto">
+    <div className="space-y-6 max-w-5xl mx-auto">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">
-            Olá, <span className="text-primary">{firstName}</span> 👋
+            Olá, <span className="text-primary">{firstName}</span>
           </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">
-            Bem-vindo ao seu painel de cultivo
-          </p>
+          <p className="text-muted-foreground text-sm mt-0.5">Painel do seu cultivo</p>
         </div>
         <Link href="/plants/new">
           <Button className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
@@ -41,115 +122,187 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: "Plantas Ativas", value: loading ? "—" : String(plants.length), icon: Leaf, color: "text-primary", bg: "bg-primary/10" },
-          { label: "Em Floração", value: loading ? "—" : String(inFlower), icon: Sun, color: "text-orange-400", bg: "bg-orange-400/10" },
-          { label: "Vegetativo", value: loading ? "—" : String(stageCount["vegetativo"] ?? 0), icon: Leaf, color: "text-lime-400", bg: "bg-lime-400/10" },
-          { label: "Regas Hoje", value: "0", icon: Droplets, color: "text-blue-400", bg: "bg-blue-400/10" },
-        ].map((stat) => (
-          <Card key={stat.label} className="bg-card border-border">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-lg ${stat.bg} flex items-center justify-center`}>
-                  <stat.icon size={18} className={stat.color} />
-                </div>
-                <div>
-                  {loading ? (
-                    <Skeleton className="h-7 w-8 bg-muted mb-1" />
-                  ) : (
-                    <p className="text-2xl font-bold text-foreground">{stat.value}</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">{stat.label}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {/* Main grid */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Plantas recentes */}
-        <div className="md:col-span-2">
-          <Card className="bg-card border-border">
-            <CardHeader className="flex flex-row items-center justify-between pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
+      {/* Quick stats */}
+      <div className="grid grid-cols-3 gap-3">
+        {loading ? (
+          Array.from({ length: 3 }, (_, i) => (
+            <Skeleton key={i} className="h-16 rounded-xl bg-muted" />
+          ))
+        ) : (
+          <>
+            <div className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
                 <Leaf size={16} className="text-primary" />
-                Plantas Recentes
-              </CardTitle>
-              <Link href="/plants" className="text-xs text-muted-foreground hover:text-primary transition-colors">
-                Ver todas →
-              </Link>
-            </CardHeader>
-            <CardContent>
-              {loading ? (
-                <div className="grid grid-cols-2 gap-3">
-                  {[1, 2].map((i) => <Skeleton key={i} className="h-48 rounded-xl bg-muted" />)}
-                </div>
-              ) : plants.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  {plants.slice(0, 4).map((p) => <PlantCard key={p.id} plant={p} />)}
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-8 text-center gap-3">
-                  <span className="text-4xl opacity-30">🌿</span>
-                  <div>
-                    <p className="text-sm font-medium">Nenhuma planta cadastrada</p>
-                    <p className="text-xs text-muted-foreground mt-1">Adicione sua primeira planta para começar.</p>
-                  </div>
-                  <Link href="/plants/new">
-                    <Button size="sm" className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-                      <Plus size={14} />
-                      Adicionar Planta
-                    </Button>
-                  </Link>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Atividade */}
-        <div>
-          <Card className="bg-card border-border">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold flex items-center gap-2">
-                <TrendingUp size={16} className="text-accent" />
-                Atividade Recente
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center py-8 text-center gap-2">
-                <TrendingUp size={28} className="text-muted-foreground/30" />
-                <p className="text-sm font-medium text-muted-foreground">Sem atividade</p>
-                <p className="text-xs text-muted-foreground/60">Registre regas e nutrições no Diário.</p>
               </div>
-            </CardContent>
-          </Card>
+              <div>
+                <p className="text-xl font-bold text-foreground">{plants.length}</p>
+                <p className="text-xs text-muted-foreground">Plantas</p>
+              </div>
+            </div>
+            <div className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-orange-400/10 flex items-center justify-center shrink-0">
+                <Sun size={16} className="text-orange-400" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-foreground">{inFlower}</p>
+                <p className="text-xs text-muted-foreground">Em Floração</p>
+              </div>
+            </div>
+            <div className="bg-card border border-border rounded-xl p-3 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-lime-400/10 flex items-center justify-center shrink-0">
+                <CalendarDays size={16} className="text-lime-400" />
+              </div>
+              <div>
+                <p className="text-xl font-bold text-foreground">{inVeg}</p>
+                <p className="text-xs text-muted-foreground">Vegetativo</p>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Active Spaces */}
+      {(spaces.length > 0 || unallocatedPlants.length > 0) && (
+        <div>
+          <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary" />
+            Ambientes Ativos
+          </h2>
+          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+            {loadingSpaces ? (
+              Array.from({ length: 2 }, (_, i) => (
+                <Skeleton key={i} className="w-52 h-28 shrink-0 rounded-2xl bg-muted" />
+              ))
+            ) : (
+              <>
+                {spacesWithPlants.map(({ space, plants: sPlants }) => (
+                  <SpaceStatusCard
+                    key={space.id}
+                    space={space}
+                    plants={sPlants}
+                    onClick={() => setActiveSpaceId(space.id)}
+                  />
+                ))}
+                {unallocatedPlants.length > 0 && (
+                  <div className="flex-shrink-0 w-52 bg-card border border-dashed border-border rounded-2xl p-4">
+                    <span className="text-2xl block mb-2">🌿</span>
+                    <p className="text-sm font-semibold text-foreground">Sem espaço</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {unallocatedPlants.length} {unallocatedPlants.length === 1 ? "planta" : "plantas"} não alocadas
+                    </p>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Grow Calendar */}
+      <div>
+        <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+          <span className="w-1.5 h-1.5 rounded-full bg-accent" />
+          Calendário de Cultivo
+        </h2>
+        {loadingPlants ? (
+          <Skeleton className="h-40 rounded-2xl bg-muted" />
+        ) : (
+          <GrowCalendar plants={plants} styles={styles} />
+        )}
+      </div>
+
+      {/* Environmental Charts */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+            Ambiente
+          </h2>
+          <div className="flex items-center gap-1.5">
+            <Thermometer size={13} className="text-muted-foreground" />
+            <select
+              value={selectedChartSpace}
+              onChange={(e) => setSelectedChartSpace(e.target.value)}
+              className="bg-background border border-border rounded-lg text-xs px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="__all__">Todos os espaços</option>
+              {spaces.map((s) => (
+                <option key={s.id} value={s.id}>{s.name}</option>
+              ))}
+            </select>
+            <Link href="/environment">
+              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground">
+                Registrar
+              </Button>
+            </Link>
+          </div>
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <EnvChart
+            title="Temperatura"
+            unit="°C"
+            data={toChartData("temperature")}
+            color="#f97316"
+            refMin={20}
+            refMax={28}
+          />
+          <EnvChart
+            title="Umidade"
+            unit="%"
+            data={toChartData("humidity")}
+            color="#3b82f6"
+            refMin={40}
+            refMax={70}
+            decimals={0}
+          />
+          <EnvChart
+            title="VPD"
+            unit=" kPa"
+            data={vpdData}
+            color="#a855f7"
+            refMin={0.4}
+            refMax={1.2}
+          />
+          <EnvChart
+            title="CO₂"
+            unit=" ppm"
+            data={toChartData("co2")}
+            color="#22c55e"
+            refMin={700}
+            refMax={1500}
+            decimals={0}
+          />
+          <EnvChart
+            title="pH Entrada (Run-in)"
+            unit=""
+            data={phInData}
+            color="#eab308"
+            refMin={5.8}
+            refMax={6.8}
+          />
+          <EnvChart
+            title="pH Saída (Run-off)"
+            unit=""
+            data={phOutData}
+            color="#ec4899"
+            refMin={5.8}
+            refMax={6.8}
+          />
         </div>
       </div>
 
-      {/* Distribuição por fase */}
-      {plants.length > 0 && (
-        <Card className="bg-card border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base font-semibold">Distribuição por Fase</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {STAGE_ORDER.map((s) => (
-                <div key={s} className="flex items-center gap-2 px-3 py-1.5 rounded-lg border border-border bg-background">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs border ${STAGE_COLORS[s]}`}>
-                    {STAGE_LABELS[s]}
-                  </span>
-                  <span className="text-sm font-bold text-foreground">{stageCount[s] ?? 0}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {/* Space plants sheet */}
+      {activeSheet && (
+        <SpacePlantsSheet
+          space={activeSheet.space}
+          plants={activeSheet.plants}
+          open={!!activeSpaceId}
+          onClose={() => setActiveSpaceId(null)}
+          onDiarySuccess={() => {
+            refreshPlants();
+            refreshDiary();
+          }}
+        />
       )}
     </div>
   );
