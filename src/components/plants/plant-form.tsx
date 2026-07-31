@@ -12,8 +12,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, Leaf, Loader2 } from "lucide-react";
+import { ChevronDown, Leaf, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { StrainAutocomplete } from "./strain-autocomplete";
 
 const STAGE_EMOJI: Record<GrowStage, string> = {
   semente: "🌱", muda: "🌿", vegetativo: "🍃",
@@ -190,13 +191,25 @@ export function PlantForm({ plant }: { plant?: Plant }) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="strain">Strain / Genética *</Label>
-            <Input
-              id="strain"
-              placeholder="Ex: OG Kush, Blue Dream, White Widow..."
+            <Label htmlFor="strain" className="flex items-center gap-1.5">
+              Strain / Genética *
+              <span className="flex items-center gap-1 text-[10px] text-primary/70 font-normal">
+                <Sparkles size={9} />
+                autocomplete ativo
+              </span>
+            </Label>
+            <StrainAutocomplete
               value={form.strain}
-              onChange={(e) => set("strain", e.target.value)}
-              className="bg-background border-border"
+              onChange={(v) => set("strain", v)}
+              onAutoFill={(data) => {
+                setForm((prev) => ({
+                  ...prev,
+                  strain: data.strain,
+                  bank: data.bank || prev.bank,
+                  genetics: data.genetics || prev.genetics,
+                  floweringWeeks: data.floweringWeeks || prev.floweringWeeks,
+                }));
+              }}
             />
           </div>
           <div className="space-y-1.5">
