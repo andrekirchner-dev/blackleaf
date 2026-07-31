@@ -22,6 +22,7 @@ import {
   Microscope,
   Stethoscope,
   ChevronDown,
+  Beaker,
 } from "lucide-react";
 
 interface NavItem {
@@ -44,6 +45,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
       { href: "/spaces", label: "Espaços", icon: LayoutGrid },
       { href: "/plants", label: "Plantas", icon: Leaf },
+      { href: "/seeds", label: "Banco de Sementes", icon: Beaker },
       { href: "/environment", label: "Ambiente", icon: Thermometer },
       { href: "/nutrients", label: "Nutrientes", icon: FlaskConical },
     ],
@@ -64,7 +66,7 @@ const NAV_GROUPS: NavGroup[] = [
   },
   {
     label: "Ferramentas",
-    collapsible: true,
+    collapsible: false,
     items: [
       { href: "/tools/pests", label: "Identificação de Pragas", icon: Bug },
       { href: "/tools/diseases", label: "Diagnóstico de Doenças", icon: Stethoscope },
