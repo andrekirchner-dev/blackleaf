@@ -22,6 +22,7 @@ import {
   Microscope,
   Stethoscope,
   ChevronDown,
+  ChevronLeft,
   Beaker,
 } from "lucide-react";
 
@@ -76,17 +77,28 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
+function NavLink({
+  item,
+  pathname,
+  collapsed,
+}: {
+  item: NavItem;
+  pathname: string;
+  collapsed: boolean;
+}) {
   const active = pathname === item.href || pathname.startsWith(item.href + "/");
   const Icon = item.icon;
   return (
-    <Link href={item.href}>
+    <Link href={item.href} title={collapsed ? item.label : undefined}>
       <motion.div
-        whileHover={{ x: 2 }}
+        whileHover={{ x: collapsed ? 0 : 2 }}
         whileTap={{ scale: 0.98 }}
         transition={{ type: "spring", stiffness: 400, damping: 30 }}
         className={cn(
-          "relative flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-medium transition-colors duration-150 cursor-pointer overflow-hidden",
+          "relative flex items-center rounded-xl text-sm font-medium transition-colors duration-150 cursor-pointer overflow-hidden",
+          collapsed
+            ? "justify-center h-9 w-full"
+            : "gap-2.5 px-3 py-2",
           active
             ? "text-primary"
             : "text-sidebar-foreground hover:text-foreground hover:bg-sidebar-accent"
@@ -99,7 +111,7 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
             transition={{ type: "spring", stiffness: 400, damping: 35 }}
           />
         )}
-        {active && (
+        {active && !collapsed && (
           <motion.div
             layoutId="sidebar-active-bar"
             className="absolute left-0 top-2 bottom-2 w-0.5 bg-primary rounded-full"
@@ -113,13 +125,17 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
             active ? "text-primary" : "text-muted-foreground"
           )}
         />
-        <span className="relative z-10 truncate text-[13px]">{item.label}</span>
-        {active && (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="ml-auto relative z-10 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_rgba(34,197,94,0.8)] shrink-0"
-          />
+        {!collapsed && (
+          <>
+            <span className="relative z-10 truncate text-[13px]">{item.label}</span>
+            {active && (
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                className="ml-auto relative z-10 w-1.5 h-1.5 rounded-full bg-primary shadow-[0_0_6px_rgba(34,197,94,0.8)] shrink-0"
+              />
+            )}
+          </>
         )}
       </motion.div>
     </Link>
@@ -129,16 +145,28 @@ function NavLink({ item, pathname }: { item: NavItem; pathname: string }) {
 function NavGroupSection({
   group,
   pathname,
+  collapsed,
   defaultOpen = true,
 }: {
   group: NavGroup;
   pathname: string;
+  collapsed: boolean;
   defaultOpen?: boolean;
 }) {
   const hasActive = group.items.some(
     (item) => pathname === item.href || pathname.startsWith(item.href + "/")
   );
   const [open, setOpen] = useState(defaultOpen || hasActive);
+
+  if (collapsed) {
+    return (
+      <div className="space-y-0.5">
+        {group.items.map((item) => (
+          <NavLink key={item.href} item={item} pathname={pathname} collapsed={true} />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-0.5">
@@ -175,7 +203,7 @@ function NavGroupSection({
           >
             <div className="space-y-0.5">
               {group.items.map((item) => (
-                <NavLink key={item.href} item={item} pathname={pathname} />
+                <NavLink key={item.href} item={item} pathname={pathname} collapsed={false} />
               ))}
             </div>
           </motion.div>
@@ -188,11 +216,17 @@ function NavGroupSection({
 export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <aside className="hidden md:flex flex-col w-60 min-h-screen bg-sidebar border-r border-sidebar-border shrink-0">
+    <aside
+      className={cn(
+        "hidden md:flex flex-col min-h-screen bg-sidebar border-r border-sidebar-border shrink-0 transition-[width] duration-200 overflow-hidden",
+        collapsed ? "w-14" : "w-60"
+      )}
+    >
       {/* Logo Header */}
-      <div className="flex items-center gap-3 px-4 py-5 border-b border-sidebar-border">
+      <div className="flex items-center gap-3 px-3 py-5 border-b border-sidebar-border">
         <motion.div
           className="relative w-8 h-8 shrink-0"
           whileHover={{ scale: 1.1, rotate: 5 }}
@@ -206,66 +240,104 @@ export function Sidebar() {
             className="object-contain relative z-10"
           />
         </motion.div>
-        <div>
-          <span className="font-bold text-base leading-tight tracking-wider uppercase">
-            <span className="text-foreground">Black</span>
-            <span className="text-accent">leaf</span>
-          </span>
-          <p className="text-[9px] text-muted-foreground uppercase tracking-widest">
-            Grow Monitor
-          </p>
-        </div>
+        {!collapsed && (
+          <div className="min-w-0">
+            <span className="font-bold text-base leading-tight tracking-wider uppercase">
+              <span className="text-foreground">Black</span>
+              <span className="text-accent">leaf</span>
+            </span>
+            <p className="text-[9px] text-muted-foreground uppercase tracking-widest">
+              Grow Monitor
+            </p>
+          </div>
+        )}
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 px-3 py-4 space-y-4 overflow-y-auto">
+      <nav
+        className={cn(
+          "flex-1 py-4 space-y-4 overflow-y-auto",
+          collapsed ? "px-1.5" : "px-3"
+        )}
+      >
         {NAV_GROUPS.map((group, i) => (
           <NavGroupSection
             key={group.label}
             group={group}
             pathname={pathname}
+            collapsed={collapsed}
             defaultOpen={i < 2}
           />
         ))}
       </nav>
 
-      {/* Settings */}
-      <div className="px-3 pb-2">
+      {/* Bottom controls */}
+      <div className={cn("pb-2 space-y-1", collapsed ? "px-1.5" : "px-3")}>
         <NavLink
           item={{ href: "/settings", label: "Configurações", icon: Settings }}
           pathname={pathname}
+          collapsed={collapsed}
         />
+        <button
+          onClick={() => setCollapsed((c) => !c)}
+          title={collapsed ? "Expandir menu" : "Recolher menu"}
+          className={cn(
+            "w-full flex items-center rounded-xl py-2 text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors",
+            collapsed ? "justify-center" : "gap-2 px-3"
+          )}
+        >
+          <ChevronLeft
+            size={14}
+            className={cn(
+              "shrink-0 transition-transform duration-200",
+              collapsed && "rotate-180"
+            )}
+          />
+          {!collapsed && <span className="text-[13px]">Recolher</span>}
+        </button>
       </div>
 
       {/* User Footer */}
-      <div className="px-3 py-4 border-t border-sidebar-border">
+      <div
+        className={cn(
+          "py-4 border-t border-sidebar-border",
+          collapsed ? "px-1.5" : "px-3"
+        )}
+      >
         {user && (
           <motion.div
-            className="flex items-center gap-3 px-3 py-2 rounded-xl hover:bg-sidebar-accent transition-colors cursor-default"
-            whileHover={{ x: 1 }}
+            className={cn(
+              "flex items-center gap-3 py-2 rounded-xl hover:bg-sidebar-accent transition-colors cursor-default",
+              collapsed ? "justify-center px-0" : "px-3"
+            )}
+            whileHover={{ x: collapsed ? 0 : 1 }}
           >
             <img
               src={user.photoURL || "/avatar-placeholder.png"}
               alt={user.displayName || "User"}
-              className="w-8 h-8 rounded-full border-2 border-primary/30 object-cover"
+              className="w-8 h-8 rounded-full border-2 border-primary/30 object-cover shrink-0"
             />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold truncate text-foreground">
-                {user.displayName}
-              </p>
-              <p className="text-[10px] text-muted-foreground truncate">
-                {user.email}
-              </p>
-            </div>
-            <motion.button
-              onClick={logout}
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              className="text-muted-foreground hover:text-destructive transition-colors"
-              title="Sair"
-            >
-              <LogOut size={15} />
-            </motion.button>
+            {!collapsed && (
+              <>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold truncate text-foreground">
+                    {user.displayName}
+                  </p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {user.email}
+                  </p>
+                </div>
+                <motion.button
+                  onClick={logout}
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  className="text-muted-foreground hover:text-destructive transition-colors"
+                  title="Sair"
+                >
+                  <LogOut size={15} />
+                </motion.button>
+              </>
+            )}
           </motion.div>
         )}
       </div>
