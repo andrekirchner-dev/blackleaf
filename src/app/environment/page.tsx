@@ -83,8 +83,10 @@ export default function EnvironmentPage() {
       });
       setOpen(false);
       refresh();
-    } catch {
-      setError("Erro ao salvar. Tente novamente.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[Environment] save error:", msg);
+      setError(`Erro ao salvar: ${msg}`);
     } finally {
       setSaving(false);
     }

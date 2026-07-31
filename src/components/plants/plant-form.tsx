@@ -150,8 +150,10 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         const id = await createPlant(user.uid, payload);
         router.push(`/plants/${id}`);
       }
-    } catch {
-      setError("Erro ao salvar planta. Tente novamente.");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("[PlantForm] save error:", msg);
+      setError(`Erro ao salvar planta: ${msg}`);
     } finally {
       setLoading(false);
     }
