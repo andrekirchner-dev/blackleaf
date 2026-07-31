@@ -4,6 +4,16 @@ export type Medium = "terra" | "coco" | "hidro" | "aeroponia";
 export type SpaceType = "tenda" | "armario" | "quarto" | "estufa";
 export type LightType = "led" | "hps" | "cmh" | "cfl" | "fluorescente" | "natural";
 export type GeneticType = "sativa" | "indica" | "hibrida" | "autoflowering";
+export type VentRole = "entrada" | "saida" | "circulacao";
+export type VentType = "inline" | "axial" | "clip" | "extrator" | "oscilante";
+
+export interface VentilationUnit {
+  id: string;
+  role: VentRole;
+  type: VentType;
+  sizeMm?: number;
+  label?: string;
+}
 
 export interface GrowSpace {
   id: string;
@@ -18,6 +28,7 @@ export interface GrowSpace {
   lightSchedule: string;
   ventInputs: number;
   ventOutputs: number;
+  ventilations?: VentilationUnit[];
   notes?: string;
   createdAt: string;
 }
