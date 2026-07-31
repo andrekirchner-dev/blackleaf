@@ -7,7 +7,7 @@ import { createPlant, updatePlant } from "@/lib/plants";
 import { useSpaces } from "@/hooks/use-spaces";
 import { getSpaceMeta } from "@/lib/space-constants";
 import { STAGE_LABELS, STAGE_ORDER, ENV_LABELS, MEDIUM_LABELS } from "@/lib/constants";
-import type { Plant, GrowStage, GrowEnv, Medium } from "@/lib/types";
+import type { Plant, GrowStage, GrowEnv, Medium, GeneticType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -16,45 +16,30 @@ import { ChevronDown, Leaf, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const STAGE_EMOJI: Record<GrowStage, string> = {
-  semente: "🌱",
-  muda: "🌿",
-  vegetativo: "🍃",
-  floracao: "🌸",
-  colheita: "✂️",
-  secagem: "🍂",
+  semente: "🌱", muda: "🌿", vegetativo: "🍃",
+  floracao: "🌸", colheita: "✂️", secagem: "🍂",
 };
 
 const MEDIUM_SHORT: Record<string, string> = {
-  terra: "Terra",
-  coco: "Coco",
-  hidro: "Hidro",
-  aeroponia: "Aeroponia",
+  terra: "Terra", coco: "Coco", hidro: "Hidro", aeroponia: "Aeroponia",
 };
 
 const ENV_EMOJI: Record<string, string> = {
-  indoor: "🏠",
-  outdoor: "🌤️",
-  greenhouse: "🌿",
+  indoor: "🏠", outdoor: "🌤️", greenhouse: "🌿",
 };
 
-interface PlantFormProps {
-  plant?: Plant;
-}
+const GENETICS: { value: GeneticType; label: string; emoji: string }[] = [
+  { value: "sativa",       label: "Sativa",       emoji: "🌿" },
+  { value: "indica",       label: "Indica",       emoji: "🍃" },
+  { value: "hibrida",      label: "Híbrida",      emoji: "🌱" },
+  { value: "autoflowering", label: "Auto",        emoji: "⚡" },
+];
 
 function Section({
-  id,
-  title,
-  summary,
-  open,
-  onToggle,
-  children,
+  id, title, summary, open, onToggle, children,
 }: {
-  id: string;
-  title: string;
-  summary?: string;
-  open: boolean;
-  onToggle: (id: string) => void;
-  children: React.ReactNode;
+  id: string; title: string; summary?: string;
+  open: boolean; onToggle: (id: string) => void; children: React.ReactNode;
 }) {
   return (
     <div className="border border-border rounded-xl overflow-hidden bg-card">
@@ -66,14 +51,11 @@ function Section({
         <span className="text-sm font-semibold text-foreground">{title}</span>
         <div className="flex items-center gap-2">
           {summary && !open && (
-            <span className="text-xs text-muted-foreground truncate max-w-[120px]">{summary}</span>
+            <span className="text-xs text-muted-foreground truncate max-w-[130px]">{summary}</span>
           )}
           <ChevronDown
             size={15}
-            className={cn(
-              "text-muted-foreground transition-transform duration-200 shrink-0",
-              open && "rotate-180"
-            )}
+            className={cn("text-muted-foreground transition-transform duration-200 shrink-0", open && "rotate-180")}
           />
         </div>
       </button>
@@ -86,7 +68,7 @@ function Section({
   );
 }
 
-export function PlantForm({ plant }: PlantFormProps) {
+export function PlantForm({ plant }: { plant?: Plant }) {
   const { user } = useAuth();
   const router = useRouter();
   const { spaces } = useSpaces();
@@ -95,15 +77,24 @@ export function PlantForm({ plant }: PlantFormProps) {
   const [open, setOpen] = useState<Set<string>>(new Set(["identificacao"]));
 
   const [form, setForm] = useState({
-    name: plant?.name ?? "",
-    strain: plant?.strain ?? "",
-    stage: (plant?.stage ?? "semente") as GrowStage,
-    environment: (plant?.environment ?? "indoor") as GrowEnv,
-    medium: (plant?.medium ?? "terra") as Medium,
-    germinationDate: plant?.germinationDate ?? new Date().toISOString().split("T")[0],
-    potSize: plant?.potSize?.toString() ?? "",
-    spaceId: plant?.spaceId ?? "",
-    notes: plant?.notes ?? "",
+    name:                plant?.name ?? "",
+    strain:              plant?.strain ?? "",
+    bank:                plant?.bank ?? "",
+    genetics:            (plant?.genetics ?? "") as GeneticType | "",
+    floweringWeeks:      plant?.floweringWeeks?.toString() ?? "",
+    thcEstimate:         plant?.thcEstimate ?? "",
+    cbdEstimate:         plant?.cbdEstimate ?? "",
+    yieldIndoor:         plant?.yieldIndoor ?? "",
+    yieldOutdoor:        plant?.yieldOutdoor ?? "",
+    bankRecommendations: plant?.bankRecommendations ?? "",
+    stage:               (plant?.stage ?? "semente") as GrowStage,
+    environment:         (plant?.environment ?? "indoor") as GrowEnv,
+    medium:              (plant?.medium ?? "terra") as Medium,
+    germinationDate:     plant?.germinationDate ?? new Date().toISOString().split("T")[0],
+    potSize:             plant?.potSize?.toString() ?? "",
+    spaceId:             plant?.spaceId ?? "",
+    previousGrowNotes:   plant?.previousGrowNotes ?? "",
+    notes:               plant?.notes ?? "",
   });
 
   function set<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
@@ -130,17 +121,26 @@ export function PlantForm({ plant }: PlantFormProps) {
     setError(null);
     try {
       const payload = {
-        name: form.name.trim(),
-        strain: form.strain.trim(),
-        stage: form.stage,
-        environment: form.environment,
-        medium: form.medium,
-        germinationDate: form.germinationDate,
-        stageChangedAt: plant?.stageChangedAt ?? new Date().toISOString(),
-        potSize: form.potSize ? Number(form.potSize) : undefined,
-        spaceId: form.spaceId || undefined,
-        notes: form.notes.trim() || undefined,
-        photoUrl: plant?.photoUrl,
+        name:                form.name.trim(),
+        strain:              form.strain.trim(),
+        bank:                form.bank.trim() || undefined,
+        genetics:            form.genetics || undefined,
+        floweringWeeks:      form.floweringWeeks ? Number(form.floweringWeeks) : undefined,
+        thcEstimate:         form.thcEstimate.trim() || undefined,
+        cbdEstimate:         form.cbdEstimate.trim() || undefined,
+        yieldIndoor:         form.yieldIndoor.trim() || undefined,
+        yieldOutdoor:        form.yieldOutdoor.trim() || undefined,
+        bankRecommendations: form.bankRecommendations.trim() || undefined,
+        stage:               form.stage,
+        environment:         form.environment,
+        medium:              form.medium,
+        germinationDate:     form.germinationDate,
+        stageChangedAt:      plant?.stageChangedAt ?? new Date().toISOString(),
+        potSize:             form.potSize ? Number(form.potSize) : undefined,
+        spaceId:             form.spaceId || undefined,
+        previousGrowNotes:   form.previousGrowNotes.trim() || undefined,
+        notes:               form.notes.trim() || undefined,
+        photoUrl:            plant?.photoUrl,
       };
       if (plant) {
         await updatePlant(plant.id, payload);
@@ -156,7 +156,7 @@ export function PlantForm({ plant }: PlantFormProps) {
     }
   }
 
-  const selectedSpace = spaces.find((s) => s.id === form.spaceId);
+  const geneticMeta = GENETICS.find((g) => g.value === form.genetics);
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 max-w-2xl mx-auto">
@@ -170,11 +170,11 @@ export function PlantForm({ plant }: PlantFormProps) {
         </p>
       </div>
 
-      {/* Identificação */}
+      {/* 1 — Identificação */}
       <Section
         id="identificacao"
         title="Identificação"
-        summary={form.name || form.strain ? [form.name, form.strain].filter(Boolean).join(" · ") : undefined}
+        summary={[form.name, form.strain, form.bank].filter(Boolean).join(" · ") || undefined}
         open={open.has("identificacao")}
         onToggle={toggle}
       >
@@ -193,16 +193,137 @@ export function PlantForm({ plant }: PlantFormProps) {
             <Label htmlFor="strain">Strain / Genética *</Label>
             <Input
               id="strain"
-              placeholder="Ex: OG Kush, Blue Dream..."
+              placeholder="Ex: OG Kush, Blue Dream, White Widow..."
               value={form.strain}
               onChange={(e) => set("strain", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="bank">Banco / Breeder</Label>
+            <Input
+              id="bank"
+              placeholder="Ex: Royal Queen Seeds, FastBuds, Dinafem..."
+              value={form.bank}
+              onChange={(e) => set("bank", e.target.value)}
               className="bg-background border-border"
             />
           </div>
         </div>
       </Section>
 
-      {/* Fase */}
+      {/* 2 — Genética */}
+      <Section
+        id="genetica"
+        title="Dados da Strain"
+        summary={[
+          geneticMeta ? `${geneticMeta.emoji} ${geneticMeta.label}` : "",
+          form.floweringWeeks ? `${form.floweringWeeks} sem.` : "",
+          form.thcEstimate ? `THC ${form.thcEstimate}` : "",
+        ].filter(Boolean).join(" · ") || undefined}
+        open={open.has("genetica")}
+        onToggle={toggle}
+      >
+        {/* Tipo genético */}
+        <div className="space-y-1.5">
+          <Label>Tipo Genético</Label>
+          <div className="grid grid-cols-2 gap-2">
+            {GENETICS.map((g) => (
+              <button
+                key={g.value}
+                type="button"
+                onClick={() => set("genetics", form.genetics === g.value ? "" : g.value)}
+                className={cn(
+                  "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all",
+                  form.genetics === g.value
+                    ? "bg-primary/10 border-primary/40 text-primary"
+                    : "bg-background border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <span>{g.emoji}</span>
+                <span>{g.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Semanas de floração */}
+        <div className="space-y-1.5">
+          <Label htmlFor="floweringWeeks">Semanas de Floração</Label>
+          <Input
+            id="floweringWeeks"
+            type="number"
+            min="4"
+            max="20"
+            placeholder="Ex: 8"
+            value={form.floweringWeeks}
+            onChange={(e) => set("floweringWeeks", e.target.value)}
+            className="bg-background border-border"
+          />
+        </div>
+
+        {/* THC e CBD */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="thc">THC Estimado</Label>
+            <Input
+              id="thc"
+              placeholder="Ex: 18-22%"
+              value={form.thcEstimate}
+              onChange={(e) => set("thcEstimate", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cbd">CBD Estimado</Label>
+            <Input
+              id="cbd"
+              placeholder="Ex: < 1%"
+              value={form.cbdEstimate}
+              onChange={(e) => set("cbdEstimate", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+        </div>
+
+        {/* Yields */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="yieldIndoor">Produção Indoor</Label>
+            <Input
+              id="yieldIndoor"
+              placeholder="Ex: 400-500 g/m²"
+              value={form.yieldIndoor}
+              onChange={(e) => set("yieldIndoor", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="yieldOutdoor">Produção Outdoor</Label>
+            <Input
+              id="yieldOutdoor"
+              placeholder="Ex: 600 g/planta"
+              value={form.yieldOutdoor}
+              onChange={(e) => set("yieldOutdoor", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+        </div>
+
+        {/* Recomendações do banco */}
+        <div className="space-y-1.5">
+          <Label htmlFor="bankRec">Recomendações do Banco</Label>
+          <Textarea
+            id="bankRec"
+            placeholder="Ex: pH 6.0-6.5, EC máx 2.0, 8 semanas de floração, pode atingir 120cm indoor..."
+            value={form.bankRecommendations}
+            onChange={(e) => set("bankRecommendations", e.target.value)}
+            className="bg-background border-border min-h-[90px] resize-none"
+          />
+        </div>
+      </Section>
+
+      {/* 3 — Fase */}
       <Section
         id="fase"
         title="Fase Atual"
@@ -230,7 +351,7 @@ export function PlantForm({ plant }: PlantFormProps) {
         </div>
       </Section>
 
-      {/* Cultivo */}
+      {/* 4 — Cultivo */}
       <Section
         id="cultivo"
         title="Configuração do Cultivo"
@@ -238,7 +359,6 @@ export function PlantForm({ plant }: PlantFormProps) {
         open={open.has("cultivo")}
         onToggle={toggle}
       >
-        {/* Ambiente */}
         <div className="space-y-1.5">
           <Label>Ambiente</Label>
           <div className="flex gap-2">
@@ -261,7 +381,6 @@ export function PlantForm({ plant }: PlantFormProps) {
           </div>
         </div>
 
-        {/* Substrato */}
         <div className="space-y-1.5">
           <Label>Substrato</Label>
           <div className="grid grid-cols-2 gap-2">
@@ -283,7 +402,6 @@ export function PlantForm({ plant }: PlantFormProps) {
           </div>
         </div>
 
-        {/* Datas e Vaso */}
         <div className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="germinationDate">Data de Germinação</Label>
@@ -309,7 +427,6 @@ export function PlantForm({ plant }: PlantFormProps) {
           </div>
         </div>
 
-        {/* Espaço */}
         {spaces.length > 0 && (
           <div className="space-y-1.5">
             <Label>Espaço de Cultivo</Label>
@@ -350,16 +467,37 @@ export function PlantForm({ plant }: PlantFormProps) {
         )}
       </Section>
 
-      {/* Observações */}
+      {/* 5 — Histórico */}
+      <Section
+        id="historico"
+        title="Histórico de Cultivos Anteriores"
+        summary={form.previousGrowNotes ? form.previousGrowNotes.slice(0, 50) + "…" : undefined}
+        open={open.has("historico")}
+        onToggle={toggle}
+      >
+        <div className="space-y-1.5">
+          <p className="text-xs text-muted-foreground">
+            O que aprendeu em cultivos anteriores com essa strain? Pontos de atenção, ajustes de nutrição, comportamento, etc.
+          </p>
+          <Textarea
+            placeholder="Ex: Muito sensível ao nitrogênio no fim do veg. Precisou de suporte de bambu na semana 4 de floração. pH ideal ficou em 6.2..."
+            value={form.previousGrowNotes}
+            onChange={(e) => set("previousGrowNotes", e.target.value)}
+            className="bg-background border-border min-h-[110px] resize-none"
+          />
+        </div>
+      </Section>
+
+      {/* 6 — Anotações */}
       <Section
         id="notas"
-        title="Observações"
-        summary={form.notes ? form.notes.slice(0, 40) + (form.notes.length > 40 ? "…" : "") : undefined}
+        title="Anotações do Cultivo Atual"
+        summary={form.notes ? form.notes.slice(0, 50) + "…" : undefined}
         open={open.has("notas")}
         onToggle={toggle}
       >
         <Textarea
-          placeholder="Anotações gerais sobre esta planta..."
+          placeholder="Observações gerais, objetivos, expectativas para este cultivo..."
           value={form.notes}
           onChange={(e) => set("notes", e.target.value)}
           className="bg-background border-border min-h-[100px] resize-none"
@@ -373,12 +511,7 @@ export function PlantForm({ plant }: PlantFormProps) {
       )}
 
       <div className="flex gap-3 justify-end pt-2">
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => router.back()}
-          className="border-border"
-        >
+        <Button type="button" variant="outline" onClick={() => router.back()} className="border-border">
           Cancelar
         </Button>
         <Button

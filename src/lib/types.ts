@@ -3,6 +3,7 @@ export type GrowEnv = "indoor" | "outdoor" | "greenhouse";
 export type Medium = "terra" | "coco" | "hidro" | "aeroponia";
 export type SpaceType = "tenda" | "armario" | "quarto" | "estufa";
 export type LightType = "led" | "hps" | "cmh" | "cfl" | "fluorescente" | "natural";
+export type GeneticType = "sativa" | "indica" | "hibrida" | "autoflowering";
 
 export interface GrowSpace {
   id: string;
@@ -27,6 +28,15 @@ export interface Plant {
   spaceId?: string;
   name: string;
   strain: string;
+  bank?: string;
+  genetics?: GeneticType;
+  floweringWeeks?: number;
+  thcEstimate?: string;
+  cbdEstimate?: string;
+  yieldIndoor?: string;
+  yieldOutdoor?: string;
+  bankRecommendations?: string;
+  previousGrowNotes?: string;
   stage: GrowStage;
   environment: GrowEnv;
   medium: Medium;
