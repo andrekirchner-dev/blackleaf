@@ -59,13 +59,19 @@ export function subscribeSeeds(
   });
 }
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 export async function addSeed(
   userId: string,
   data: CreateSeedData
 ): Promise<string> {
   const ref = await addDoc(collection(db, COLLECTION), {
     userId,
-    ...data,
+    ...strip(data),
     storageDate: Timestamp.fromDate(data.storageDate),
     originalQuantity: data.quantity,
     germinated: 0,

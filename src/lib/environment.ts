@@ -14,12 +14,18 @@ import type { GrowEnvironment } from "./types";
 
 const COLLECTION = "environments";
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 export async function createEnvironmentRecord(
   userId: string,
   data: Omit<GrowEnvironment, "id" | "userId">
 ) {
   const ref = await addDoc(collection(db, COLLECTION), {
-    ...data,
+    ...strip(data),
     userId,
     createdAt: serverTimestamp(),
   });

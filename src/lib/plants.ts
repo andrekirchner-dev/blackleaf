@@ -16,12 +16,18 @@ import type { Plant, GrowStage } from "./types";
 
 const COLLECTION = "plants";
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 export async function createPlant(
   userId: string,
   data: Omit<Plant, "id" | "userId" | "createdAt" | "updatedAt">
 ) {
   const ref = await addDoc(collection(db, COLLECTION), {
-    ...data,
+    ...strip(data),
     userId,
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp(),
@@ -31,7 +37,7 @@ export async function createPlant(
 
 export async function updatePlant(id: string, data: Partial<Plant>) {
   await updateDoc(doc(db, COLLECTION, id), {
-    ...data,
+    ...strip(data),
     updatedAt: serverTimestamp(),
   });
 }
