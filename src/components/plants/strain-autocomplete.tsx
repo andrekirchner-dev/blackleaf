@@ -29,23 +29,42 @@ interface Props {
 
 function mapGenetics(r: StrainResult): GeneticType | "" {
   if (r.flowering_behavior?.toLowerCase().includes("auto")) return "autoflowering";
-  const sativa = r.sativa_percentage ?? 0;
-  const indica = r.indica_percentage ?? 0;
-  if (sativa === 0 && indica === 0) return "";
-  if (sativa >= 65) return "sativa";
-  if (indica >= 65) return "indica";
-  return "hibrida";
+  const sativa = r.sativa_percentage ?? -1;
+  const indica = r.indica_percentage ?? -1;
+  if (sativa >= 0 || indica >= 0) {
+    const s = sativa < 0 ? 0 : sativa;
+    const i = indica < 0 ? 0 : indica;
+    if (s >= 65) return "sativa";
+    if (i >= 65) return "indica";
+    if (s > 0 || i > 0) return "hibrida";
+  }
+  // fallback: parse about_info text
+  const about = (r.about_info ?? "").toLowerCase();
+  if (/ruderalis|autoflower|auto\s*flower/.test(about)) return "autoflowering";
+  const pctMatch = about.match(/(\d+)%\s*sativa/);
+  if (pctMatch) {
+    const s = parseInt(pctMatch[1]);
+    return s >= 65 ? "sativa" : "hibrida";
+  }
+  if (/100%\s*sativa|pure\s*sativa/.test(about)) return "sativa";
+  if (/100%\s*indica|pure\s*indica/.test(about)) return "indica";
+  return "";
+}
+
+function cleanAboutInfo(about: string | undefined): string {
+  if (!about) return "";
+  // skip short marketing blurbs like "Buy X online from Y. Fast shipping."
+  if (about.length < 120 && /buy\s+.+online|fast\s+shipping|voted\s+#1/i.test(about)) return "";
+  return about;
 }
 
 function mapWeeks(r: StrainResult): string {
   const min = r.flowering_time_min;
   const max = r.flowering_time_max;
-  if (min != null && max != null) {
-    return String(Math.round(((min + max) / 2) / 7));
-  }
+  if (min != null && max != null) return String(Math.round(((min + max) / 2) / 7));
   if (min != null) return String(Math.round(min / 7));
   if (max != null) return String(Math.round(max / 7));
-  return "";
+  return mapWeeksFromText(r.about_info ?? "");
 }
 
 function getBank(r: StrainResult): string {
@@ -56,14 +75,24 @@ function mapThc(r: StrainResult): string {
   if (r.thc_min != null && r.thc_max != null) return `${r.thc_min}-${r.thc_max}%`;
   if (r.thc_max != null) return `${r.thc_max}%`;
   if (r.thc_min != null) return `${r.thc_min}%`;
-  return "";
+  // fallback: parse about_info
+  const m = (r.about_info ?? "").match(/thc[:\s]+(\d+(?:\s*[-–]\s*\d+)?)\s*%/i);
+  return m ? m[1].replace(/\s/g, "") + "%" : "";
 }
 
 function mapCbd(r: StrainResult): string {
   if (r.cbd_min != null && r.cbd_max != null) return `${r.cbd_min}-${r.cbd_max}%`;
   if (r.cbd_max != null) return `${r.cbd_max}%`;
   if (r.cbd_min != null) return `${r.cbd_min}%`;
-  return "";
+  // fallback: parse about_info
+  const m = (r.about_info ?? "").match(/cbd[:\s]+(\d+(?:\s*[-–]\s*\d+)?)\s*%/i);
+  return m ? m[1].replace(/\s/g, "") + "%" : "";
+}
+
+function mapWeeksFromText(about: string): string {
+  const m = about.match(/flowering\s*time[:\s]+(\d+)\s*[-–]\s*(\d+)\s*days?/i);
+  if (!m) return "";
+  return String(Math.round((parseInt(m[1]) + parseInt(m[2])) / 2 / 7));
 }
 
 function mapYields(r: StrainResult): { indoor: string; outdoor: string } {
@@ -124,7 +153,7 @@ export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, c
     const thcEstimate = mapThc(r);
     const cbdEstimate = mapCbd(r);
     const { indoor: yieldIndoor, outdoor: yieldOutdoor } = mapYields(r);
-    const bankRecommendations = r.about_info ?? "";
+    const bankRecommendations = cleanAboutInfo(r.about_info);
     onChange(r.strain_name);
     onAutoFill({ strain: r.strain_name, bank, genetics, floweringWeeks, thcEstimate, cbdEstimate, yieldIndoor, yieldOutdoor, bankRecommendations });
     setOpen(false);
