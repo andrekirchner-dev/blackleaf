@@ -210,6 +210,10 @@ export function PlantForm({ plant }: { plant?: Plant }) {
                   bank: data.bank || prev.bank,
                   genetics: data.genetics || prev.genetics,
                   floweringWeeks: data.floweringWeeks || prev.floweringWeeks,
+                  thcEstimate: data.thcEstimate || prev.thcEstimate,
+                  cbdEstimate: data.cbdEstimate || prev.cbdEstimate,
+                  yieldIndoor: data.yieldIndoor || prev.yieldIndoor,
+                  yieldOutdoor: data.yieldOutdoor || prev.yieldOutdoor,
                   bankRecommendations: data.bankRecommendations || prev.bankRecommendations,
                 }));
                 setOpen((prev) => new Set([...prev, "genetica"]));

@@ -12,6 +12,10 @@ interface AutoFill {
   bank: string;
   genetics: GeneticType | "";
   floweringWeeks: string;
+  thcEstimate: string;
+  cbdEstimate: string;
+  yieldIndoor: string;
+  yieldOutdoor: string;
   bankRecommendations: string;
 }
 
@@ -46,6 +50,27 @@ function mapWeeks(r: StrainResult): string {
 
 function getBank(r: StrainResult): string {
   return r.breeder_name ?? r.bank_name ?? r.seed_bank ?? "";
+}
+
+function mapThc(r: StrainResult): string {
+  if (r.thc_min != null && r.thc_max != null) return `${r.thc_min}-${r.thc_max}%`;
+  if (r.thc_max != null) return `${r.thc_max}%`;
+  if (r.thc_min != null) return `${r.thc_min}%`;
+  return "";
+}
+
+function mapCbd(r: StrainResult): string {
+  if (r.cbd_min != null && r.cbd_max != null) return `${r.cbd_min}-${r.cbd_max}%`;
+  if (r.cbd_max != null) return `${r.cbd_max}%`;
+  if (r.cbd_min != null) return `${r.cbd_min}%`;
+  return "";
+}
+
+function mapYields(r: StrainResult): { indoor: string; outdoor: string } {
+  const raw = r.yield_units ?? "";
+  const indoor = raw.match(/indoors?:\s*([^;|\n]+)/i)?.[1]?.trim() ?? "";
+  const outdoor = raw.match(/outdoors?:\s*([^;|\n]+)/i)?.[1]?.trim() ?? "";
+  return { indoor, outdoor };
 }
 
 export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, className }: Props) {
@@ -96,9 +121,12 @@ export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, c
     const bank = getBank(r);
     const genetics = mapGenetics(r);
     const floweringWeeks = mapWeeks(r);
+    const thcEstimate = mapThc(r);
+    const cbdEstimate = mapCbd(r);
+    const { indoor: yieldIndoor, outdoor: yieldOutdoor } = mapYields(r);
     const bankRecommendations = r.about_info ?? "";
     onChange(r.strain_name);
-    onAutoFill({ strain: r.strain_name, bank, genetics, floweringWeeks, bankRecommendations });
+    onAutoFill({ strain: r.strain_name, bank, genetics, floweringWeeks, thcEstimate, cbdEstimate, yieldIndoor, yieldOutdoor, bankRecommendations });
     setOpen(false);
     setAutofilled(true);
     setTimeout(() => setAutofilled(false), 500);

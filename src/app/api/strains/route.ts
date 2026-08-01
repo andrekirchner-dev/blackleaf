@@ -12,6 +12,11 @@ export interface StrainResult {
   flowering_time_max?: number;
   seed_gender?: string;
   about_info?: string;
+  thc_min?: number;
+  thc_max?: number;
+  cbd_min?: number;
+  cbd_max?: number;
+  yield_units?: string;
 }
 
 export async function GET(req: NextRequest) {
