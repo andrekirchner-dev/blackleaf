@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { getSpace, deleteSpace, updateSpace } from "@/lib/spaces";
+import { getSpace, deleteSpace } from "@/lib/spaces";
 import { usePlants } from "@/hooks/use-plants";
 import { getSpaceMeta, getLightMeta, LIGHT_SCHEDULES } from "@/lib/space-constants";
 import { SpaceForm } from "@/components/spaces/space-form";
@@ -17,6 +17,7 @@ import {
   Clock, Leaf, Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { motion } from "framer-motion";
 
 export default function SpaceDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -75,7 +76,12 @@ export default function SpaceDetailPage() {
     : null;
 
   return (
-    <div className="p-4 md:p-6 space-y-5 max-w-4xl mx-auto">
+    <motion.div
+      initial={{ opacity: 0, filter: "brightness(3) blur(8px)" }}
+      animate={{ opacity: 1, filter: "brightness(1) blur(0px)" }}
+      transition={{ duration: 0.5, ease: "easeOut" }}
+      className="space-y-5 max-w-4xl mx-auto"
+    >
       {/* Nav */}
       <div className="flex items-center justify-between">
         <Link
@@ -216,7 +222,7 @@ export default function SpaceDetailPage() {
           />
         </SheetContent>
       </Sheet>
-    </div>
+    </motion.div>
   );
 }
 
