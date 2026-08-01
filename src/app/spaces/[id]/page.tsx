@@ -77,9 +77,9 @@ export default function SpaceDetailPage() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, filter: "brightness(3) blur(8px)" }}
-      animate={{ opacity: 1, filter: "brightness(1) blur(0px)" }}
-      transition={{ duration: 0.5, ease: "easeOut" }}
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.35, ease: "easeOut" }}
       className="space-y-5 max-w-4xl mx-auto"
     >
       {/* Nav */}
