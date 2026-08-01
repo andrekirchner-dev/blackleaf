@@ -210,7 +210,9 @@ export function PlantForm({ plant }: { plant?: Plant }) {
                   bank: data.bank || prev.bank,
                   genetics: data.genetics || prev.genetics,
                   floweringWeeks: data.floweringWeeks || prev.floweringWeeks,
+                  bankRecommendations: data.bankRecommendations || prev.bankRecommendations,
                 }));
+                setOpen((prev) => new Set([...prev, "genetica"]));
               }}
             />
           </div>

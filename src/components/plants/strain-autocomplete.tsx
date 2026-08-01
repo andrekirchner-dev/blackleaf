@@ -12,6 +12,7 @@ interface AutoFill {
   bank: string;
   genetics: GeneticType | "";
   floweringWeeks: string;
+  bankRecommendations: string;
 }
 
 interface Props {
@@ -95,8 +96,9 @@ export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, c
     const bank = getBank(r);
     const genetics = mapGenetics(r);
     const floweringWeeks = mapWeeks(r);
+    const bankRecommendations = r.about_info ?? "";
     onChange(r.strain_name);
-    onAutoFill({ strain: r.strain_name, bank, genetics, floweringWeeks });
+    onAutoFill({ strain: r.strain_name, bank, genetics, floweringWeeks, bankRecommendations });
     setOpen(false);
     setAutofilled(true);
     setTimeout(() => setAutofilled(false), 500);
