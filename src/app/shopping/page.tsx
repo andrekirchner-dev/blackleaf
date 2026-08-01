@@ -33,19 +33,26 @@ function AddItemModal({
   const [price, setPrice] = useState("");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
     setSaving(true);
-    await onAdd({
-      name: name.trim(),
-      category,
-      urgency,
-      estimatedPrice: price ? parseFloat(price) : undefined,
-      notes: notes.trim() || undefined,
-    });
-    onClose();
+    setError(null);
+    try {
+      await onAdd({
+        name: name.trim(),
+        category,
+        urgency,
+        ...(price ? { estimatedPrice: parseFloat(price) } : {}),
+        ...(notes.trim() ? { notes: notes.trim() } : {}),
+      });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao salvar item.");
+      setSaving(false);
+    }
   }
 
   return (
@@ -148,6 +155,9 @@ function AddItemModal({
             </div>
           </div>
 
+          {error && (
+            <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 px-3 py-2 rounded-lg">{error}</p>
+          )}
           <Button type="submit" disabled={!name.trim() || saving} className="w-full">
             {saving ? "Salvando..." : "Adicionar Item"}
           </Button>
@@ -235,7 +245,10 @@ export default function ShoppingPage() {
 
   async function handleAdd(data: Parameters<typeof addShoppingItem>[1]) {
     if (!user) return;
-    await addShoppingItem(user.uid, data);
+    await addShoppingItem(user.uid, data).catch((err) => {
+      console.error("[Shopping] addItem error:", err);
+      throw err;
+    });
   }
 
   return (

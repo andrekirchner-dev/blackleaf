@@ -67,12 +67,17 @@ export async function addShoppingItem(
   userId: string,
   data: CreateShoppingItemData
 ): Promise<string> {
-  const ref = await addDoc(collection(db, COLLECTION), {
+  const payload: Record<string, unknown> = {
     userId,
-    ...data,
+    name: data.name,
+    category: data.category,
+    urgency: data.urgency,
     status: "pending" as ShoppingStatus,
     createdAt: serverTimestamp(),
-  });
+  };
+  if (data.estimatedPrice != null) payload.estimatedPrice = data.estimatedPrice;
+  if (data.notes) payload.notes = data.notes;
+  const ref = await addDoc(collection(db, COLLECTION), payload);
   return ref.id;
 }
 
