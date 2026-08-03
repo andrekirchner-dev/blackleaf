@@ -90,6 +90,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
   const router = useRouter();
   const { spaces } = useSpaces();
   const [loading, setLoading] = useState(false);
+  const [step, setStep] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<Set<string>>(new Set(["identificacao"]));
   const [autofillMsg, setAutofillMsg] = useState<string | null>(null);
@@ -175,16 +176,17 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     };
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSave(mode: "save" | "saveAndAnother" = "save") {
     if (!user) return;
     if (!form.name.trim() || !form.strain.trim()) {
       setError("Nome e strain são obrigatórios.");
       setOpen((prev) => new Set([...prev, "identificacao"]));
       return;
     }
+    setSaveMode(mode);
     setLoading(true);
     setError(null);
+    setStep("Preparando...");
 
     try {
       const pendingPhotos = photos.filter(
@@ -195,11 +197,12 @@ export function PlantForm({ plant }: { plant?: Plant }) {
       );
 
       if (plant) {
-        // EDIT — single Firestore write
+        // EDIT
         let photoUrls = savedPhotos.map((p) => p.url);
         let newCover = coverSrc;
 
         if (pendingPhotos.length > 0) {
+          setStep("Enviando fotos...");
           const uploaded = await Promise.all(
             pendingPhotos.map((p) => uploadPlantPhoto(user.uid, plant.id, p.file))
           );
@@ -208,10 +211,11 @@ export function PlantForm({ plant }: { plant?: Plant }) {
           photoUrls = [...photoUrls, ...uploaded];
         }
 
+        setStep("Salvando...");
         await new Promise<void>((resolve, reject) => {
           const tid = setTimeout(
-            () => reject(new Error("Tempo limite excedido. Verifique sua conexão.")),
-            12000
+            () => reject(new Error("Tempo limite excedido (8s). Verifique sua conexão.")),
+            8000
           );
           updatePlant(plant.id, {
             ...buildPayload(),
@@ -222,17 +226,20 @@ export function PlantForm({ plant }: { plant?: Plant }) {
             .catch((err) => { clearTimeout(tid); reject(err); });
         });
 
-        window.location.href = `/plants/${plant.id}`;
+        setStep("Redirecionando...");
+        router.replace(`/plants/${plant.id}`);
         return;
       }
 
       // CREATE
+      setStep("Criando planta...");
       const plantId = await createPlant(user.uid, buildPayload());
 
       let photoUrls: string[] = [];
       let newCover = "";
 
       if (pendingPhotos.length > 0) {
+        setStep("Enviando fotos...");
         const uploaded = await Promise.all(
           pendingPhotos.map((p) => uploadPlantPhoto(user.uid, plantId, p.file))
         );
@@ -248,7 +255,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         });
       }
 
-      if (saveMode === "saveAndAnother") {
+      if (mode === "saveAndAnother") {
         setForm((prev) => ({
           ...prev,
           name: "",
@@ -274,6 +281,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
       setError(`Erro ao salvar: ${msg}`);
     } finally {
       setLoading(false);
+      setStep("");
     }
   }
 
@@ -284,7 +292,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
   ].filter(Boolean).join(" / ");
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-3 max-w-2xl mx-auto">
+    <form className="space-y-3 max-w-2xl mx-auto">
       <div className="mb-5">
         <h1 className="text-xl font-bold flex items-center gap-2">
           <Leaf size={20} className="text-primary" />
@@ -850,27 +858,27 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         </Button>
         {!plant && (
           <Button
-            type="submit"
+            type="button"
             disabled={loading}
             variant="outline"
-            onClick={() => setSaveMode("saveAndAnother")}
+            onClick={() => handleSave("saveAndAnother")}
             className="gap-2 border-border"
           >
             {loading && saveMode === "saveAndAnother" ? (
-              <><Loader2 size={15} className="animate-spin" /> Salvando...</>
+              <><Loader2 size={15} className="animate-spin" /> {step || "Salvando..."}</>
             ) : (
               <><Copy size={15} /> Salvar e Cadastrar Outra</>
             )}
           </Button>
         )}
         <Button
-          type="submit"
+          type="button"
           disabled={loading}
-          onClick={() => setSaveMode("save")}
+          onClick={() => handleSave("save")}
           className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 min-w-[140px]"
         >
           {loading && saveMode === "save" ? (
-            <><Loader2 size={15} className="animate-spin" /> Salvando...</>
+            <><Loader2 size={15} className="animate-spin" /> {step || "Salvando..."}</>
           ) : (
             plant ? "Salvar Alterações" : "Cadastrar Planta"
           )}
