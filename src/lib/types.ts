@@ -53,6 +53,24 @@ export interface GrowStyle {
   createdAt: string;
 }
 
+export type GrowEventType =
+  | "poda" | "treino" | "rega_fertilizante" | "rega"
+  | "flush_pre_flip" | "flush_pre_colheita" | "escuridao"
+  | "colheita" | "secagem" | "germinacao" | "transplante"
+  | "top_dress" | "retirar_clones" | "cura";
+
+export interface GrowEvent {
+  id: string;
+  userId: string;
+  plantId?: string;
+  type: GrowEventType;
+  date: string;
+  time?: string;
+  notes?: string;
+  googleEventId?: string;
+  createdAt: string;
+}
+
 export interface Plant {
   id: string;
   userId: string;
@@ -88,6 +106,8 @@ export interface Plant {
   notes?: string;
   photoUrl?: string;
   photos?: string[];
+  archived?: boolean;
+  archivedAt?: string;
   createdAt: string;
   updatedAt: string;
 }

@@ -24,6 +24,8 @@ import {
   ChevronDown,
   ChevronLeft,
   Beaker,
+  CalendarDays,
+  Archive,
 } from "lucide-react";
 
 interface NavItem {
@@ -56,6 +58,8 @@ const NAV_GROUPS: NavGroup[] = [
     collapsible: false,
     items: [
       { href: "/diary", label: "Diário", icon: BookOpen },
+      { href: "/calendar", label: "Calendário", icon: CalendarDays },
+      { href: "/archive", label: "Arquivo", icon: Archive },
     ],
   },
   {

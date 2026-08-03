@@ -1,0 +1,312 @@
+"use client";
+
+import { useMemo, useState, useEffect } from "react";
+import {
+  startOfMonth, endOfMonth, eachDayOfInterval,
+  startOfWeek, endOfWeek, format, isSameDay, isSameMonth,
+  addMonths, subMonths, isToday, parseISO,
+} from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { useEvents } from "@/hooks/use-events";
+import { usePlants } from "@/hooks/use-plants";
+import { deleteGrowEvent } from "@/lib/events";
+import { EVENT_BY_TYPE } from "@/lib/event-constants";
+import { EventSheet } from "@/components/calendar/event-sheet";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2,
+  Wifi, WifiOff, RefreshCw,
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { useSearchParams } from "next/navigation";
+import type { GrowEvent } from "@/lib/types";
+import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
+
+const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+
+export default function CalendarPage() {
+  const { events, loading, refresh } = useEvents();
+  const { plants } = usePlants();
+  const searchParams = useSearchParams();
+
+  const [month, setMonth] = useState(new Date());
+  const [selected, setSelected] = useState<Date | null>(new Date());
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [gcalConnected, setGcalConnected] = useState<boolean | null>(null);
+  const [gcalMsg, setGcalMsg] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
+
+  useEffect(() => {
+    const connected = searchParams.get("gcal_connected");
+    const error = searchParams.get("gcal_error");
+    if (connected) { setGcalConnected(true); setGcalMsg("Google Agenda conectada!"); }
+    if (error) { setGcalMsg(`Erro ao conectar: ${error}`); }
+    // Check cookie presence via a lightweight ping
+    fetch("/api/calendar/push", { method: "POST", body: JSON.stringify({ check: true }), headers: { "Content-Type": "application/json" } })
+      .then((r) => r.json())
+      .then((d) => { if (d.reason !== "not_connected") setGcalConnected(true); })
+      .catch(() => null);
+  }, [searchParams]);
+
+  const calendarDays = useMemo(() => {
+    const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });
+    const end = endOfWeek(endOfMonth(month), { weekStartsOn: 0 });
+    return eachDayOfInterval({ start, end });
+  }, [month]);
+
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, GrowEvent[]>();
+    for (const ev of events) {
+      const key = ev.date.slice(0, 10);
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(ev);
+    }
+    return map;
+  }, [events]);
+
+  const selectedEvents = useMemo(() => {
+    if (!selected) return [];
+    return eventsByDate.get(format(selected, "yyyy-MM-dd")) ?? [];
+  }, [selected, eventsByDate]);
+
+  const plantMap = useMemo(
+    () => Object.fromEntries(plants.map((p) => [p.id, p])),
+    [plants]
+  );
+
+  async function handleDelete(id: string) {
+    setDeleting(id);
+    await deleteGrowEvent(id);
+    await refresh();
+    setDeleting(null);
+  }
+
+  return (
+    <MotionPage>
+    <div className="max-w-3xl mx-auto space-y-5 p-4 md:p-6">
+      {/* Header */}
+      <MotionItem>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold flex items-center gap-2">
+            <CalendarDays size={22} className="text-primary" />
+            Calendário
+          </h1>
+          <p className="text-sm text-muted-foreground mt-0.5">Planeje e acompanhe os eventos do cultivo</p>
+        </div>
+        <Button
+          onClick={() => setSheetOpen(true)}
+          className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
+        >
+          <Plus size={16} />
+          Evento
+        </Button>
+      </div>
+      </MotionItem>
+
+      {/* Google Calendar status */}
+      <MotionItem>
+      <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3">
+        <div className="flex items-center gap-2.5">
+          {gcalConnected ? (
+            <Wifi size={15} className="text-green-400" />
+          ) : (
+            <WifiOff size={15} className="text-muted-foreground" />
+          )}
+          <div>
+            <p className="text-sm font-medium">
+              {gcalConnected ? "Google Agenda conectada" : "Google Agenda não conectada"}
+            </p>
+            {gcalMsg && (
+              <p className="text-xs text-muted-foreground">{gcalMsg}</p>
+            )}
+          </div>
+        </div>
+        {!gcalConnected && (
+          <a href="/api/auth/google">
+            <Button size="sm" variant="outline" className="gap-1.5 border-border text-xs">
+              Conectar
+            </Button>
+          </a>
+        )}
+        {gcalConnected && (
+          <Button size="sm" variant="ghost" className="gap-1.5 text-xs text-muted-foreground" onClick={() => refresh()}>
+            <RefreshCw size={12} />
+            Sincronizar
+          </Button>
+        )}
+      </div>
+      </MotionItem>
+
+      {/* Month navigator */}
+      <MotionItem>
+      <div className="bg-card border border-border rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border">
+          <button
+            onClick={() => setMonth((m) => subMonths(m, 1))}
+            className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronLeft size={16} />
+          </button>
+          <h2 className="text-sm font-semibold text-foreground capitalize">
+            {format(month, "MMMM yyyy", { locale: ptBR })}
+          </h2>
+          <button
+            onClick={() => setMonth((m) => addMonths(m, 1))}
+            className="p-1.5 rounded-lg hover:bg-muted/40 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+
+        {/* Week days header */}
+        <div className="grid grid-cols-7 border-b border-border">
+          {WEEK_DAYS.map((d) => (
+            <div key={d} className="py-2 text-center text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* Days grid */}
+        {loading ? (
+          <div className="p-4 grid grid-cols-7 gap-1">
+            {Array.from({ length: 35 }).map((_, i) => (
+              <Skeleton key={i} className="h-12 rounded-lg bg-muted/40" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-7">
+            {calendarDays.map((day) => {
+              const key = format(day, "yyyy-MM-dd");
+              const dayEvents = eventsByDate.get(key) ?? [];
+              const isCurrentMonth = isSameMonth(day, month);
+              const isSelected = selected ? isSameDay(day, selected) : false;
+              const isTodayDay = isToday(day);
+
+              return (
+                <button
+                  key={key}
+                  onClick={() => setSelected(day)}
+                  className={cn(
+                    "min-h-[52px] p-1.5 flex flex-col items-center gap-1 border-b border-r border-border/40 transition-colors",
+                    isSelected
+                      ? "bg-primary/10"
+                      : "hover:bg-muted/20",
+                    !isCurrentMonth && "opacity-30"
+                  )}
+                >
+                  <span className={cn(
+                    "w-6 h-6 flex items-center justify-center rounded-full text-xs font-medium",
+                    isTodayDay && !isSelected && "bg-primary text-primary-foreground",
+                    isSelected && "bg-primary text-primary-foreground",
+                    !isTodayDay && !isSelected && "text-foreground"
+                  )}>
+                    {format(day, "d")}
+                  </span>
+                  {dayEvents.length > 0 && (
+                    <div className="flex flex-wrap justify-center gap-0.5">
+                      {dayEvents.slice(0, 3).map((ev, i) => (
+                        <span key={i} className="text-[10px] leading-none">
+                          {EVENT_BY_TYPE[ev.type]?.emoji ?? "📌"}
+                        </span>
+                      ))}
+                      {dayEvents.length > 3 && (
+                        <span className="text-[9px] text-muted-foreground">+{dayEvents.length - 3}</span>
+                      )}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      </MotionItem>
+
+      {/* Selected day events */}
+      {selected && (
+        <MotionItem>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-foreground capitalize">
+              {format(selected, "EEEE, dd 'de' MMMM", { locale: ptBR })}
+            </h3>
+            <Button
+              size="sm"
+              variant="ghost"
+              className="gap-1 text-xs text-muted-foreground hover:text-primary"
+              onClick={() => setSheetOpen(true)}
+            >
+              <Plus size={13} />
+              Adicionar
+            </Button>
+          </div>
+
+          {selectedEvents.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-6 text-center">
+              Nenhum evento neste dia.
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {selectedEvents.map((ev) => {
+                const meta = EVENT_BY_TYPE[ev.type];
+                const plant = ev.plantId ? plantMap[ev.plantId] : null;
+                return (
+                  <div
+                    key={ev.id}
+                    className={cn(
+                      "flex items-start gap-3 p-3 rounded-xl border bg-card",
+                      meta?.bg ?? "border-border"
+                    )}
+                  >
+                    <span className="text-xl leading-none mt-0.5">{meta?.emoji ?? "📌"}</span>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className={cn("text-sm font-medium", meta?.color ?? "text-foreground")}>
+                          {meta?.label ?? ev.type}
+                        </p>
+                        {ev.time && (
+                          <span className="text-xs text-muted-foreground">{ev.time}</span>
+                        )}
+                        {ev.googleEventId && (
+                          <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-full">
+                            Google
+                          </span>
+                        )}
+                      </div>
+                      {plant && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{plant.name} — {plant.strain}</p>
+                      )}
+                      {ev.notes && (
+                        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{ev.notes}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDelete(ev.id)}
+                      disabled={deleting === ev.id}
+                      className="text-muted-foreground hover:text-destructive transition-colors p-1 shrink-0"
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+        </MotionItem>
+      )}
+    </div>
+
+    <EventSheet
+      open={sheetOpen}
+      onClose={() => setSheetOpen(false)}
+      onSaved={refresh}
+      plants={plants}
+      defaultDate={selected ? format(selected, "yyyy-MM-dd") : undefined}
+    />
+    </MotionPage>
+  );
+}

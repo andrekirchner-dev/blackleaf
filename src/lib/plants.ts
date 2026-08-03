@@ -87,6 +87,33 @@ export async function advanceStage(id: string, stage: GrowStage) {
   }, { merge: true });
 }
 
+export async function archivePlant(id: string): Promise<void> {
+  await setDoc(doc(db, COLLECTION, id), {
+    archived: true,
+    archivedAt: new Date().toISOString(),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function unarchivePlant(id: string): Promise<void> {
+  await setDoc(doc(db, COLLECTION, id), {
+    archived: false,
+    archivedAt: null,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function getArchivedPlants(userId: string): Promise<Plant[]> {
+  const q = query(
+    collection(db, COLLECTION),
+    where("userId", "==", userId),
+    where("archived", "==", true),
+    orderBy("archivedAt", "desc")
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => normalizePlant(d.id, d.data() as Record<string, unknown>));
+}
+
 export async function duplicatePlant(plant: Plant, userId: string): Promise<string> {
   const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...data } = plant;
   const baseName = plant.name.replace(/\s*\(cópia\s*\d*\)\s*$/, "").trim();

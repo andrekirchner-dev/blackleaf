@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getPlant, deletePlant, advanceStage } from "@/lib/plants";
+import { getPlant, deletePlant, advanceStage, archivePlant } from "@/lib/plants";
 import { STAGE_LABELS, STAGE_ORDER, STAGE_COLORS, STAGE_DOT, ENV_LABELS, MEDIUM_LABELS } from "@/lib/constants";
 import type { Plant, GrowStage } from "@/lib/types";
 import { differenceInDays, parseISO, format } from "date-fns";
@@ -13,7 +13,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Leaf, Calendar, Droplets, FlaskConical, Pencil, Trash2,
   ChevronRight, ArrowLeft, Thermometer, Sprout, Dna, Clock,
-  TrendingUp, BookOpen, History,
+  TrendingUp, BookOpen, History, Archive,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
@@ -41,6 +41,7 @@ export default function PlantDetailPage() {
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [archiving, setArchiving] = useState(false);
 
   useEffect(() => {
     getPlant(id).then(setPlant).finally(() => setLoading(false));
@@ -62,6 +63,13 @@ export default function PlantDetailPage() {
     setDeleting(true);
     await deletePlant(id);
     router.push("/plants");
+  }
+
+  async function handleArchive() {
+    if (!confirm("Encerrar este cultivo? A planta será movida para o Arquivo e não aparecerá na lista ativa.")) return;
+    setArchiving(true);
+    await archivePlant(id);
+    router.push("/archive");
   }
 
   if (loading) {
@@ -108,6 +116,16 @@ export default function PlantDetailPage() {
                 Editar
               </Button>
             </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-muted-foreground/30 text-muted-foreground hover:bg-muted hover:text-foreground"
+              onClick={handleArchive}
+              disabled={archiving}
+            >
+              <Archive size={13} />
+              {archiving ? "Encerrando..." : "Encerrar"}
+            </Button>
             <Button
               variant="outline"
               size="sm"

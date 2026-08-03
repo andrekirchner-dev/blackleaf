@@ -17,7 +17,7 @@ export function usePlants() {
     setError(null);
     try {
       const data = await getUserPlants(user.uid);
-      setPlants(data);
+      setPlants(data.filter((p) => !p.archived));
     } catch {
       setError("Erro ao carregar plantas.");
     } finally {
