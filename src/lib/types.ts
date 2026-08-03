@@ -62,6 +62,9 @@ export interface Plant {
   strain: string;
   bank?: string;
   genetics?: GeneticType;
+  sativaPercent?: number;
+  indicaPercent?: number;
+  ruderalisPercent?: number;
   geneticsCross?: string;
   floweringWeeks?: number;
   vegWeeks?: number;

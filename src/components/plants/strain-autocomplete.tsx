@@ -10,7 +10,9 @@ import type { StrainResult } from "@/app/api/strains/route";
 interface AutoFill {
   strain: string;
   bank: string;
-  genetics: GeneticType | "";
+  sativaPercent: string;
+  indicaPercent: string;
+  ruderalisPercent: string;
   floweringWeeks: string;
   thcEstimate: string;
   cbdEstimate: string;
@@ -159,7 +161,16 @@ export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, c
 
   function selectResult(r: StrainResult) {
     const bank = getBank(r);
-    const genetics = mapGenetics(r);
+    const sativa = r.sativa_percentage;
+    const indica = r.indica_percentage;
+    // detect ruderalis from flowering_behavior or about_info
+    const isAuto = r.flowering_behavior?.toLowerCase().includes("auto")
+      || (r.about_info ?? "").toLowerCase().includes("ruderalis");
+    const sativaPercent = sativa != null ? String(Math.round(sativa)) : "";
+    const indicaPercent = indica != null ? String(Math.round(indica)) : "";
+    const ruderalisPercent = isAuto && sativa != null && indica != null
+      ? String(Math.max(0, 100 - Math.round(sativa) - Math.round(indica)))
+      : isAuto ? "100" : "";
     const floweringWeeks = mapWeeks(r);
     const thcEstimate = mapThc(r);
     const cbdEstimate = mapCbd(r);
@@ -169,7 +180,7 @@ export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, c
     const heightIndoor = r.height_indoor ?? "";
     const bankRecommendations = cleanAboutInfo(r.about_info);
     onChange(r.strain_name);
-    onAutoFill({ strain: r.strain_name, bank, genetics, floweringWeeks, thcEstimate, cbdEstimate, effects, terpenes, yieldIndoor, yieldOutdoor, heightIndoor, bankRecommendations });
+    onAutoFill({ strain: r.strain_name, bank, sativaPercent, indicaPercent, ruderalisPercent, floweringWeeks, thcEstimate, cbdEstimate, effects, terpenes, yieldIndoor, yieldOutdoor, heightIndoor, bankRecommendations });
     setOpen(false);
     setAutofilled(true);
     setTimeout(() => setAutofilled(false), 500);
@@ -233,9 +244,16 @@ export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, c
           <ul className="max-h-64 overflow-y-auto py-1">
             {results.map((r, i) => {
               const bank = getBank(r);
-              const genetics = mapGenetics(r);
               const weeks = mapWeeks(r);
-              const genEmoji = genetics === "autoflowering" ? "⚡" : genetics === "sativa" ? "🌿" : genetics === "indica" ? "🍃" : genetics === "hibrida" ? "🌱" : "";
+              const isAuto = r.flowering_behavior?.toLowerCase().includes("auto")
+                || (r.about_info ?? "").toLowerCase().includes("ruderalis");
+              const s = r.sativa_percentage;
+              const ind = r.indica_percentage;
+              const genTag = isAuto ? "⚡ Auto"
+                : s != null && ind != null ? `${Math.round(s)}S / ${Math.round(ind)}I`
+                : s != null ? `${Math.round(s)}% S`
+                : ind != null ? `${Math.round(ind)}% I`
+                : "";
               return (
                 <li key={`${r.strain_name}-${i}`}>
                   <button
@@ -254,7 +272,11 @@ export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, c
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
-                      {genEmoji && <span className="text-sm">{genEmoji}</span>}
+                      {genTag && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-muted/60 text-muted-foreground font-medium">
+                          {genTag}
+                        </span>
+                      )}
                       {weeks && (
                         <span className="text-[10px] px-1.5 py-0.5 rounded bg-primary/10 text-primary font-medium">
                           {weeks}s

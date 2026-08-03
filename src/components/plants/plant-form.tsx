@@ -29,12 +29,16 @@ const ENV_EMOJI: Record<string, string> = {
   indoor: "🏠", outdoor: "🌤️", greenhouse: "🌿",
 };
 
-const GENETICS: { value: GeneticType; label: string; emoji: string }[] = [
-  { value: "sativa",        label: "Sativa",  emoji: "🌿" },
-  { value: "indica",        label: "Indica",  emoji: "🍃" },
-  { value: "hibrida",       label: "Híbrida", emoji: "🌱" },
-  { value: "autoflowering", label: "Auto",    emoji: "⚡" },
-];
+function deriveGenetics(s: string, i: string, r: string): GeneticType | undefined {
+  const sv = Number(s) || 0;
+  const iv = Number(i) || 0;
+  const rv = Number(r) || 0;
+  if (rv > 0) return "autoflowering";
+  if (sv + iv === 0) return undefined;
+  if (sv >= 65) return "sativa";
+  if (iv >= 65) return "indica";
+  return "hibrida";
+}
 
 const HARVEST_MONTHS = [
   "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
@@ -90,7 +94,9 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     name:                plant?.name ?? "",
     strain:              plant?.strain ?? "",
     bank:                plant?.bank ?? "",
-    genetics:            (plant?.genetics ?? "") as GeneticType | "",
+    sativaPercent:       plant?.sativaPercent?.toString() ?? "",
+    indicaPercent:       plant?.indicaPercent?.toString() ?? "",
+    ruderalisPercent:    plant?.ruderalisPercent?.toString() ?? "",
     geneticsCross:       plant?.geneticsCross ?? "",
     floweringWeeks:      plant?.floweringWeeks?.toString() ?? "",
     thcEstimate:         plant?.thcEstimate ?? "",
@@ -140,7 +146,10 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         name:                form.name.trim(),
         strain:              form.strain.trim(),
         bank:                form.bank.trim() || undefined,
-        genetics:            form.genetics || undefined,
+        genetics:            deriveGenetics(form.sativaPercent, form.indicaPercent, form.ruderalisPercent),
+        sativaPercent:       form.sativaPercent ? Number(form.sativaPercent) : undefined,
+        indicaPercent:       form.indicaPercent ? Number(form.indicaPercent) : undefined,
+        ruderalisPercent:    form.ruderalisPercent ? Number(form.ruderalisPercent) : undefined,
         geneticsCross:       form.geneticsCross.trim() || undefined,
         floweringWeeks:      form.floweringWeeks ? Number(form.floweringWeeks) : undefined,
         thcEstimate:         form.thcEstimate.trim() || undefined,
@@ -180,7 +189,11 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     }
   }
 
-  const geneticMeta = GENETICS.find((g) => g.value === form.genetics);
+  const geneticsSummary = [
+    form.sativaPercent ? `${form.sativaPercent}% S` : "",
+    form.indicaPercent ? `${form.indicaPercent}% I` : "",
+    form.ruderalisPercent ? `${form.ruderalisPercent}% R` : "",
+  ].filter(Boolean).join(" / ");
 
   return (
     <form onSubmit={handleSubmit} className="space-y-3 max-w-2xl mx-auto">
@@ -229,7 +242,9 @@ export function PlantForm({ plant }: { plant?: Plant }) {
                   ...prev,
                   strain:              data.strain,
                   bank:                data.bank || prev.bank,
-                  genetics:            data.genetics || prev.genetics,
+                  sativaPercent:       data.sativaPercent || prev.sativaPercent,
+                  indicaPercent:       data.indicaPercent || prev.indicaPercent,
+                  ruderalisPercent:    data.ruderalisPercent || prev.ruderalisPercent,
                   floweringWeeks:      data.floweringWeeks || prev.floweringWeeks,
                   thcEstimate:         data.thcEstimate || prev.thcEstimate,
                   cbdEstimate:         data.cbdEstimate || prev.cbdEstimate,
@@ -242,7 +257,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
                 }));
                 setOpen((prev) => new Set([...prev, "genetica"]));
                 const filled = [
-                  data.genetics && "genética",
+                  (data.sativaPercent || data.indicaPercent || data.ruderalisPercent) && "genética",
                   data.floweringWeeks && "floração",
                   data.thcEstimate && "THC",
                   data.effects && "efeitos",
@@ -279,33 +294,37 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         title="Dados da Strain"
         sectionRef={geneticaSectionRef}
         summary={[
-          geneticMeta ? `${geneticMeta.emoji} ${geneticMeta.label}` : "",
+          geneticsSummary,
           form.floweringWeeks ? `${form.floweringWeeks} sem.` : "",
           form.thcEstimate ? `THC ${form.thcEstimate}` : "",
         ].filter(Boolean).join(" · ") || undefined}
         open={open.has("genetica")}
         onToggle={toggle}
       >
-        {/* Tipo genético */}
+        {/* Composição genética */}
         <div className="space-y-1.5">
-          <Label>Tipo Genético</Label>
-          <div className="grid grid-cols-2 gap-2">
-            {GENETICS.map((g) => (
-              <button
-                key={g.value}
-                type="button"
-                onClick={() => set("genetics", form.genetics === g.value ? "" : g.value)}
-                className={cn(
-                  "flex items-center gap-2.5 px-3 py-2.5 rounded-xl border text-sm font-medium transition-all",
-                  form.genetics === g.value
-                    ? "bg-primary/10 border-primary/40 text-primary"
-                    : "bg-background border-border text-muted-foreground hover:text-foreground"
-                )}
-              >
-                <span>{g.emoji}</span>
-                <span>{g.label}</span>
-              </button>
-            ))}
+          <Label>Composição Genética (%)</Label>
+          <div className="grid grid-cols-3 gap-3">
+            {(["sativaPercent", "indicaPercent", "ruderalisPercent"] as const).map((field) => {
+              const labels = { sativaPercent: "🌿 Sativa", indicaPercent: "🍃 Indica", ruderalisPercent: "⚡ Ruderalis" };
+              return (
+                <div key={field} className="space-y-1">
+                  <p className="text-[11px] text-muted-foreground font-medium">{labels[field]}</p>
+                  <div className="relative">
+                    <Input
+                      type="number"
+                      min="0"
+                      max="100"
+                      placeholder="0"
+                      value={form[field]}
+                      onChange={(e) => set(field, e.target.value)}
+                      className="bg-background border-border pr-7 text-center"
+                    />
+                    <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">%</span>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
 
