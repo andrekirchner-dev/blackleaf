@@ -83,8 +83,8 @@ export default function PlantDetailPage() {
     );
   }
 
-  const age = differenceInDays(new Date(), parseISO(plant.germinationDate));
-  const daysInStage = differenceInDays(new Date(), parseISO(plant.stageChangedAt));
+  const age = plant.germinationDate ? differenceInDays(new Date(), parseISO(plant.germinationDate)) : 0;
+  const daysInStage = plant.stageChangedAt ? differenceInDays(new Date(), parseISO(plant.stageChangedAt)) : 0;
   const stageIdx = STAGE_ORDER.indexOf(plant.stage);
   const nextStage = STAGE_ORDER[stageIdx + 1] as GrowStage | undefined;
   const isOwner = user?.uid === plant.userId;
@@ -335,7 +335,7 @@ export default function PlantDetailPage() {
       )}
 
       <p className="text-xs text-muted-foreground/50 text-center pb-2">
-        Cadastrada em {format(parseISO(plant.createdAt as unknown as string || new Date().toISOString()), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+        Cadastrada em {format(parseISO(plant.createdAt || new Date().toISOString()), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
       </p>
     </div>
   );

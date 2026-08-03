@@ -27,6 +27,7 @@ function normalizePlant(id: string, data: Record<string, unknown>): Plant {
     id,
     createdAt: tsToISO(data.createdAt),
     updatedAt: tsToISO(data.updatedAt),
+    stageChangedAt: data.stageChangedAt ? tsToISO(data.stageChangedAt) : new Date().toISOString(),
   } as Plant;
 }
 
