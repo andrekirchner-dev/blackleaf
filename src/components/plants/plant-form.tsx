@@ -250,15 +250,21 @@ export function PlantForm({ plant }: { plant?: Plant }) {
 
       let photoUrls: string[] = [];
       let newCover = "";
+      let photoWarning = "";
 
       if (pendingPhotos.length > 0) {
         setStep("Enviando fotos...");
-        const uploaded = await Promise.all(
-          pendingPhotos.map((p) => uploadPlantPhoto(user.uid, plantId, p.file))
-        );
-        const coverIdx = pendingPhotos.findIndex((p) => p.preview === coverSrc);
-        if (coverIdx >= 0) newCover = uploaded[coverIdx];
-        photoUrls = uploaded;
+        try {
+          const uploaded = await Promise.all(
+            pendingPhotos.map((p) => uploadPlantPhoto(user.uid, plantId, p.file))
+          );
+          const coverIdx = pendingPhotos.findIndex((p) => p.preview === coverSrc);
+          if (coverIdx >= 0) newCover = uploaded[coverIdx];
+          photoUrls = uploaded;
+        } catch (photoErr) {
+          const msg = photoErr instanceof Error ? photoErr.message : String(photoErr);
+          photoWarning = `Fotos não enviadas: ${msg}`;
+        }
       }
 
       if (photoUrls.length > 0) {
@@ -282,11 +288,15 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         setPhotos([]);
         setCoverSrc("");
         setOpen(new Set(["identificacao"]));
-        setAutofillMsg("Planta cadastrada! Preencha os dados da próxima.");
-        setTimeout(() => setAutofillMsg(null), 4000);
+        setAutofillMsg(photoWarning ? `Planta cadastrada! (${photoWarning})` : "Planta cadastrada! Preencha os dados da próxima.");
+        setTimeout(() => setAutofillMsg(null), 5000);
         setSaveMode("save");
       } else {
         router.push(`/plants/${plantId}`);
+      }
+
+      if (photoWarning && mode !== "saveAndAnother") {
+        setError(photoWarning);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
