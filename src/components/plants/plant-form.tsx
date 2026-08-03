@@ -200,22 +200,28 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         // EDIT
         let photoUrls = savedPhotos.map((p) => p.url);
         let newCover = coverSrc;
+        let photoWarning = "";
 
         if (pendingPhotos.length > 0) {
           setStep("Enviando fotos...");
-          const uploaded = await Promise.all(
-            pendingPhotos.map((p) => uploadPlantPhoto(user.uid, plant.id, p.file))
-          );
-          const coverIdx = pendingPhotos.findIndex((p) => p.preview === coverSrc);
-          if (coverIdx >= 0) newCover = uploaded[coverIdx];
-          photoUrls = [...photoUrls, ...uploaded];
+          try {
+            const uploaded = await Promise.all(
+              pendingPhotos.map((p) => uploadPlantPhoto(user.uid, plant.id, p.file))
+            );
+            const coverIdx = pendingPhotos.findIndex((p) => p.preview === coverSrc);
+            if (coverIdx >= 0) newCover = uploaded[coverIdx];
+            photoUrls = [...photoUrls, ...uploaded];
+          } catch (photoErr) {
+            const msg = photoErr instanceof Error ? photoErr.message : String(photoErr);
+            photoWarning = `Fotos não enviadas: ${msg}`;
+          }
         }
 
         setStep("Salvando...");
         await new Promise<void>((resolve, reject) => {
           const tid = setTimeout(
-            () => reject(new Error("Tempo limite excedido (8s). Verifique sua conexão.")),
-            8000
+            () => reject(new Error("Tempo limite excedido (10s). Verifique sua conexão.")),
+            10000
           );
           updatePlant(plant.id, {
             ...buildPayload(),
@@ -225,6 +231,13 @@ export function PlantForm({ plant }: { plant?: Plant }) {
             .then(() => { clearTimeout(tid); resolve(); })
             .catch((err) => { clearTimeout(tid); reject(err); });
         });
+
+        if (photoWarning) {
+          setError(photoWarning);
+          setLoading(false);
+          setStep("");
+          return;
+        }
 
         setStep("Redirecionando...");
         router.replace(`/plants/${plant.id}`);
