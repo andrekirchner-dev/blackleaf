@@ -87,6 +87,7 @@ export interface Plant {
   potSize?: number;
   notes?: string;
   photoUrl?: string;
+  photos?: string[];
   createdAt: string;
   updatedAt: string;
 }

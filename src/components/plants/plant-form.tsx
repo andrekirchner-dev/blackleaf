@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { createPlant, updatePlant } from "@/lib/plants";
+import { uploadPlantPhoto } from "@/lib/storage";
 import { useSpaces } from "@/hooks/use-spaces";
 import { getSpaceMeta } from "@/lib/space-constants";
 import { STAGE_LABELS, STAGE_ORDER, ENV_LABELS, MEDIUM_LABELS } from "@/lib/constants";
@@ -12,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { CheckCircle2, ChevronDown, Leaf, Loader2, Sparkles } from "lucide-react";
+import { CheckCircle2, ChevronDown, Copy, ImagePlus, Leaf, Loader2, Sparkles, Star, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StrainAutocomplete } from "./strain-autocomplete";
 
@@ -80,6 +81,10 @@ function Section({
   );
 }
 
+type PhotoItem =
+  | { type: "saved"; url: string }
+  | { type: "pending"; file: File; preview: string };
+
 export function PlantForm({ plant }: { plant?: Plant }) {
   const { user } = useAuth();
   const router = useRouter();
@@ -88,7 +93,13 @@ export function PlantForm({ plant }: { plant?: Plant }) {
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<Set<string>>(new Set(["identificacao"]));
   const [autofillMsg, setAutofillMsg] = useState<string | null>(null);
+  const [saveMode, setSaveMode] = useState<"save" | "saveAndAnother">("save");
   const geneticaSectionRef = useRef<HTMLDivElement>(null);
+
+  const [photos, setPhotos] = useState<PhotoItem[]>(() =>
+    (plant?.photos ?? []).map((url) => ({ type: "saved" as const, url }))
+  );
+  const [coverSrc, setCoverSrc] = useState<string>(plant?.photoUrl ?? "");
 
   const [form, setForm] = useState({
     name:                plant?.name ?? "",
@@ -131,6 +142,47 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     });
   }
 
+  async function savePlant(): Promise<string> {
+    if (!user) throw new Error("Not authenticated");
+    const payload = {
+      name:                form.name.trim(),
+      strain:              form.strain.trim(),
+      bank:                form.bank.trim() || undefined,
+      genetics:            deriveGenetics(form.sativaPercent, form.indicaPercent, form.ruderalisPercent),
+      sativaPercent:       form.sativaPercent ? Number(form.sativaPercent) : undefined,
+      indicaPercent:       form.indicaPercent ? Number(form.indicaPercent) : undefined,
+      ruderalisPercent:    form.ruderalisPercent ? Number(form.ruderalisPercent) : undefined,
+      geneticsCross:       form.geneticsCross.trim() || undefined,
+      floweringWeeks:      form.floweringWeeks ? Number(form.floweringWeeks) : undefined,
+      thcEstimate:         form.thcEstimate.trim() || undefined,
+      cbdEstimate:         form.cbdEstimate.trim() || undefined,
+      effects:             form.effects.trim() || undefined,
+      terpenes:            form.terpenes.trim() || undefined,
+      yieldIndoor:         form.yieldIndoor.trim() || undefined,
+      yieldOutdoor:        form.yieldOutdoor.trim() || undefined,
+      heightIndoor:        form.heightIndoor.trim() || undefined,
+      heightOutdoor:       form.heightOutdoor.trim() || undefined,
+      harvestMonth:        form.harvestMonth || undefined,
+      bankRecommendations: form.bankRecommendations.trim() || undefined,
+      stage:               form.stage,
+      environment:         form.environment,
+      medium:              form.medium,
+      germinationDate:     form.germinationDate,
+      stageChangedAt:      plant?.stageChangedAt ?? new Date().toISOString(),
+      potSize:             form.potSize ? Number(form.potSize) : undefined,
+      spaceId:             form.spaceId || undefined,
+      previousGrowNotes:   form.previousGrowNotes.trim() || undefined,
+      notes:               form.notes.trim() || undefined,
+      photoUrl:            plant?.photoUrl,
+    };
+    if (plant) {
+      await updatePlant(plant.id, payload);
+      return plant.id;
+    } else {
+      return createPlant(user.uid, payload);
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!user) return;
@@ -142,43 +194,50 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     setLoading(true);
     setError(null);
     try {
-      const payload = {
-        name:                form.name.trim(),
-        strain:              form.strain.trim(),
-        bank:                form.bank.trim() || undefined,
-        genetics:            deriveGenetics(form.sativaPercent, form.indicaPercent, form.ruderalisPercent),
-        sativaPercent:       form.sativaPercent ? Number(form.sativaPercent) : undefined,
-        indicaPercent:       form.indicaPercent ? Number(form.indicaPercent) : undefined,
-        ruderalisPercent:    form.ruderalisPercent ? Number(form.ruderalisPercent) : undefined,
-        geneticsCross:       form.geneticsCross.trim() || undefined,
-        floweringWeeks:      form.floweringWeeks ? Number(form.floweringWeeks) : undefined,
-        thcEstimate:         form.thcEstimate.trim() || undefined,
-        cbdEstimate:         form.cbdEstimate.trim() || undefined,
-        effects:             form.effects.trim() || undefined,
-        terpenes:            form.terpenes.trim() || undefined,
-        yieldIndoor:         form.yieldIndoor.trim() || undefined,
-        yieldOutdoor:        form.yieldOutdoor.trim() || undefined,
-        heightIndoor:        form.heightIndoor.trim() || undefined,
-        heightOutdoor:       form.heightOutdoor.trim() || undefined,
-        harvestMonth:        form.harvestMonth || undefined,
-        bankRecommendations: form.bankRecommendations.trim() || undefined,
-        stage:               form.stage,
-        environment:         form.environment,
-        medium:              form.medium,
-        germinationDate:     form.germinationDate,
-        stageChangedAt:      plant?.stageChangedAt ?? new Date().toISOString(),
-        potSize:             form.potSize ? Number(form.potSize) : undefined,
-        spaceId:             form.spaceId || undefined,
-        previousGrowNotes:   form.previousGrowNotes.trim() || undefined,
-        notes:               form.notes.trim() || undefined,
-        photoUrl:            plant?.photoUrl,
-      };
-      if (plant) {
-        await updatePlant(plant.id, payload);
-        router.push(`/plants/${plant.id}`);
+      const plantId = await savePlant();
+
+      // Upload pending photos
+      const pending = photos.filter((p): p is { type: "pending"; file: File; preview: string } => p.type === "pending");
+      const saved = photos.filter((p): p is { type: "saved"; url: string } => p.type === "saved");
+      let allUrls = saved.map((p) => p.url);
+      let resolvedCover = coverSrc;
+
+      if (pending.length > 0) {
+        const uploaded = await Promise.all(
+          pending.map((p) => uploadPlantPhoto(user.uid, plantId, p.file))
+        );
+        const coverPendingIdx = pending.findIndex((p) => p.preview === coverSrc);
+        if (coverPendingIdx >= 0) resolvedCover = uploaded[coverPendingIdx];
+        allUrls = [...allUrls, ...uploaded];
+      }
+
+      if (allUrls.length > 0 || resolvedCover) {
+        await updatePlant(plantId, {
+          photos: allUrls.length > 0 ? allUrls : undefined,
+          photoUrl: resolvedCover || allUrls[0] || undefined,
+        });
+      }
+
+      if (saveMode === "saveAndAnother") {
+        // Reset only personal fields, keep strain data
+        setForm((prev) => ({
+          ...prev,
+          name: "",
+          potSize: "",
+          spaceId: "",
+          previousGrowNotes: "",
+          notes: "",
+          germinationDate: new Date().toISOString().split("T")[0],
+          stage: "semente",
+        }));
+        setPhotos([]);
+        setCoverSrc("");
+        setOpen(new Set(["identificacao"]));
+        setAutofillMsg("Planta cadastrada! Preencha os dados da próxima.");
+        setTimeout(() => setAutofillMsg(null), 4000);
+        setSaveMode("save");
       } else {
-        const id = await createPlant(user.uid, payload);
-        router.push(`/plants/${id}`);
+        router.push(`/plants/${plantId}`);
       }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -667,6 +726,89 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         />
       </Section>
 
+      {/* 7 — Fotos de Referência */}
+      <Section
+        id="fotos"
+        title="Fotos de Referência"
+        open={open.has("fotos")}
+        onToggle={toggle}
+        summary={
+          photos.length > 0
+            ? `${photos.length} foto${photos.length > 1 ? "s" : ""}${coverSrc ? " · capa selecionada" : ""}`
+            : undefined
+        }
+      >
+        <div className="space-y-3">
+          <label className="flex items-center justify-center gap-2 cursor-pointer w-full border-2 border-dashed border-border rounded-xl p-5 hover:border-primary/40 transition-colors">
+            <ImagePlus size={16} className="text-muted-foreground" />
+            <span className="text-sm text-muted-foreground">Adicionar fotos</span>
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                const newItems: PhotoItem[] = files.map((f) => ({
+                  type: "pending",
+                  file: f,
+                  preview: URL.createObjectURL(f),
+                }));
+                setPhotos((prev) => [...prev, ...newItems]);
+                e.target.value = "";
+              }}
+            />
+          </label>
+
+          {photos.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {photos.map((photo, i) => {
+                const src = photo.type === "saved" ? photo.url : photo.preview;
+                const isCover = coverSrc === src;
+                return (
+                  <div
+                    key={i}
+                    onClick={() => setCoverSrc(isCover ? "" : src)}
+                    className={cn(
+                      "group relative aspect-square rounded-xl overflow-hidden border-2 cursor-pointer transition-all",
+                      isCover
+                        ? "border-primary shadow-lg shadow-primary/20"
+                        : "border-border hover:border-primary/40"
+                    )}
+                  >
+                    <img src={src} alt="" className="w-full h-full object-cover" />
+                    {isCover && (
+                      <div className="absolute top-1.5 left-1.5 bg-primary rounded-full p-1">
+                        <Star size={10} className="text-primary-foreground fill-primary-foreground" />
+                      </div>
+                    )}
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (coverSrc === src) setCoverSrc("");
+                        if (photo.type === "pending") URL.revokeObjectURL(photo.preview);
+                        setPhotos((prev) => prev.filter((_, idx) => idx !== i));
+                      }}
+                      className="absolute top-1.5 right-1.5 bg-black/60 rounded-full p-1 opacity-0 group-hover:opacity-100 hover:bg-destructive transition-all"
+                    >
+                      <X size={10} className="text-white" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {photos.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              {coverSrc
+                ? "✓ Foto capa selecionada — clique em outra para trocar"
+                : "Clique em uma foto para definir como capa do card"}
+            </p>
+          )}
+        </div>
+      </Section>
+
       {error && (
         <p className="text-sm text-destructive bg-destructive/10 border border-destructive/20 px-4 py-2.5 rounded-lg">
           {error}
@@ -677,12 +819,28 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         <Button type="button" variant="outline" onClick={() => router.back()} className="border-border">
           Cancelar
         </Button>
+        {!plant && (
+          <Button
+            type="submit"
+            disabled={loading}
+            variant="outline"
+            onClick={() => setSaveMode("saveAndAnother")}
+            className="gap-2 border-border"
+          >
+            {loading && saveMode === "saveAndAnother" ? (
+              <><Loader2 size={15} className="animate-spin" /> Salvando...</>
+            ) : (
+              <><Copy size={15} /> Salvar e Cadastrar Outra</>
+            )}
+          </Button>
+        )}
         <Button
           type="submit"
           disabled={loading}
+          onClick={() => setSaveMode("save")}
           className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 min-w-[140px]"
         >
-          {loading ? (
+          {loading && saveMode === "save" ? (
             <><Loader2 size={15} className="animate-spin" /> Salvando...</>
           ) : (
             plant ? "Salvar Alterações" : "Cadastrar Planta"

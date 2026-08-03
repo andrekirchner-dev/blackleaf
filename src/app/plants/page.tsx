@@ -11,11 +11,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { STAGE_LABELS, STAGE_ORDER } from "@/lib/constants";
 import type { GrowStage } from "@/lib/types";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
+import { duplicatePlant } from "@/lib/plants";
+import { useAuth } from "@/contexts/auth-context";
 
 export default function PlantsPage() {
-  const { plants, loading } = usePlants();
+  const { user } = useAuth();
+  const { plants, loading, refresh } = usePlants();
   const [search, setSearch] = useState("");
   const [stageFilter, setStageFilter] = useState<GrowStage | "all">("all");
+  const [duplicating, setDuplicating] = useState<Set<string>>(new Set());
 
   const filtered = useMemo(() => {
     return plants.filter((p) => {
@@ -97,7 +101,26 @@ export default function PlantsPage() {
         </div>
       ) : filtered.length > 0 ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {filtered.map((p) => <PlantCard key={p.id} plant={p} />)}
+          {filtered.map((p) => (
+            <PlantCard
+              key={p.id}
+              plant={p}
+              onDuplicate={async () => {
+                if (!user || duplicating.has(p.id)) return;
+                setDuplicating((prev) => new Set([...prev, p.id]));
+                try {
+                  await duplicatePlant(p, user.uid);
+                  await refresh();
+                } finally {
+                  setDuplicating((prev) => {
+                    const n = new Set(prev);
+                    n.delete(p.id);
+                    return n;
+                  });
+                }
+              }}
+            />
+          ))}
         </div>
       ) : plants.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-24 text-center gap-4">

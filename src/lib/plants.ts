@@ -85,3 +85,15 @@ export async function advanceStage(id: string, stage: GrowStage) {
     updatedAt: serverTimestamp(),
   });
 }
+
+export async function duplicatePlant(plant: Plant, userId: string): Promise<string> {
+  const { id: _id, createdAt: _createdAt, updatedAt: _updatedAt, ...data } = plant;
+  const baseName = plant.name.replace(/\s*\(cópia\s*\d*\)\s*$/, "").trim();
+  const ref = await addDoc(collection(db, COLLECTION), {
+    ...strip({ ...data, name: `${baseName} (cópia)` }),
+    userId,
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  return ref.id;
+}
