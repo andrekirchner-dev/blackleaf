@@ -142,9 +142,8 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     });
   }
 
-  async function savePlant(): Promise<string> {
-    if (!user) throw new Error("Not authenticated");
-    const payload = {
+  function buildPayload() {
+    return {
       name:                form.name.trim(),
       strain:              form.strain.trim(),
       bank:                form.bank.trim() || undefined,
@@ -173,14 +172,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
       spaceId:             form.spaceId || undefined,
       previousGrowNotes:   form.previousGrowNotes.trim() || undefined,
       notes:               form.notes.trim() || undefined,
-      photoUrl:            plant?.photoUrl,
     };
-    if (plant) {
-      await updatePlant(plant.id, payload);
-      return plant.id;
-    } else {
-      return createPlant(user.uid, payload);
-    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -193,33 +185,62 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     }
     setLoading(true);
     setError(null);
+
     try {
-      const plantId = await savePlant();
+      const pendingPhotos = photos.filter(
+        (p): p is { type: "pending"; file: File; preview: string } => p.type === "pending"
+      );
+      const savedPhotos = photos.filter(
+        (p): p is { type: "saved"; url: string } => p.type === "saved"
+      );
 
-      // Upload pending photos
-      const pending = photos.filter((p): p is { type: "pending"; file: File; preview: string } => p.type === "pending");
-      const saved = photos.filter((p): p is { type: "saved"; url: string } => p.type === "saved");
-      let allUrls = saved.map((p) => p.url);
-      let resolvedCover = coverSrc;
+      if (plant) {
+        // EDIT — single Firestore write
+        let photoUrls = savedPhotos.map((p) => p.url);
+        let newCover = coverSrc;
 
-      if (pending.length > 0) {
-        const uploaded = await Promise.all(
-          pending.map((p) => uploadPlantPhoto(user.uid, plantId, p.file))
-        );
-        const coverPendingIdx = pending.findIndex((p) => p.preview === coverSrc);
-        if (coverPendingIdx >= 0) resolvedCover = uploaded[coverPendingIdx];
-        allUrls = [...allUrls, ...uploaded];
+        if (pendingPhotos.length > 0) {
+          const uploaded = await Promise.all(
+            pendingPhotos.map((p) => uploadPlantPhoto(user.uid, plant.id, p.file))
+          );
+          const coverIdx = pendingPhotos.findIndex((p) => p.preview === coverSrc);
+          if (coverIdx >= 0) newCover = uploaded[coverIdx];
+          photoUrls = [...photoUrls, ...uploaded];
+        }
+
+        await updatePlant(plant.id, {
+          ...buildPayload(),
+          photos: photoUrls.length > 0 ? photoUrls : undefined,
+          photoUrl: newCover || (photoUrls.length > 0 ? photoUrls[0] : undefined) || plant.photoUrl || undefined,
+        });
+
+        router.push(`/plants/${plant.id}`);
+        return;
       }
 
-      if (allUrls.length > 0 || resolvedCover) {
+      // CREATE
+      const plantId = await createPlant(user.uid, buildPayload());
+
+      let photoUrls: string[] = [];
+      let newCover = "";
+
+      if (pendingPhotos.length > 0) {
+        const uploaded = await Promise.all(
+          pendingPhotos.map((p) => uploadPlantPhoto(user.uid, plantId, p.file))
+        );
+        const coverIdx = pendingPhotos.findIndex((p) => p.preview === coverSrc);
+        if (coverIdx >= 0) newCover = uploaded[coverIdx];
+        photoUrls = uploaded;
+      }
+
+      if (photoUrls.length > 0) {
         await updatePlant(plantId, {
-          photos: allUrls.length > 0 ? allUrls : undefined,
-          photoUrl: resolvedCover || allUrls[0] || undefined,
+          photos: photoUrls,
+          photoUrl: newCover || photoUrls[0] || undefined,
         });
       }
 
       if (saveMode === "saveAndAnother") {
-        // Reset only personal fields, keep strain data
         setForm((prev) => ({
           ...prev,
           name: "",
@@ -242,7 +263,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error("[PlantForm] save error:", msg);
-      setError(`Erro ao salvar planta: ${msg}`);
+      setError(`Erro ao salvar: ${msg}`);
     } finally {
       setLoading(false);
     }
