@@ -208,19 +208,21 @@ export function PlantForm({ plant }: { plant?: Plant }) {
           photoUrls = [...photoUrls, ...uploaded];
         }
 
-        const writeTimeout = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error("Tempo limite excedido. Verifique sua conexão e tente novamente.")), 12000)
-        );
-        await Promise.race([
+        await new Promise<void>((resolve, reject) => {
+          const tid = setTimeout(
+            () => reject(new Error("Tempo limite excedido. Verifique sua conexão.")),
+            12000
+          );
           updatePlant(plant.id, {
             ...buildPayload(),
             photos: photoUrls.length > 0 ? photoUrls : undefined,
             photoUrl: newCover || (photoUrls.length > 0 ? photoUrls[0] : undefined) || plant.photoUrl || undefined,
-          }),
-          writeTimeout,
-        ]);
+          })
+            .then(() => { clearTimeout(tid); resolve(); })
+            .catch((err) => { clearTimeout(tid); reject(err); });
+        });
 
-        router.push(`/plants/${plant.id}`);
+        window.location.href = `/plants/${plant.id}`;
         return;
       }
 
