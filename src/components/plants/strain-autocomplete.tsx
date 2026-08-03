@@ -14,8 +14,11 @@ interface AutoFill {
   floweringWeeks: string;
   thcEstimate: string;
   cbdEstimate: string;
+  effects: string;
+  terpenes: string;
   yieldIndoor: string;
   yieldOutdoor: string;
+  heightIndoor: string;
   bankRecommendations: string;
 }
 
@@ -102,6 +105,14 @@ function mapYields(r: StrainResult): { indoor: string; outdoor: string } {
   return { indoor, outdoor };
 }
 
+function mapEffects(r: StrainResult): string {
+  const raw = r.effects ?? "";
+  if (!raw) return "";
+  // API returns "['relaxing', 'sleepy']" or plain comma-separated text
+  const cleaned = raw.replace(/[\[\]'"]/g, "").split(",").map((s) => s.trim()).filter(Boolean);
+  return cleaned.join(", ");
+}
+
 export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, className }: Props) {
   const [results, setResults] = useState<StrainResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -152,10 +163,13 @@ export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, c
     const floweringWeeks = mapWeeks(r);
     const thcEstimate = mapThc(r);
     const cbdEstimate = mapCbd(r);
+    const effects = mapEffects(r);
+    const terpenes = r.terpenes ?? "";
     const { indoor: yieldIndoor, outdoor: yieldOutdoor } = mapYields(r);
+    const heightIndoor = r.height_indoor ?? "";
     const bankRecommendations = cleanAboutInfo(r.about_info);
     onChange(r.strain_name);
-    onAutoFill({ strain: r.strain_name, bank, genetics, floweringWeeks, thcEstimate, cbdEstimate, yieldIndoor, yieldOutdoor, bankRecommendations });
+    onAutoFill({ strain: r.strain_name, bank, genetics, floweringWeeks, thcEstimate, cbdEstimate, effects, terpenes, yieldIndoor, yieldOutdoor, heightIndoor, bankRecommendations });
     setOpen(false);
     setAutofilled(true);
     setTimeout(() => setAutofilled(false), 500);

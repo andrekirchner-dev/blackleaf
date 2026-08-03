@@ -62,12 +62,18 @@ export interface Plant {
   strain: string;
   bank?: string;
   genetics?: GeneticType;
+  geneticsCross?: string;
   floweringWeeks?: number;
   vegWeeks?: number;
   thcEstimate?: string;
   cbdEstimate?: string;
+  effects?: string;
+  terpenes?: string;
   yieldIndoor?: string;
   yieldOutdoor?: string;
+  heightIndoor?: string;
+  heightOutdoor?: string;
+  harvestMonth?: string;
   bankRecommendations?: string;
   previousGrowNotes?: string;
   stage: GrowStage;

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { createPlant, updatePlant } from "@/lib/plants";
@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { ChevronDown, Leaf, Loader2, Sparkles } from "lucide-react";
+import { CheckCircle2, ChevronDown, Leaf, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { StrainAutocomplete } from "./strain-autocomplete";
 
@@ -30,20 +30,27 @@ const ENV_EMOJI: Record<string, string> = {
 };
 
 const GENETICS: { value: GeneticType; label: string; emoji: string }[] = [
-  { value: "sativa",       label: "Sativa",       emoji: "🌿" },
-  { value: "indica",       label: "Indica",       emoji: "🍃" },
-  { value: "hibrida",      label: "Híbrida",      emoji: "🌱" },
-  { value: "autoflowering", label: "Auto",        emoji: "⚡" },
+  { value: "sativa",        label: "Sativa",  emoji: "🌿" },
+  { value: "indica",        label: "Indica",  emoji: "🍃" },
+  { value: "hibrida",       label: "Híbrida", emoji: "🌱" },
+  { value: "autoflowering", label: "Auto",    emoji: "⚡" },
+];
+
+const HARVEST_MONTHS = [
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
 function Section({
-  id, title, summary, open, onToggle, children,
+  id, title, summary, open, onToggle, children, sectionRef,
 }: {
   id: string; title: string; summary?: string;
-  open: boolean; onToggle: (id: string) => void; children: React.ReactNode;
+  open: boolean; onToggle: (id: string) => void;
+  children: React.ReactNode;
+  sectionRef?: React.RefObject<HTMLDivElement | null>;
 }) {
   return (
-    <div className="border border-border rounded-xl overflow-hidden bg-card">
+    <div ref={sectionRef} className="border border-border rounded-xl overflow-hidden bg-card">
       <button
         type="button"
         onClick={() => onToggle(id)}
@@ -76,17 +83,25 @@ export function PlantForm({ plant }: { plant?: Plant }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState<Set<string>>(new Set(["identificacao"]));
+  const [autofillMsg, setAutofillMsg] = useState<string | null>(null);
+  const geneticaSectionRef = useRef<HTMLDivElement>(null);
 
   const [form, setForm] = useState({
     name:                plant?.name ?? "",
     strain:              plant?.strain ?? "",
     bank:                plant?.bank ?? "",
     genetics:            (plant?.genetics ?? "") as GeneticType | "",
+    geneticsCross:       plant?.geneticsCross ?? "",
     floweringWeeks:      plant?.floweringWeeks?.toString() ?? "",
     thcEstimate:         plant?.thcEstimate ?? "",
     cbdEstimate:         plant?.cbdEstimate ?? "",
+    effects:             plant?.effects ?? "",
+    terpenes:            plant?.terpenes ?? "",
     yieldIndoor:         plant?.yieldIndoor ?? "",
     yieldOutdoor:        plant?.yieldOutdoor ?? "",
+    heightIndoor:        plant?.heightIndoor ?? "",
+    heightOutdoor:       plant?.heightOutdoor ?? "",
+    harvestMonth:        plant?.harvestMonth ?? "",
     bankRecommendations: plant?.bankRecommendations ?? "",
     stage:               (plant?.stage ?? "semente") as GrowStage,
     environment:         (plant?.environment ?? "indoor") as GrowEnv,
@@ -126,11 +141,17 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         strain:              form.strain.trim(),
         bank:                form.bank.trim() || undefined,
         genetics:            form.genetics || undefined,
+        geneticsCross:       form.geneticsCross.trim() || undefined,
         floweringWeeks:      form.floweringWeeks ? Number(form.floweringWeeks) : undefined,
         thcEstimate:         form.thcEstimate.trim() || undefined,
         cbdEstimate:         form.cbdEstimate.trim() || undefined,
+        effects:             form.effects.trim() || undefined,
+        terpenes:            form.terpenes.trim() || undefined,
         yieldIndoor:         form.yieldIndoor.trim() || undefined,
         yieldOutdoor:        form.yieldOutdoor.trim() || undefined,
+        heightIndoor:        form.heightIndoor.trim() || undefined,
+        heightOutdoor:       form.heightOutdoor.trim() || undefined,
+        harvestMonth:        form.harvestMonth || undefined,
         bankRecommendations: form.bankRecommendations.trim() || undefined,
         stage:               form.stage,
         environment:         form.environment,
@@ -206,19 +227,38 @@ export function PlantForm({ plant }: { plant?: Plant }) {
               onAutoFill={(data) => {
                 setForm((prev) => ({
                   ...prev,
-                  strain: data.strain,
-                  bank: data.bank || prev.bank,
-                  genetics: data.genetics || prev.genetics,
-                  floweringWeeks: data.floweringWeeks || prev.floweringWeeks,
-                  thcEstimate: data.thcEstimate || prev.thcEstimate,
-                  cbdEstimate: data.cbdEstimate || prev.cbdEstimate,
-                  yieldIndoor: data.yieldIndoor || prev.yieldIndoor,
-                  yieldOutdoor: data.yieldOutdoor || prev.yieldOutdoor,
+                  strain:              data.strain,
+                  bank:                data.bank || prev.bank,
+                  genetics:            data.genetics || prev.genetics,
+                  floweringWeeks:      data.floweringWeeks || prev.floweringWeeks,
+                  thcEstimate:         data.thcEstimate || prev.thcEstimate,
+                  cbdEstimate:         data.cbdEstimate || prev.cbdEstimate,
+                  effects:             data.effects || prev.effects,
+                  terpenes:            data.terpenes || prev.terpenes,
+                  yieldIndoor:         data.yieldIndoor || prev.yieldIndoor,
+                  yieldOutdoor:        data.yieldOutdoor || prev.yieldOutdoor,
+                  heightIndoor:        data.heightIndoor || prev.heightIndoor,
                   bankRecommendations: data.bankRecommendations || prev.bankRecommendations,
                 }));
                 setOpen((prev) => new Set([...prev, "genetica"]));
+                const filled = [
+                  data.genetics && "genética",
+                  data.floweringWeeks && "floração",
+                  data.thcEstimate && "THC",
+                  data.effects && "efeitos",
+                  data.terpenes && "terpenos",
+                ].filter(Boolean);
+                setAutofillMsg(filled.length > 0 ? `Preenchido: ${filled.join(", ")}` : "Banco preenchido");
+                setTimeout(() => setAutofillMsg(null), 4000);
+                setTimeout(() => geneticaSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
               }}
             />
+            {autofillMsg && (
+              <p className="flex items-center gap-1.5 text-[11px] text-primary font-medium">
+                <CheckCircle2 size={12} />
+                {autofillMsg}
+              </p>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="bank">Banco / Breeder</Label>
@@ -233,10 +273,11 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         </div>
       </Section>
 
-      {/* 2 — Genética */}
+      {/* 2 — Dados da Strain */}
       <Section
         id="genetica"
         title="Dados da Strain"
+        sectionRef={geneticaSectionRef}
         summary={[
           geneticMeta ? `${geneticMeta.emoji} ${geneticMeta.label}` : "",
           form.floweringWeeks ? `${form.floweringWeeks} sem.` : "",
@@ -266,6 +307,18 @@ export function PlantForm({ plant }: { plant?: Plant }) {
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Cruza / Árvore genealógica */}
+        <div className="space-y-1.5">
+          <Label htmlFor="geneticsCross">Cruza / Árvore Genealógica</Label>
+          <Input
+            id="geneticsCross"
+            placeholder="Ex: OG Kush x Durban Poison"
+            value={form.geneticsCross}
+            onChange={(e) => set("geneticsCross", e.target.value)}
+            className="bg-background border-border"
+          />
         </div>
 
         {/* Semanas de floração */}
@@ -307,10 +360,34 @@ export function PlantForm({ plant }: { plant?: Plant }) {
           </div>
         </div>
 
-        {/* Yields */}
+        {/* Efeitos principais */}
+        <div className="space-y-1.5">
+          <Label htmlFor="effects">Efeitos Principais</Label>
+          <Input
+            id="effects"
+            placeholder="Ex: Relaxante, Criativo, Eufórico, Sonolento"
+            value={form.effects}
+            onChange={(e) => set("effects", e.target.value)}
+            className="bg-background border-border"
+          />
+        </div>
+
+        {/* Terpenos / Flavors */}
+        <div className="space-y-1.5">
+          <Label htmlFor="terpenes">Terpenos / Sabores</Label>
+          <Input
+            id="terpenes"
+            placeholder="Ex: Myrcene, Limonene, Caryophyllene · Cítrico, Terroso"
+            value={form.terpenes}
+            onChange={(e) => set("terpenes", e.target.value)}
+            className="bg-background border-border"
+          />
+        </div>
+
+        {/* Rendimento */}
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
-            <Label htmlFor="yieldIndoor">Produção Indoor</Label>
+            <Label htmlFor="yieldIndoor">Rendimento Indoor</Label>
             <Input
               id="yieldIndoor"
               placeholder="Ex: 400-500 g/m²"
@@ -320,7 +397,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
             />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="yieldOutdoor">Produção Outdoor</Label>
+            <Label htmlFor="yieldOutdoor">Rendimento Outdoor</Label>
             <Input
               id="yieldOutdoor"
               placeholder="Ex: 600 g/planta"
@@ -328,6 +405,52 @@ export function PlantForm({ plant }: { plant?: Plant }) {
               onChange={(e) => set("yieldOutdoor", e.target.value)}
               className="bg-background border-border"
             />
+          </div>
+        </div>
+
+        {/* Altura */}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="heightIndoor">Altura Indoor</Label>
+            <Input
+              id="heightIndoor"
+              placeholder="Ex: 80-120 cm"
+              value={form.heightIndoor}
+              onChange={(e) => set("heightIndoor", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="heightOutdoor">Altura Outdoor</Label>
+            <Input
+              id="heightOutdoor"
+              placeholder="Ex: 150-200 cm"
+              value={form.heightOutdoor}
+              onChange={(e) => set("heightOutdoor", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+        </div>
+
+        {/* Melhor mês de colheita */}
+        <div className="space-y-1.5">
+          <Label>Melhor Mês de Colheita</Label>
+          <div className="grid grid-cols-3 gap-1.5">
+            {HARVEST_MONTHS.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => set("harvestMonth", form.harvestMonth === m ? "" : m)}
+                className={cn(
+                  "py-2 px-2 rounded-lg border text-xs font-medium transition-all",
+                  form.harvestMonth === m
+                    ? "bg-primary/10 border-primary/40 text-primary"
+                    : "bg-background border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {m.slice(0, 3)}
+              </button>
+            ))}
           </div>
         </div>
 

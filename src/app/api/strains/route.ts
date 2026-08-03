@@ -17,6 +17,10 @@ export interface StrainResult {
   cbd_min?: number;
   cbd_max?: number;
   yield_units?: string;
+  terpenes?: string;
+  effects?: string;
+  height_indoor?: string;
+  height_outdoor?: string;
 }
 
 export async function GET(req: NextRequest) {
