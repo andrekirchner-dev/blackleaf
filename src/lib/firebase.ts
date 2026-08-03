@@ -4,7 +4,6 @@ import {
   getFirestore,
   initializeFirestore,
   persistentLocalCache,
-  persistentMultipleTabManager,
 } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
@@ -25,9 +24,7 @@ const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0
 function initDb() {
   try {
     return initializeFirestore(app, {
-      localCache: persistentLocalCache({
-        tabManager: persistentMultipleTabManager(),
-      }),
+      localCache: persistentLocalCache(),
     });
   } catch {
     return getFirestore(app);

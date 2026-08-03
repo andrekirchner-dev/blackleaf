@@ -1,7 +1,7 @@
 import {
   collection,
   addDoc,
-  updateDoc,
+  setDoc,
   deleteDoc,
   doc,
   getDocs,
@@ -53,10 +53,10 @@ export async function createPlant(
 }
 
 export async function updatePlant(id: string, data: Partial<Plant>) {
-  await updateDoc(doc(db, COLLECTION, id), {
+  await setDoc(doc(db, COLLECTION, id), {
     ...strip(data),
     updatedAt: serverTimestamp(),
-  });
+  }, { merge: true });
 }
 
 export async function deletePlant(id: string) {
@@ -80,11 +80,11 @@ export async function getUserPlants(userId: string): Promise<Plant[]> {
 }
 
 export async function advanceStage(id: string, stage: GrowStage) {
-  await updateDoc(doc(db, COLLECTION, id), {
+  await setDoc(doc(db, COLLECTION, id), {
     stage,
     stageChangedAt: new Date().toISOString(),
     updatedAt: serverTimestamp(),
-  });
+  }, { merge: true });
 }
 
 export async function duplicatePlant(plant: Plant, userId: string): Promise<string> {
