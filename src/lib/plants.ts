@@ -10,9 +10,25 @@ import {
   where,
   orderBy,
   serverTimestamp,
+  Timestamp,
 } from "firebase/firestore";
 import { db } from "./firebase";
 import type { Plant, GrowStage } from "./types";
+
+function tsToISO(val: unknown): string {
+  if (val instanceof Timestamp) return val.toDate().toISOString();
+  if (typeof val === "string") return val;
+  return new Date().toISOString();
+}
+
+function normalizePlant(id: string, data: Record<string, unknown>): Plant {
+  return {
+    ...data,
+    id,
+    createdAt: tsToISO(data.createdAt),
+    updatedAt: tsToISO(data.updatedAt),
+  } as Plant;
+}
 
 const COLLECTION = "plants";
 
@@ -49,7 +65,7 @@ export async function deletePlant(id: string) {
 export async function getPlant(id: string): Promise<Plant | null> {
   const snap = await getDoc(doc(db, COLLECTION, id));
   if (!snap.exists()) return null;
-  return { id: snap.id, ...snap.data() } as Plant;
+  return normalizePlant(snap.id, snap.data() as Record<string, unknown>);
 }
 
 export async function getUserPlants(userId: string): Promise<Plant[]> {
@@ -59,7 +75,7 @@ export async function getUserPlants(userId: string): Promise<Plant[]> {
     orderBy("createdAt", "desc")
   );
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Plant));
+  return snap.docs.map((d) => normalizePlant(d.id, d.data() as Record<string, unknown>));
 }
 
 export async function advanceStage(id: string, stage: GrowStage) {
