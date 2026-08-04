@@ -6,12 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createGrowEvent } from "@/lib/events";
+import { createGrowEvent, updateGrowEvent } from "@/lib/events";
+import { pushEventToGCal } from "@/lib/gcal-client";
 import { GROW_EVENT_TYPES } from "@/lib/event-constants";
-import { buildGCalLink } from "@/lib/gcal-link";
 import { useAuth } from "@/contexts/auth-context";
 import type { Plant, GrowEventType } from "@/lib/types";
-import { CheckCircle2, ExternalLink, Loader2 } from "lucide-react";
+import { CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -20,9 +20,11 @@ interface Props {
   onSaved: () => void;
   plants: Plant[];
   defaultDate?: string;
+  gcalToken?: string | null;
+  onGCalExpired?: () => void;
 }
 
-export function EventSheet({ open, onClose, onSaved, plants, defaultDate }: Props) {
+export function EventSheet({ open, onClose, onSaved, plants, defaultDate, gcalToken, onGCalExpired }: Props) {
   const { user } = useAuth();
   const [type, setType] = useState<GrowEventType>("rega");
   const [plantId, setPlantId] = useState("");
@@ -31,7 +33,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate }: Prop
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [gcalLink, setGcalLink] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
 
   const selectedType = GROW_EVENT_TYPES.find((t) => t.value === type)!;
 
@@ -39,8 +41,8 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate }: Prop
     setNotes("");
     setTime("");
     setPlantId("");
-    setGcalLink(null);
     setError(null);
+    setSaved(false);
   }
 
   async function handleSave() {
@@ -51,7 +53,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate }: Prop
       const plantName = plantId ? plants.find((p) => p.id === plantId)?.name : undefined;
       const title = `${selectedType.emoji} ${selectedType.label}${plantName ? ` — ${plantName}` : ""}`;
 
-      await createGrowEvent(user.uid, {
+      const eventId = await createGrowEvent(user.uid, {
         type,
         plantId: plantId || undefined,
         date,
@@ -59,9 +61,22 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate }: Prop
         notes: notes.trim() || undefined,
       });
 
-      const link = buildGCalLink({ title, date, time: time || undefined, notes: notes.trim() || undefined });
-      setGcalLink(link);
+      if (gcalToken) {
+        const result = await pushEventToGCal(gcalToken, {
+          title,
+          date,
+          time: time || undefined,
+          notes: notes.trim() || undefined,
+        });
+        if (result === "expired") {
+          onGCalExpired?.();
+        } else if (result?.id) {
+          await updateGrowEvent(eventId, { googleEventId: result.id });
+        }
+      }
+
       onSaved();
+      setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao salvar");
     } finally {
@@ -81,24 +96,19 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate }: Prop
           <SheetTitle className="text-base font-semibold">Novo Evento</SheetTitle>
         </SheetHeader>
 
-        {gcalLink ? (
-          /* Success state */
+        {saved ? (
           <div className="space-y-4 py-2">
             <div className="flex items-center gap-3 bg-primary/10 border border-primary/20 rounded-xl px-4 py-3">
               <CheckCircle2 size={18} className="text-primary shrink-0" />
-              <p className="text-sm font-medium text-foreground">Evento salvo no Blackleaf!</p>
+              <div>
+                <p className="text-sm font-medium text-foreground">Evento salvo!</p>
+                {gcalToken && (
+                  <p className="text-xs text-muted-foreground mt-0.5">Sincronizado com o Google Agenda</p>
+                )}
+              </div>
             </div>
-            <p className="text-sm text-muted-foreground text-center">
-              Deseja adicionar também na sua agenda do Google?
-            </p>
-            <a href={gcalLink} target="_blank" rel="noopener noreferrer" onClick={handleClose}>
-              <Button className="w-full gap-2 bg-[#4285F4] hover:bg-[#3367D6] text-white">
-                <ExternalLink size={15} />
-                Adicionar ao Google Agenda
-              </Button>
-            </a>
-            <Button type="button" variant="ghost" onClick={handleClose} className="w-full text-muted-foreground">
-              Fechar sem adicionar
+            <Button type="button" onClick={handleClose} className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+              Fechar
             </Button>
           </div>
         ) : (
