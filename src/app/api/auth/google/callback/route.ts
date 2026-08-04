@@ -2,7 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
+  const googleError = req.nextUrl.searchParams.get("error");
   const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://blackleafapp.vercel.app";
+
+  if (googleError) {
+    return NextResponse.redirect(`${appUrl}/calendar?gcal_error=${encodeURIComponent(googleError)}`);
+  }
 
   if (!code) {
     return NextResponse.redirect(`${appUrl}/calendar?gcal_error=no_code`);
@@ -29,7 +34,9 @@ export async function GET(req: NextRequest) {
     });
 
     if (!tokenRes.ok) {
-      return NextResponse.redirect(`${appUrl}/calendar?gcal_error=token_exchange`);
+      const errBody = await tokenRes.json().catch(() => ({}));
+      const reason = errBody.error ?? "token_exchange";
+      return NextResponse.redirect(`${appUrl}/calendar?gcal_error=${encodeURIComponent(reason)}`);
     }
 
     const tokens = await tokenRes.json();
