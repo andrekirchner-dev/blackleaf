@@ -7,10 +7,12 @@ import { useSpaces } from "@/hooks/use-spaces";
 import { useEnvironment } from "@/hooks/use-environment";
 import { useDiary } from "@/hooks/use-diary";
 import { useGrowStyles } from "@/hooks/use-grow-styles";
+import { useEvents } from "@/hooks/use-events";
 import { calcVPD } from "@/lib/environment";
 import { SpaceStatusCard } from "@/components/dashboard/space-status-card";
 import { SpacePlantsSheet } from "@/components/dashboard/space-plants-sheet";
 import { GrowCalendar } from "@/components/dashboard/grow-calendar";
+import { WeekCalendar } from "@/components/dashboard/week-calendar";
 import { EnvChart } from "@/components/dashboard/env-chart";
 import { Button } from "@/components/ui/button";
 import { Leaf, Sun, CalendarDays, Thermometer, Plus } from "lucide-react";
@@ -35,6 +37,7 @@ export default function DashboardPage() {
   const { records } = useEnvironment();
   const { entries, refresh: refreshDiary } = useDiary();
   const { styles } = useGrowStyles();
+  const { events } = useEvents();
 
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [selectedChartSpace, setSelectedChartSpace] = useState<string>("__all__");
@@ -165,6 +168,11 @@ export default function DashboardPage() {
           </>
         )}
       </div>
+      </MotionItem>
+
+      {/* Week Calendar */}
+      <MotionItem>
+      <WeekCalendar events={events} plants={plants} />
       </MotionItem>
 
       {/* Active Spaces */}
