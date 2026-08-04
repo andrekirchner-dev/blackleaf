@@ -25,7 +25,7 @@ interface Props {
 export function EventSheet({ open, onClose, onSaved, plants, defaultDate, isGcalConnected }: Props) {
   const { user } = useAuth();
   const [type, setType] = useState<GrowEventType>("rega");
-  const [plantId, setPlantId] = useState("");
+  const [plantIds, setPlantIds] = useState<string[]>([]);
   const [date, setDate] = useState(defaultDate ?? new Date().toISOString().split("T")[0]);
   const [time, setTime] = useState("");
   const [notes, setNotes] = useState("");
@@ -36,10 +36,16 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, isGcal
 
   const selectedType = GROW_EVENT_TYPES.find((t) => t.value === type)!;
 
+  function togglePlant(id: string) {
+    setPlantIds((prev) =>
+      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  }
+
   function resetForm() {
     setNotes("");
     setTime("");
-    setPlantId("");
+    setPlantIds([]);
     setError(null);
     setSaved(false);
     setGcalSynced(false);
@@ -50,12 +56,16 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, isGcal
     setSaving(true);
     setError(null);
     try {
-      const plantName = plantId ? plants.find((p) => p.id === plantId)?.name : undefined;
-      const title = `${selectedType.emoji} ${selectedType.label}${plantName ? ` — ${plantName}` : ""}`;
+      const selectedPlants = plants.filter((p) => plantIds.includes(p.id));
+      const plantLabel = selectedPlants.length > 0
+        ? ` — ${selectedPlants.map((p) => p.name).join(", ")}`
+        : "";
+      const title = `${selectedType.emoji} ${selectedType.label}${plantLabel}`;
 
       const eventId = await createGrowEvent(user.uid, {
         type,
-        plantId: plantId || undefined,
+        plantIds: plantIds.length > 0 ? plantIds : undefined,
+        plantId: plantIds[0] || undefined,
         date,
         time: time || undefined,
         notes: notes.trim() || undefined,
@@ -111,6 +121,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, isGcal
           </div>
         ) : (
           <div className="space-y-5">
+            {/* Event type grid */}
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Evento</Label>
               <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
@@ -133,6 +144,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, isGcal
               </div>
             </div>
 
+            {/* Date + Time */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="ev-date">Data *</Label>
@@ -156,23 +168,43 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, isGcal
               </div>
             </div>
 
+            {/* Plants multi-select */}
             {plants.length > 0 && (
-              <div className="space-y-1.5">
-                <Label htmlFor="ev-plant">Planta (opcional)</Label>
-                <select
-                  id="ev-plant"
-                  value={plantId}
-                  onChange={(e) => setPlantId(e.target.value)}
-                  className="w-full h-9 rounded-lg border border-border bg-background px-3 text-sm text-foreground"
-                >
-                  <option value="">Nenhuma planta vinculada</option>
-                  {plants.map((p) => (
-                    <option key={p.id} value={p.id}>{p.name} — {p.strain}</option>
-                  ))}
-                </select>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">
+                  Plantas (opcional)
+                  {plantIds.length > 0 && (
+                    <span className="ml-2 normal-case text-primary font-medium">
+                      {plantIds.length} selecionada{plantIds.length > 1 ? "s" : ""}
+                    </span>
+                  )}
+                </Label>
+                <div className="flex flex-wrap gap-2">
+                  {plants.map((p) => {
+                    const selected = plantIds.includes(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => togglePlant(p.id)}
+                        className={cn(
+                          "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all",
+                          selected
+                            ? "bg-primary/15 border-primary/40 text-primary"
+                            : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border/80"
+                        )}
+                      >
+                        {selected && <span className="text-[10px]">✓</span>}
+                        <span>{p.name}</span>
+                        {p.strain && <span className="opacity-60">· {p.strain}</span>}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
+            {/* Notes */}
             <div className="space-y-1.5">
               <Label htmlFor="ev-notes">Observações (opcional)</Label>
               <Textarea

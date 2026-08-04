@@ -63,6 +63,7 @@ export interface GrowEvent {
   id: string;
   userId: string;
   plantId?: string;
+  plantIds?: string[];
   type: GrowEventType;
   date: string;
   time?: string;

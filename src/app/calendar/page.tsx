@@ -277,7 +277,9 @@ export default function CalendarPage() {
             <div className="space-y-2">
               {selectedAppEvents.map((ev) => {
                 const meta = EVENT_BY_TYPE[ev.type];
-                const plant = ev.plantId ? plantMap[ev.plantId] : null;
+                const eventPlants = (ev.plantIds ?? (ev.plantId ? [ev.plantId] : []))
+                  .map((id) => plantMap[id])
+                  .filter(Boolean);
                 return (
                   <div key={ev.id} className={cn("flex items-start gap-3 p-3 rounded-xl border bg-card", meta?.bg ?? "border-border")}>
                     <span className="text-xl leading-none mt-0.5">{meta?.emoji ?? "📌"}</span>
@@ -289,7 +291,15 @@ export default function CalendarPage() {
                           <span className="text-[10px] bg-blue-500/10 text-blue-400 border border-blue-500/20 px-1.5 py-0.5 rounded-full">Google</span>
                         )}
                       </div>
-                      {plant && <p className="text-xs text-muted-foreground mt-0.5">{plant.name} — {plant.strain}</p>}
+                      {eventPlants.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {eventPlants.map((p) => (
+                            <span key={p.id} className="text-[11px] text-muted-foreground bg-muted/40 px-2 py-0.5 rounded-full">
+                              {p.name}
+                            </span>
+                          ))}
+                        </div>
+                      )}
                       {ev.notes && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{ev.notes}</p>}
                     </div>
                     <button onClick={() => handleDelete(ev.id)} disabled={deleting === ev.id}
