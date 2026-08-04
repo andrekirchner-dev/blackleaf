@@ -3,7 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 export async function GET(req: NextRequest) {
   const code = req.nextUrl.searchParams.get("code");
   const googleError = req.nextUrl.searchParams.get("error");
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? "https://blackleafapp.vercel.app";
+  const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host") ?? "blackleafapp.vercel.app";
+  const proto = req.headers.get("x-forwarded-proto") ?? "https";
+  const appUrl = `${proto}://${host}`;
 
   if (googleError) {
     return NextResponse.redirect(`${appUrl}/calendar?gcal_error=${encodeURIComponent(googleError)}`);
