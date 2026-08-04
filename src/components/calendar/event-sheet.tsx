@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createGrowEvent, updateGrowEvent } from "@/lib/events";
-import { pushEventToGCal } from "@/lib/gcal-client";
+import { createGrowEvent } from "@/lib/events";
 import { GROW_EVENT_TYPES } from "@/lib/event-constants";
 import { useAuth } from "@/contexts/auth-context";
 import type { Plant, GrowEventType } from "@/lib/types";
@@ -20,11 +19,10 @@ interface Props {
   onSaved: () => void;
   plants: Plant[];
   defaultDate?: string;
-  gcalToken?: string | null;
-  onGCalExpired?: () => void;
+  isGcalConnected?: boolean;
 }
 
-export function EventSheet({ open, onClose, onSaved, plants, defaultDate, gcalToken, onGCalExpired }: Props) {
+export function EventSheet({ open, onClose, onSaved, plants, defaultDate, isGcalConnected }: Props) {
   const { user } = useAuth();
   const [type, setType] = useState<GrowEventType>("rega");
   const [plantId, setPlantId] = useState("");
@@ -34,6 +32,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, gcalTo
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
+  const [gcalSynced, setGcalSynced] = useState(false);
 
   const selectedType = GROW_EVENT_TYPES.find((t) => t.value === type)!;
 
@@ -43,6 +42,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, gcalTo
     setPlantId("");
     setError(null);
     setSaved(false);
+    setGcalSynced(false);
   }
 
   async function handleSave() {
@@ -61,21 +61,19 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, gcalTo
         notes: notes.trim() || undefined,
       });
 
-      if (gcalToken) {
-        const result = await pushEventToGCal(gcalToken, {
-          title,
-          date,
-          time: time || undefined,
-          notes: notes.trim() || undefined,
+      let synced = false;
+      if (isGcalConnected) {
+        const res = await fetch("/api/calendar/push", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ eventId, title, date, time: time || undefined, notes: notes.trim() || undefined }),
         });
-        if (result === "expired") {
-          onGCalExpired?.();
-        } else if (result?.id) {
-          await updateGrowEvent(eventId, { googleEventId: result.id });
-        }
+        const data = await res.json();
+        synced = data.ok === true;
       }
 
       onSaved();
+      setGcalSynced(synced);
       setSaved(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao salvar");
@@ -102,8 +100,8 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, gcalTo
               <CheckCircle2 size={18} className="text-primary shrink-0" />
               <div>
                 <p className="text-sm font-medium text-foreground">Evento salvo!</p>
-                {gcalToken && (
-                  <p className="text-xs text-muted-foreground mt-0.5">Sincronizado com o Google Agenda</p>
+                {gcalSynced && (
+                  <p className="text-xs text-muted-foreground mt-0.5">Sincronizado com o Google Agenda ✓</p>
                 )}
               </div>
             </div>
@@ -113,7 +111,6 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, gcalTo
           </div>
         ) : (
           <div className="space-y-5">
-            {/* Event type grid */}
             <div className="space-y-2">
               <Label className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Evento</Label>
               <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
@@ -136,7 +133,6 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, gcalTo
               </div>
             </div>
 
-            {/* Date + Time */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="ev-date">Data *</Label>
@@ -160,7 +156,6 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, gcalTo
               </div>
             </div>
 
-            {/* Plant (optional) */}
             {plants.length > 0 && (
               <div className="space-y-1.5">
                 <Label htmlFor="ev-plant">Planta (opcional)</Label>
@@ -178,7 +173,6 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, gcalTo
               </div>
             )}
 
-            {/* Notes */}
             <div className="space-y-1.5">
               <Label htmlFor="ev-notes">Observações (opcional)</Label>
               <Textarea
