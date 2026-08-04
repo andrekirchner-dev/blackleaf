@@ -16,10 +16,8 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   CalendarDays, ChevronLeft, ChevronRight, Plus, Trash2,
-  Wifi, WifiOff, RefreshCw,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { useSearchParams } from "next/navigation";
 import type { GrowEvent } from "@/lib/types";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 
@@ -28,26 +26,10 @@ const WEEK_DAYS = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 export default function CalendarPage() {
   const { events, loading, refresh } = useEvents();
   const { plants } = usePlants();
-  const searchParams = useSearchParams();
-
   const [month, setMonth] = useState(new Date());
   const [selected, setSelected] = useState<Date | null>(new Date());
   const [sheetOpen, setSheetOpen] = useState(false);
-  const [gcalConnected, setGcalConnected] = useState<boolean | null>(null);
-  const [gcalMsg, setGcalMsg] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
-
-  useEffect(() => {
-    const connected = searchParams.get("gcal_connected");
-    const error = searchParams.get("gcal_error");
-    if (connected) { setGcalConnected(true); setGcalMsg("Google Agenda conectada!"); }
-    if (error) { setGcalMsg(`Erro ao conectar: ${error}`); }
-    // Check cookie presence via a lightweight ping
-    fetch("/api/calendar/push", { method: "POST", body: JSON.stringify({ check: true }), headers: { "Content-Type": "application/json" } })
-      .then((r) => r.json())
-      .then((d) => { if (d.reason !== "not_connected") setGcalConnected(true); })
-      .catch(() => null);
-  }, [searchParams]);
 
   const calendarDays = useMemo(() => {
     const start = startOfWeek(startOfMonth(month), { weekStartsOn: 0 });
@@ -105,39 +87,6 @@ export default function CalendarPage() {
       </div>
       </MotionItem>
 
-      {/* Google Calendar status */}
-      <MotionItem>
-      <div className="flex items-center justify-between bg-card border border-border rounded-xl px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          {gcalConnected ? (
-            <Wifi size={15} className="text-green-400" />
-          ) : (
-            <WifiOff size={15} className="text-muted-foreground" />
-          )}
-          <div>
-            <p className="text-sm font-medium">
-              {gcalConnected ? "Google Agenda conectada" : "Google Agenda não conectada"}
-            </p>
-            {gcalMsg && (
-              <p className="text-xs text-muted-foreground">{gcalMsg}</p>
-            )}
-          </div>
-        </div>
-        {!gcalConnected && (
-          <a href="/api/auth/google">
-            <Button size="sm" variant="outline" className="gap-1.5 border-border text-xs">
-              Conectar
-            </Button>
-          </a>
-        )}
-        {gcalConnected && (
-          <Button size="sm" variant="ghost" className="gap-1.5 text-xs text-muted-foreground" onClick={() => refresh()}>
-            <RefreshCw size={12} />
-            Sincronizar
-          </Button>
-        )}
-      </div>
-      </MotionItem>
 
       {/* Month navigator */}
       <MotionItem>
