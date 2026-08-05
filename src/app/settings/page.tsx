@@ -1,9 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useGrowStyles } from "@/hooks/use-grow-styles";
+import { useDashboardLayout } from "@/hooks/use-dashboard-layout";
 import { createGrowStyle, deleteGrowStyle, FEEDING_TYPES } from "@/lib/grow-styles";
+import { WIDGET_REGISTRY, type WidgetId } from "@/lib/dashboard-widgets";
 import type { FeedingType, GrowStyleEvent } from "@/lib/types";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -11,12 +13,217 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { LogOut, User, Shield, Leaf, Plus, Trash2, Loader2, ChevronDown } from "lucide-react";
+import {
+  LogOut, User, Shield, Leaf, Plus, Trash2, Loader2, ChevronDown,
+  LayoutDashboard, GripVertical, Eye, EyeOff, ChevronUp, CheckCircle2,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 
 function uid() {
   return Math.random().toString(36).slice(2);
+}
+
+interface WidgetItem {
+  id: WidgetId;
+  visible: boolean;
+}
+
+function DashboardLayoutEditor() {
+  const { layout, saveLayout, loading } = useDashboardLayout();
+  const [items, setItems] = useState<WidgetItem[]>([]);
+  const [saved, setSaved] = useState(false);
+  const dragIndex = useRef<number | null>(null);
+  const dragOverIndex = useRef<number | null>(null);
+  const [dragActive, setDragActive] = useState(false);
+
+  useEffect(() => {
+    if (loading) return;
+    // Build ordered list: enabled widgets first (in saved order), then disabled
+    const enabledIds = layout;
+    const allItems: WidgetItem[] = [
+      ...enabledIds
+        .filter((id) => WIDGET_REGISTRY.some((w) => w.id === id))
+        .map((id) => ({ id, visible: true })),
+      ...WIDGET_REGISTRY
+        .filter((w) => !enabledIds.includes(w.id))
+        .map((w) => ({ id: w.id, visible: false })),
+    ];
+    setItems(allItems);
+  }, [layout, loading]);
+
+  async function handleSave(newItems: WidgetItem[]) {
+    const newLayout = newItems.filter((i) => i.visible).map((i) => i.id);
+    await saveLayout(newLayout);
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  }
+
+  function toggle(index: number) {
+    const next = items.map((item, i) =>
+      i === index ? { ...item, visible: !item.visible } : item
+    );
+    // Move newly disabled items to the bottom of the list
+    const enabled = next.filter((i) => i.visible);
+    const disabled = next.filter((i) => !i.visible);
+    const reordered = [...enabled, ...disabled];
+    setItems(reordered);
+    handleSave(reordered);
+  }
+
+  function moveUp(index: number) {
+    if (index === 0) return;
+    const next = [...items];
+    [next[index - 1], next[index]] = [next[index], next[index - 1]];
+    setItems(next);
+    handleSave(next);
+  }
+
+  // Drag handlers
+  function onDragStart(index: number) {
+    dragIndex.current = index;
+    setDragActive(true);
+  }
+
+  function onDragOver(e: React.DragEvent, index: number) {
+    e.preventDefault();
+    dragOverIndex.current = index;
+  }
+
+  function onDrop() {
+    const from = dragIndex.current;
+    const to = dragOverIndex.current;
+    setDragActive(false);
+    if (from === null || to === null || from === to) return;
+    const next = [...items];
+    const [moved] = next.splice(from, 1);
+    next.splice(to, 0, moved);
+    setItems(next);
+    handleSave(next);
+    dragIndex.current = null;
+    dragOverIndex.current = null;
+  }
+
+  function onDragEnd() {
+    setDragActive(false);
+    dragIndex.current = null;
+    dragOverIndex.current = null;
+  }
+
+  const enabledCount = items.filter((i) => i.visible).length;
+
+  if (loading) {
+    return (
+      <div className="space-y-2">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div key={i} className="h-14 rounded-xl bg-muted/30 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs text-muted-foreground">
+          {enabledCount} de {items.length} widgets visíveis — arraste para reordenar
+        </p>
+        {saved && (
+          <span className="flex items-center gap-1 text-xs text-primary animate-in fade-in">
+            <CheckCircle2 size={12} />
+            Salvo
+          </span>
+        )}
+      </div>
+
+      <div className="space-y-1.5">
+        {items.map((item, index) => {
+          const meta = WIDGET_REGISTRY.find((w) => w.id === item.id)!;
+          const isFirstDisabled = !item.visible && (index === 0 || items[index - 1].visible);
+
+          return (
+            <div key={item.id}>
+              {isFirstDisabled && enabledCount > 0 && (
+                <div className="flex items-center gap-2 py-2">
+                  <div className="flex-1 h-px bg-border/50" />
+                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground/50 font-semibold">
+                    Ocultos
+                  </span>
+                  <div className="flex-1 h-px bg-border/50" />
+                </div>
+              )}
+              <div
+                draggable={item.visible}
+                onDragStart={() => onDragStart(index)}
+                onDragOver={(e) => onDragOver(e, index)}
+                onDrop={onDrop}
+                onDragEnd={onDragEnd}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-3 rounded-xl border transition-all",
+                  item.visible
+                    ? "bg-card border-border"
+                    : "bg-muted/10 border-border/40 opacity-50",
+                  dragActive && dragIndex.current === index && "opacity-40 scale-95"
+                )}
+              >
+                {/* Drag handle — only for visible items */}
+                <div
+                  className={cn(
+                    "shrink-0 cursor-grab active:cursor-grabbing touch-none",
+                    !item.visible && "cursor-default opacity-30"
+                  )}
+                >
+                  <GripVertical size={15} className="text-muted-foreground/40" />
+                </div>
+
+                {/* Emoji */}
+                <span className="text-lg leading-none shrink-0">{meta.emoji}</span>
+
+                {/* Label + description */}
+                <div className="flex-1 min-w-0">
+                  <p className={cn("text-sm font-medium", item.visible ? "text-foreground" : "text-muted-foreground")}>
+                    {meta.label}
+                  </p>
+                  <p className="text-[11px] text-muted-foreground/60 leading-snug mt-0.5 truncate">
+                    {meta.description}
+                  </p>
+                </div>
+
+                {/* Move up button for mobile */}
+                {item.visible && index > 0 && items[index - 1].visible && (
+                  <button
+                    onClick={() => moveUp(index)}
+                    className="shrink-0 p-1 text-muted-foreground/40 hover:text-muted-foreground transition-colors md:hidden"
+                    title="Mover para cima"
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+                )}
+
+                {/* Toggle visibility */}
+                <button
+                  onClick={() => toggle(index)}
+                  className={cn(
+                    "shrink-0 p-1.5 rounded-lg transition-colors",
+                    item.visible
+                      ? "text-primary hover:bg-primary/10"
+                      : "text-muted-foreground/40 hover:text-muted-foreground hover:bg-muted/30"
+                  )}
+                  title={item.visible ? "Ocultar widget" : "Mostrar widget"}
+                >
+                  {item.visible ? <Eye size={15} /> : <EyeOff size={15} />}
+                </button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <p className="text-[11px] text-muted-foreground/50 text-center pt-1">
+        Alterações salvas automaticamente e sincronizadas em todos os dispositivos.
+      </p>
+    </div>
+  );
 }
 
 export default function SettingsPage() {
@@ -120,6 +327,24 @@ export default function SettingsPage() {
               <p className="text-sm text-muted-foreground">{user?.email}</p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+      </MotionItem>
+
+      {/* Dashboard Layout */}
+      <MotionItem>
+      <Card className="bg-card border-border">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold flex items-center gap-2">
+            <LayoutDashboard size={16} className="text-primary" />
+            Personalizar Dashboard
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Escolha quais widgets aparecem no seu painel e em qual ordem.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <DashboardLayoutEditor />
         </CardContent>
       </Card>
       </MotionItem>

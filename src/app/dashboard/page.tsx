@@ -8,6 +8,7 @@ import { useEnvironment } from "@/hooks/use-environment";
 import { useDiary } from "@/hooks/use-diary";
 import { useGrowStyles } from "@/hooks/use-grow-styles";
 import { useEvents } from "@/hooks/use-events";
+import { useDashboardLayout } from "@/hooks/use-dashboard-layout";
 import { calcVPD } from "@/lib/environment";
 import { SpaceStatusCard } from "@/components/dashboard/space-status-card";
 import { SpacePlantsSheet } from "@/components/dashboard/space-plants-sheet";
@@ -23,6 +24,7 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
+import type { WidgetId } from "@/lib/dashboard-widgets";
 
 function fmt(date: string) {
   try {
@@ -40,27 +42,21 @@ export default function DashboardPage() {
   const { entries, refresh: refreshDiary } = useDiary();
   const { styles } = useGrowStyles();
   const { events } = useEvents();
+  const { layout } = useDashboardLayout();
 
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [selectedChartSpace, setSelectedChartSpace] = useState<string>("__all__");
 
   const firstName = user?.displayName?.split(" ")[0] ?? "Grower";
-
   const inFlower = plants.filter((p) => p.stage === "floracao").length;
   const inVeg = plants.filter((p) => p.stage === "vegetativo").length;
 
-  // Spaces with plants
   const spacesWithPlants = useMemo(
-    () => spaces.map((s) => ({
-      space: s,
-      plants: plants.filter((p) => p.spaceId === s.id),
-    })),
+    () => spaces.map((s) => ({ space: s, plants: plants.filter((p) => p.spaceId === s.id) })),
     [spaces, plants]
   );
-
   const unallocatedPlants = plants.filter((p) => !p.spaceId);
 
-  // Build chart data (last 14 readings for the selected space)
   const filteredRecords = useMemo(() => {
     if (selectedChartSpace === "__all__") return records;
     return records.filter((r) => r.spaceId === selectedChartSpace);
@@ -72,67 +68,35 @@ export default function DashboardPage() {
   );
 
   function toChartData(key: "temperature" | "humidity" | "co2") {
-    return chartRecords.map((r) => ({
-      label: fmt(r.recordedAt),
-      value: r[key] ?? null,
-    }));
+    return chartRecords.map((r) => ({ label: fmt(r.recordedAt), value: r[key] ?? null }));
   }
 
-  const vpdData = useMemo(() => chartRecords.map((r) => ({
-    label: fmt(r.recordedAt),
-    value:
-      r.temperature != null && r.humidity != null
-        ? calcVPD(r.temperature, r.humidity)
-        : null,
-  })), [chartRecords]);
+  const vpdData = useMemo(
+    () =>
+      chartRecords.map((r) => ({
+        label: fmt(r.recordedAt),
+        value:
+          r.temperature != null && r.humidity != null
+            ? calcVPD(r.temperature, r.humidity)
+            : null,
+      })),
+    [chartRecords]
+  );
 
-  // pH run-in / run-off from diary
   const filteredEntries = useMemo(() => {
     const withPh = entries.filter((e) => e.ph != null || e.phRunoff != null);
     if (selectedChartSpace === "__all__") return withPh.slice(-14).reverse();
-    const spaceObj = spaces.find((s) => s.id === selectedChartSpace);
-    if (!spaceObj) return withPh.slice(-14).reverse();
     const spPlantIds = plants.filter((p) => p.spaceId === selectedChartSpace).map((p) => p.id);
     return withPh.filter((e) => spPlantIds.includes(e.plantId)).slice(-14).reverse();
-  }, [entries, selectedChartSpace, spaces, plants]);
+  }, [entries, selectedChartSpace, plants]);
 
-  const phInData = filteredEntries.map((e) => ({
-    label: fmt(e.date),
-    value: e.ph ?? null,
-  }));
-
-  const phOutData = filteredEntries.map((e) => ({
-    label: fmt(e.date),
-    value: e.phRunoff ?? null,
-  }));
-
+  const phInData = filteredEntries.map((e) => ({ label: fmt(e.date), value: e.ph ?? null }));
+  const phOutData = filteredEntries.map((e) => ({ label: fmt(e.date), value: e.phRunoff ?? null }));
   const activeSheet = spacesWithPlants.find((s) => s.space.id === activeSpaceId);
-
   const loading = loadingPlants || loadingSpaces;
 
-  return (
-    <MotionPage>
-    <div className="space-y-6 max-w-5xl mx-auto">
-      {/* Header */}
-      <MotionItem>
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">
-            Olá, <span className="text-primary">{firstName}</span>
-          </h1>
-          <p className="text-muted-foreground text-sm mt-0.5">Painel do seu cultivo</p>
-        </div>
-        <Link href="/plants/new">
-          <Button className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
-            <Plus size={16} />
-            Nova Planta
-          </Button>
-        </Link>
-      </div>
-      </MotionItem>
-
-      {/* Quick stats */}
-      <MotionItem>
+  const widgetMap: Partial<Record<WidgetId, React.ReactNode>> = {
+    quick_stats: (
       <div className="grid grid-cols-3 gap-3">
         {loading ? (
           Array.from({ length: 3 }, (_, i) => (
@@ -170,26 +134,16 @@ export default function DashboardPage() {
           </>
         )}
       </div>
-      </MotionItem>
+    ),
 
-      {/* Grow Stats */}
-      <MotionItem>
-      <GrowStats plants={plants} events={events} />
-      </MotionItem>
+    grow_stats: <GrowStats plants={plants} events={events} />,
 
-      {/* Week Calendar */}
-      <MotionItem>
-      <WeekCalendar events={events} plants={plants} />
-      </MotionItem>
+    week_calendar: <WeekCalendar events={events} plants={plants} />,
 
-      {/* Harvest Countdown */}
-      <MotionItem>
-      <HarvestCountdown plants={plants} />
-      </MotionItem>
+    harvest_countdown: <HarvestCountdown plants={plants} />,
 
-      {/* Active Spaces */}
-      <MotionItem>
-      {(spaces.length > 0 || unallocatedPlants.length > 0) && (
+    spaces:
+      spaces.length > 0 || unallocatedPlants.length > 0 ? (
         <div>
           <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
@@ -215,7 +169,8 @@ export default function DashboardPage() {
                     <span className="text-2xl block mb-2">🌿</span>
                     <p className="text-sm font-semibold text-foreground">Sem espaço</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      {unallocatedPlants.length} {unallocatedPlants.length === 1 ? "planta" : "plantas"} não alocadas
+                      {unallocatedPlants.length}{" "}
+                      {unallocatedPlants.length === 1 ? "planta" : "plantas"} não alocadas
                     </p>
                   </div>
                 )}
@@ -223,11 +178,9 @@ export default function DashboardPage() {
             )}
           </div>
         </div>
-      )}
-      </MotionItem>
+      ) : null,
 
-      {/* Grow Calendar */}
-      <MotionItem>
+    grow_calendar: (
       <div>
         <h2 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
           <span className="w-1.5 h-1.5 rounded-full bg-accent" />
@@ -239,10 +192,9 @@ export default function DashboardPage() {
           <GrowCalendar plants={plants} styles={styles} />
         )}
       </div>
-      </MotionItem>
+    ),
 
-      {/* Environmental Charts */}
-      <MotionItem>
+    env_charts: (
       <div>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-sm font-semibold text-foreground flex items-center gap-2">
@@ -258,85 +210,76 @@ export default function DashboardPage() {
             >
               <option value="__all__">Todos os espaços</option>
               {spaces.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
+                <option key={s.id} value={s.id}>
+                  {s.name}
+                </option>
               ))}
             </select>
             <Link href="/environment">
-              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
+              >
                 Registrar
               </Button>
             </Link>
           </div>
         </div>
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <EnvChart
-            title="Temperatura"
-            unit="°C"
-            data={toChartData("temperature")}
-            color="#f97316"
-            refMin={20}
-            refMax={28}
-          />
-          <EnvChart
-            title="Umidade"
-            unit="%"
-            data={toChartData("humidity")}
-            color="#3b82f6"
-            refMin={40}
-            refMax={70}
-            decimals={0}
-          />
-          <EnvChart
-            title="VPD"
-            unit=" kPa"
-            data={vpdData}
-            color="#a855f7"
-            refMin={0.4}
-            refMax={1.2}
-          />
-          <EnvChart
-            title="CO₂"
-            unit=" ppm"
-            data={toChartData("co2")}
-            color="#22c55e"
-            refMin={700}
-            refMax={1500}
-            decimals={0}
-          />
-          <EnvChart
-            title="pH Entrada (Run-in)"
-            unit=""
-            data={phInData}
-            color="#eab308"
-            refMin={5.8}
-            refMax={6.8}
-          />
-          <EnvChart
-            title="pH Saída (Run-off)"
-            unit=""
-            data={phOutData}
-            color="#ec4899"
-            refMin={5.8}
-            refMax={6.8}
-          />
+          <EnvChart title="Temperatura" unit="°C" data={toChartData("temperature")} color="#f97316" refMin={20} refMax={28} />
+          <EnvChart title="Umidade" unit="%" data={toChartData("humidity")} color="#3b82f6" refMin={40} refMax={70} decimals={0} />
+          <EnvChart title="VPD" unit=" kPa" data={vpdData} color="#a855f7" refMin={0.4} refMax={1.2} />
+          <EnvChart title="CO₂" unit=" ppm" data={toChartData("co2")} color="#22c55e" refMin={700} refMax={1500} decimals={0} />
+          <EnvChart title="pH Entrada (Run-in)" unit="" data={phInData} color="#eab308" refMin={5.8} refMax={6.8} />
+          <EnvChart title="pH Saída (Run-off)" unit="" data={phOutData} color="#ec4899" refMin={5.8} refMax={6.8} />
         </div>
       </div>
-      </MotionItem>
+    ),
+  };
 
-      {/* Space plants sheet */}
-      {activeSheet && (
-        <SpacePlantsSheet
-          space={activeSheet.space}
-          plants={activeSheet.plants}
-          open={!!activeSpaceId}
-          onClose={() => setActiveSpaceId(null)}
-          onDiarySuccess={() => {
-            refreshPlants();
-            refreshDiary();
-          }}
-        />
-      )}
-    </div>
+  return (
+    <MotionPage>
+      <div className="space-y-6 max-w-5xl mx-auto">
+        {/* Header */}
+        <MotionItem>
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">
+                Olá, <span className="text-primary">{firstName}</span>
+              </h1>
+              <p className="text-muted-foreground text-sm mt-0.5">Painel do seu cultivo</p>
+            </div>
+            <Link href="/plants/new">
+              <Button className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90">
+                <Plus size={16} />
+                Nova Planta
+              </Button>
+            </Link>
+          </div>
+        </MotionItem>
+
+        {/* Dynamic widgets */}
+        {layout.map((widgetId) => {
+          const content = widgetMap[widgetId];
+          if (!content) return null;
+          return <MotionItem key={widgetId}>{content}</MotionItem>;
+        })}
+
+        {/* Space plants sheet — always mounted outside the layout loop */}
+        {activeSheet && (
+          <SpacePlantsSheet
+            space={activeSheet.space}
+            plants={activeSheet.plants}
+            open={!!activeSpaceId}
+            onClose={() => setActiveSpaceId(null)}
+            onDiarySuccess={() => {
+              refreshPlants();
+              refreshDiary();
+            }}
+          />
+        )}
+      </div>
     </MotionPage>
   );
 }
