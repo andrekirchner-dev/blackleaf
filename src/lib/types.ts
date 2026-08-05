@@ -72,6 +72,23 @@ export interface GrowEvent {
   createdAt: string;
 }
 
+export interface HarvestLog {
+  id: string;
+  userId: string;
+  plantId?: string;
+  plantName: string;
+  strain: string;
+  harvestDate: string; // YYYY-MM-DD
+  wetWeightG?: number;
+  dryWeightG?: number;
+  curedWeightG?: number;
+  floweringWeeks?: number;
+  notes?: string;
+  rating?: number; // 1-5
+  trichomeStage?: "transparente" | "leitoso" | "ambar_50" | "ambar_100";
+  createdAt: string;
+}
+
 export interface Plant {
   id: string;
   userId: string;

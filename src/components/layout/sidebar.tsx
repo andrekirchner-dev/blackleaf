@@ -26,6 +26,11 @@ import {
   Beaker,
   CalendarDays,
   Archive,
+  Trophy,
+  Wind,
+  Sun,
+  Zap,
+  Droplets,
 } from "lucide-react";
 
 interface NavItem {
@@ -59,6 +64,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/diary", label: "Diário", icon: BookOpen },
       { href: "/calendar", label: "Calendário", icon: CalendarDays },
+      { href: "/harvest", label: "Colheitas", icon: Trophy },
       { href: "/archive", label: "Arquivo", icon: Archive },
     ],
   },
@@ -77,6 +83,10 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/tools/diseases", label: "Diagnóstico de Doenças", icon: Stethoscope },
       { href: "/tools/nutrients", label: "Diagnóstico Nutricional", icon: Microscope },
       { href: "/tools/training", label: "Guia de Treinamento", icon: Scissors },
+      { href: "/tools/vpd", label: "Calculadora VPD", icon: Wind },
+      { href: "/tools/dli", label: "Calculadora DLI", icon: Sun },
+      { href: "/tools/energy", label: "Custo de Energia", icon: Zap },
+      { href: "/tools/flush", label: "Flush & Colheita", icon: Droplets },
     ],
   },
 ];

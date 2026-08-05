@@ -13,6 +13,8 @@ import { SpaceStatusCard } from "@/components/dashboard/space-status-card";
 import { SpacePlantsSheet } from "@/components/dashboard/space-plants-sheet";
 import { GrowCalendar } from "@/components/dashboard/grow-calendar";
 import { WeekCalendar } from "@/components/dashboard/week-calendar";
+import { HarvestCountdown } from "@/components/dashboard/harvest-countdown";
+import { GrowStats } from "@/components/dashboard/grow-stats";
 import { EnvChart } from "@/components/dashboard/env-chart";
 import { Button } from "@/components/ui/button";
 import { Leaf, Sun, CalendarDays, Thermometer, Plus } from "lucide-react";
@@ -170,9 +172,19 @@ export default function DashboardPage() {
       </div>
       </MotionItem>
 
+      {/* Grow Stats */}
+      <MotionItem>
+      <GrowStats plants={plants} events={events} />
+      </MotionItem>
+
       {/* Week Calendar */}
       <MotionItem>
       <WeekCalendar events={events} plants={plants} />
+      </MotionItem>
+
+      {/* Harvest Countdown */}
+      <MotionItem>
+      <HarvestCountdown plants={plants} />
       </MotionItem>
 
       {/* Active Spaces */}
