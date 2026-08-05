@@ -96,6 +96,23 @@ export function DiaryEntryCard({ entry, plant, onDeleted }: DiaryEntryCardProps)
             </div>
           )}
 
+          {/* Fertilizers used */}
+          {entry.fertilizersUsed && entry.fertilizersUsed.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 py-2 border-t border-border">
+              {entry.fertilizersUsed.map((f) => (
+                <span
+                  key={f.fertilizerId}
+                  className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400"
+                >
+                  {f.name}
+                  {f.mlPerLiter > 0 && (
+                    <span className="text-amber-400/70">{f.mlPerLiter} mL/L</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          )}
+
           {/* Notes */}
           {entry.notes && (
             <p className="text-sm text-foreground/80 leading-relaxed">{entry.notes}</p>

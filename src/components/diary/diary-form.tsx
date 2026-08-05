@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { createEntry } from "@/lib/diary";
 import { ENTRY_TYPES } from "@/lib/diary-constants";
-import type { Plant, DiaryEntry } from "@/lib/types";
+import type { Plant, DiaryEntry, Fertilizer, DiaryFertilizerUsage } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 
 interface DiaryFormProps {
   plants: Plant[];
+  fertilizers?: Fertilizer[];
   defaultPlantId?: string;
   defaultType?: EntryType;
   onSuccess: () => void;
@@ -22,7 +23,15 @@ interface DiaryFormProps {
 
 type EntryType = DiaryEntry["type"];
 
-export function DiaryForm({ plants, defaultPlantId, defaultType, onSuccess, onCancel }: DiaryFormProps) {
+function getStageDoseKey(stage: string): keyof NonNullable<Fertilizer["doses"]> {
+  if (stage === "muda") return "muda";
+  if (stage === "vegetativo") return "vegetativo";
+  if (stage === "floracao") return "floracao_meio";
+  if (stage === "colheita") return "floracao_fim";
+  return "vegetativo";
+}
+
+export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultType, onSuccess, onCancel }: DiaryFormProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -38,8 +47,34 @@ export function DiaryForm({ plants, defaultPlantId, defaultType, onSuccess, onCa
     waterAmount: "",
   });
 
+  const [selectedFertilizers, setSelectedFertilizers] = useState<DiaryFertilizerUsage[]>([]);
+
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
+  }
+
+  const selectedPlant = plants.find((p) => p.id === form.plantId);
+
+  function toggleFertilizer(f: Fertilizer) {
+    setSelectedFertilizers((prev) => {
+      const exists = prev.find((u) => u.fertilizerId === f.id);
+      if (exists) {
+        return prev.filter((u) => u.fertilizerId !== f.id);
+      }
+      const stageKey = selectedPlant ? getStageDoseKey(selectedPlant.stage) : "vegetativo";
+      const suggestedDose = f.doses?.[stageKey] ?? 0;
+      return [...prev, { fertilizerId: f.id, name: f.name, mlPerLiter: suggestedDose }];
+    });
+  }
+
+  function updateDose(fertilizerId: string, value: string) {
+    setSelectedFertilizers((prev) =>
+      prev.map((u) =>
+        u.fertilizerId === fertilizerId
+          ? { ...u, mlPerLiter: Number(value) || 0 }
+          : u
+      )
+    );
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -57,6 +92,7 @@ export function DiaryForm({ plants, defaultPlantId, defaultType, onSuccess, onCa
         phRunoff: form.phRunoff ? Number(form.phRunoff) : undefined,
         ec: form.ec ? Number(form.ec) : undefined,
         waterAmount: form.waterAmount ? Number(form.waterAmount) : undefined,
+        fertilizersUsed: selectedFertilizers.length > 0 ? selectedFertilizers : undefined,
       });
       onSuccess();
     } catch {
@@ -68,6 +104,7 @@ export function DiaryForm({ plants, defaultPlantId, defaultType, onSuccess, onCa
 
   const showWater = form.type === "rega" || form.type === "nutrientes";
   const showPhEc = form.type === "rega" || form.type === "nutrientes";
+  const showFertilizers = form.type === "nutrientes" && fertilizers.length > 0;
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
@@ -191,6 +228,77 @@ export function DiaryForm({ plants, defaultPlantId, defaultType, onSuccess, onCa
                 className="bg-background border-border"
               />
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fertilizantes */}
+      {showFertilizers && (
+        <div className="space-y-2">
+          <Label>Fertilizantes utilizados</Label>
+          <div className="space-y-1.5">
+            {fertilizers.map((f) => {
+              const selected = selectedFertilizers.find((u) => u.fertilizerId === f.id);
+              const stageKey = selectedPlant ? getStageDoseKey(selectedPlant.stage) : "vegetativo";
+              const suggested = f.doses?.[stageKey];
+              return (
+                <div key={f.id} className="space-y-1">
+                  <button
+                    type="button"
+                    onClick={() => toggleFertilizer(f)}
+                    className={cn(
+                      "w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-left transition-all",
+                      selected
+                        ? "bg-primary/10 border-primary/30"
+                        : "bg-background border-border hover:border-muted-foreground/30"
+                    )}
+                  >
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className={cn(
+                        "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                        selected ? "border-primary bg-primary" : "border-muted-foreground/30"
+                      )}>
+                        {selected && <div className="w-2 h-2 rounded-full bg-primary-foreground" />}
+                      </div>
+                      <span className="text-sm font-medium text-foreground truncate">{f.name}</span>
+                      {f.brand && (
+                        <span className="text-xs text-muted-foreground shrink-0">{f.brand}</span>
+                      )}
+                    </div>
+                    {suggested != null && !selected && (
+                      <span className="text-xs text-muted-foreground shrink-0">
+                        {suggested} mL/L
+                      </span>
+                    )}
+                  </button>
+
+                  {selected && (
+                    <div className="flex items-center gap-2 pl-3">
+                      <span className="text-xs text-muted-foreground flex-1">Dose (mL/L):</span>
+                      <Input
+                        type="number"
+                        min="0"
+                        step="0.1"
+                        value={selected.mlPerLiter || ""}
+                        onChange={(e) => updateDose(f.id, e.target.value)}
+                        className="bg-background border-border w-24 h-7 text-sm text-right"
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <span className="text-xs text-muted-foreground">mL/L</span>
+                      {suggested != null && (
+                        <button
+                          type="button"
+                          onClick={() => updateDose(f.id, suggested.toString())}
+                          className="text-xs text-primary hover:underline shrink-0"
+                        >
+                          Sugerido: {suggested}
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       )}

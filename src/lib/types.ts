@@ -130,6 +130,48 @@ export interface Plant {
   updatedAt: string;
 }
 
+export type FertilizerType =
+  | "organico"
+  | "mineral"
+  | "organomineral"
+  | "knf"
+  | "bioestimulante"
+  | "pk_boost"
+  | "cal_mag"
+  | "radicular"
+  | "foliar";
+
+export interface FertilizerDoses {
+  muda?: number;
+  vegetativo?: number;
+  floracao_inicio?: number;
+  floracao_meio?: number;
+  floracao_fim?: number;
+}
+
+export interface Fertilizer {
+  id: string;
+  userId: string;
+  name: string;
+  brand?: string;
+  type: FertilizerType;
+  npkN?: number;
+  npkP?: number;
+  npkK?: number;
+  secondaryNutrients?: string;
+  ecPerMl?: number;
+  doses: FertilizerDoses;
+  applicationFrequency?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface DiaryFertilizerUsage {
+  fertilizerId: string;
+  name: string;
+  mlPerLiter: number;
+}
+
 export interface DiaryEntry {
   id: string;
   plantId: string;
@@ -141,6 +183,7 @@ export interface DiaryEntry {
   phRunoff?: number;
   ec?: number;
   waterAmount?: number;
+  fertilizersUsed?: DiaryFertilizerUsage[];
   photoUrl?: string;
   createdAt: string;
 }
