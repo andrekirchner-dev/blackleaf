@@ -15,20 +15,21 @@ import { cn } from "@/lib/utils";
 interface DiaryFormProps {
   plants: Plant[];
   defaultPlantId?: string;
+  defaultType?: EntryType;
   onSuccess: () => void;
   onCancel: () => void;
 }
 
 type EntryType = DiaryEntry["type"];
 
-export function DiaryForm({ plants, defaultPlantId, onSuccess, onCancel }: DiaryFormProps) {
+export function DiaryForm({ plants, defaultPlantId, defaultType, onSuccess, onCancel }: DiaryFormProps) {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     plantId: defaultPlantId ?? plants[0]?.id ?? "",
-    type: "rega" as EntryType,
+    type: (defaultType ?? "rega") as EntryType,
     date: new Date().toISOString().slice(0, 16),
     notes: "",
     ph: "",
