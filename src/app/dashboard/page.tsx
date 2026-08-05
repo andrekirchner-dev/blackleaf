@@ -24,6 +24,11 @@ import Link from "next/link";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
+import { WidgetVPD } from "@/components/dashboard/widget-vpd";
+import { WidgetDLI } from "@/components/dashboard/widget-dli";
+import { WidgetFlush } from "@/components/dashboard/widget-flush";
+import { WidgetDiary } from "@/components/dashboard/widget-diary";
+import { WidgetShopping } from "@/components/dashboard/widget-shopping";
 import type { WidgetId } from "@/lib/dashboard-widgets";
 
 function fmt(date: string) {
@@ -193,6 +198,16 @@ export default function DashboardPage() {
         )}
       </div>
     ),
+
+    widget_vpd: <WidgetVPD />,
+
+    widget_dli: <WidgetDLI />,
+
+    widget_flush: <WidgetFlush plants={plants} />,
+
+    widget_diary: <WidgetDiary entries={entries} plants={plants} />,
+
+    widget_shopping: <WidgetShopping />,
 
     env_charts: (
       <div>

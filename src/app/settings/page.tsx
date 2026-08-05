@@ -181,9 +181,21 @@ function DashboardLayoutEditor() {
 
                 {/* Label + description */}
                 <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm font-medium", item.visible ? "text-foreground" : "text-muted-foreground")}>
-                    {meta.label}
-                  </p>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className={cn("text-sm font-medium", item.visible ? "text-foreground" : "text-muted-foreground")}>
+                      {meta.label}
+                    </p>
+                    {meta.category !== "dashboard" && (
+                      <span className={cn(
+                        "text-[9px] uppercase tracking-widest font-bold px-1.5 py-0.5 rounded-full border",
+                        meta.category === "ferramentas"
+                          ? "text-primary/70 bg-primary/5 border-primary/20"
+                          : "text-accent/70 bg-accent/5 border-accent/20"
+                      )}>
+                        {meta.category === "ferramentas" ? "Ferramenta" : "Diário"}
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[11px] text-muted-foreground/60 leading-snug mt-0.5 truncate">
                     {meta.description}
                   </p>

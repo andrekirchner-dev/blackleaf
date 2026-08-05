@@ -15,10 +15,11 @@ export function useDashboardLayout() {
     getUserPreferences(user.uid)
       .then((prefs) => {
         if (prefs.dashboardLayout && prefs.dashboardLayout.length > 0) {
-          const saved = prefs.dashboardLayout;
-          // Append any new widgets added after the user last saved
-          const newWidgets = WIDGET_REGISTRY.filter((w) => !saved.includes(w.id)).map((w) => w.id);
-          setLayout([...saved, ...newWidgets]);
+          // Only use what the user explicitly saved — new widgets start disabled
+          const saved = prefs.dashboardLayout.filter((id) =>
+            WIDGET_REGISTRY.some((w) => w.id === id)
+          );
+          setLayout(saved);
         }
       })
       .catch(() => {})
