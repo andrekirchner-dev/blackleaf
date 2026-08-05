@@ -76,25 +76,30 @@ export function FertilizerForm({ existing, onSuccess, onCancel }: FertilizerForm
     setLoading(true);
     setError(null);
     try {
-      const doses = {
-        muda: form.doses.muda ? Number(form.doses.muda) : undefined,
-        vegetativo: form.doses.vegetativo ? Number(form.doses.vegetativo) : undefined,
-        floracao_inicio: form.doses.floracao_inicio ? Number(form.doses.floracao_inicio) : undefined,
-        floracao_meio: form.doses.floracao_meio ? Number(form.doses.floracao_meio) : undefined,
-        floracao_fim: form.doses.floracao_fim ? Number(form.doses.floracao_fim) : undefined,
+      // Firestore rejects undefined inside nested objects — filter them out
+      const dosesRaw = {
+        muda: form.doses.muda ? Number(form.doses.muda) : null,
+        vegetativo: form.doses.vegetativo ? Number(form.doses.vegetativo) : null,
+        floracao_inicio: form.doses.floracao_inicio ? Number(form.doses.floracao_inicio) : null,
+        floracao_meio: form.doses.floracao_meio ? Number(form.doses.floracao_meio) : null,
+        floracao_fim: form.doses.floracao_fim ? Number(form.doses.floracao_fim) : null,
       };
+      const doses = Object.fromEntries(
+        Object.entries(dosesRaw).filter(([, v]) => v !== null)
+      ) as Record<string, number>;
+
       const payload = {
         name: form.name.trim(),
-        brand: form.brand.trim() || undefined,
         type: form.type,
-        npkN: form.npkN ? Number(form.npkN) : undefined,
-        npkP: form.npkP ? Number(form.npkP) : undefined,
-        npkK: form.npkK ? Number(form.npkK) : undefined,
-        secondaryNutrients: form.secondaryNutrients.trim() || undefined,
-        ecPerMl: form.ecPerMl ? Number(form.ecPerMl) : undefined,
         doses,
-        applicationFrequency: form.applicationFrequency.trim() || undefined,
-        notes: form.notes.trim() || undefined,
+        ...(form.brand.trim() && { brand: form.brand.trim() }),
+        ...(form.npkN && { npkN: Number(form.npkN) }),
+        ...(form.npkP && { npkP: Number(form.npkP) }),
+        ...(form.npkK && { npkK: Number(form.npkK) }),
+        ...(form.secondaryNutrients.trim() && { secondaryNutrients: form.secondaryNutrients.trim() }),
+        ...(form.ecPerMl && { ecPerMl: Number(form.ecPerMl) }),
+        ...(form.applicationFrequency.trim() && { applicationFrequency: form.applicationFrequency.trim() }),
+        ...(form.notes.trim() && { notes: form.notes.trim() }),
       };
       if (existing) {
         await updateFertilizer(existing.id, payload);

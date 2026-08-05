@@ -44,5 +44,24 @@ service cloud.firestore {
       allow read, update, delete: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
     }
+
+    match /fertilizers/{docId} {
+      allow read, update, delete: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+    }
+
+    match /user_preferences/{docId} {
+      allow read, write: if isAuth() && request.auth.uid == docId;
+    }
+
+    match /harvest_logs/{docId} {
+      allow read, update, delete: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+    }
+
+    match /grow_events/{docId} {
+      allow read, update, delete: if isOwner(resource.data.userId);
+      allow create: if isOwner(request.resource.data.userId);
+    }
   }
 }
