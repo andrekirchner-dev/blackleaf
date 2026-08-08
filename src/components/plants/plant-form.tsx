@@ -168,7 +168,9 @@ export function PlantForm({ plant }: { plant?: Plant }) {
       environment:         form.environment,
       medium:              form.medium,
       germinationDate:     form.germinationDate,
-      stageChangedAt:      plant?.stageChangedAt ?? new Date().toISOString(),
+      stageChangedAt:      (plant && form.stage !== plant.stage)
+        ? new Date().toISOString()
+        : (plant?.stageChangedAt ?? new Date().toISOString()),
       potSize:             form.potSize ? Number(form.potSize) : undefined,
       spaceId:             form.spaceId || undefined,
       previousGrowNotes:   form.previousGrowNotes.trim() || undefined,
@@ -631,6 +633,25 @@ export function PlantForm({ plant }: { plant?: Plant }) {
             </button>
           ))}
         </div>
+
+        {plant && form.stage !== plant.stage && (
+          <div className={cn(
+            "flex items-start gap-2 px-3 py-2.5 rounded-xl border text-xs",
+            STAGE_ORDER.indexOf(form.stage) < STAGE_ORDER.indexOf(plant.stage)
+              ? "bg-amber-500/10 border-amber-500/20 text-amber-400"
+              : "bg-primary/10 border-primary/20 text-primary"
+          )}>
+            <span className="text-sm shrink-0">
+              {STAGE_ORDER.indexOf(form.stage) < STAGE_ORDER.indexOf(plant.stage) ? "⚠️" : "✅"}
+            </span>
+            <span>
+              {STAGE_ORDER.indexOf(form.stage) < STAGE_ORDER.indexOf(plant.stage)
+                ? `Regressando de ${STAGE_LABELS[plant.stage]} → ${STAGE_LABELS[form.stage]}. O contador de tempo será reiniciado.`
+                : `Avançando de ${STAGE_LABELS[plant.stage]} → ${STAGE_LABELS[form.stage]}. O contador de tempo será reiniciado.`
+              }
+            </span>
+          </div>
+        )}
       </Section>
 
       {/* 4 — Cultivo */}
