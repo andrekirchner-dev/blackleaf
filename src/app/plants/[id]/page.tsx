@@ -12,7 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Leaf, Calendar, Droplets, FlaskConical, Pencil, Trash2,
-  ChevronRight, ArrowLeft, Thermometer, Sprout, Dna, Clock,
+  ChevronRight, ChevronLeft, ArrowLeft, Thermometer, Sprout, Dna, Clock,
   TrendingUp, BookOpen, History, Archive,
 } from "lucide-react";
 import Link from "next/link";
@@ -40,6 +40,7 @@ export default function PlantDetailPage() {
   const [plant, setPlant] = useState<Plant | null>(null);
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
+  const [regressing, setRegressing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
 
@@ -56,6 +57,18 @@ export default function PlantDetailPage() {
     await advanceStage(id, next);
     setPlant((p) => p ? { ...p, stage: next, stageChangedAt: new Date().toISOString() } : p);
     setAdvancing(false);
+  }
+
+  async function handleRegressStage() {
+    if (!plant) return;
+    const idx = STAGE_ORDER.indexOf(plant.stage);
+    const prev = STAGE_ORDER[idx - 1];
+    if (!prev) return;
+    if (!confirm(`Regredir para "${STAGE_LABELS[prev]}"? O contador de tempo desta fase será reiniciado.`)) return;
+    setRegressing(true);
+    await advanceStage(id, prev);
+    setPlant((p) => p ? { ...p, stage: prev, stageChangedAt: new Date().toISOString() } : p);
+    setRegressing(false);
   }
 
   async function handleDelete() {
@@ -95,6 +108,7 @@ export default function PlantDetailPage() {
   const daysInStage = plant.stageChangedAt ? differenceInDays(new Date(), parseISO(plant.stageChangedAt)) : 0;
   const stageIdx = STAGE_ORDER.indexOf(plant.stage);
   const nextStage = STAGE_ORDER[stageIdx + 1] as GrowStage | undefined;
+  const prevStage = STAGE_ORDER[stageIdx - 1] as GrowStage | undefined;
   const isOwner = user?.uid === plant.userId;
 
   const hasStrainData = plant.genetics || plant.floweringWeeks || plant.thcEstimate ||
@@ -307,19 +321,35 @@ export default function PlantDetailPage() {
             })}
           </div>
 
-          {nextStage && (
-            <div className="flex items-center justify-between pt-2 border-t border-border">
-              <p className="text-sm text-muted-foreground">
-                Próxima: <span className="text-foreground font-medium">{STAGE_LABELS[nextStage]}</span>
-              </p>
-              <Button
-                size="sm"
-                onClick={handleAdvanceStage}
-                disabled={advancing}
-                className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                Avançar <ChevronRight size={13} />
-              </Button>
+          {(prevStage || nextStage) && (
+            <div className="flex items-center justify-between pt-2 border-t border-border gap-2">
+              <div>
+                {prevStage && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRegressStage}
+                    disabled={regressing || advancing}
+                    className="gap-1.5 border-border text-muted-foreground hover:text-foreground"
+                  >
+                    <ChevronLeft size={13} />
+                    {regressing ? "Regredindo..." : STAGE_LABELS[prevStage]}
+                  </Button>
+                )}
+              </div>
+              <div>
+                {nextStage && (
+                  <Button
+                    size="sm"
+                    onClick={handleAdvanceStage}
+                    disabled={advancing || regressing}
+                    className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {advancing ? "Avançando..." : STAGE_LABELS[nextStage]}
+                    <ChevronRight size={13} />
+                  </Button>
+                )}
+              </div>
             </div>
           )}
         </CardContent>
