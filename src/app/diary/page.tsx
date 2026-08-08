@@ -9,6 +9,7 @@ import { DiaryForm } from "@/components/diary/diary-form";
 import { DiaryEntryCard } from "@/components/diary/diary-entry-card";
 import { useDiary } from "@/hooks/use-diary";
 import { usePlants } from "@/hooks/use-plants";
+import { useFertilizers } from "@/hooks/use-fertilizers";
 import { ENTRY_TYPES } from "@/lib/diary-constants";
 import type { DiaryEntry } from "@/lib/types";
 import { format, parseISO, isToday, isYesterday, isSameDay } from "date-fns";
@@ -19,6 +20,7 @@ import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 export default function DiaryPage() {
   const { entries, loading: loadingDiary, refresh } = useDiary();
   const { plants, loading: loadingPlants } = usePlants();
+  const { fertilizers } = useFertilizers();
   const [open, setOpen] = useState(false);
   const [plantFilter, setPlantFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<string>("all");
@@ -218,6 +220,7 @@ export default function DiaryPage() {
           </SheetHeader>
           <DiaryForm
             plants={plants}
+            fertilizers={fertilizers}
             defaultPlantId={plantFilter !== "all" ? plantFilter : plants[0]?.id}
             onSuccess={() => { setOpen(false); refresh(); }}
             onCancel={() => setOpen(false)}

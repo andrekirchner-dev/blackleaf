@@ -26,8 +26,9 @@ type EntryType = DiaryEntry["type"];
 function getStageDoseKey(stage: string): keyof NonNullable<Fertilizer["doses"]> {
   if (stage === "muda") return "muda";
   if (stage === "vegetativo") return "vegetativo";
-  if (stage === "floracao") return "floracao_meio";
+  if (stage === "floracao") return "floracao_inicio";
   if (stage === "colheita") return "floracao_fim";
+  if (stage === "secagem") return "floracao_fim";
   return "vegetativo";
 }
 

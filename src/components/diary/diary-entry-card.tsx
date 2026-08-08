@@ -71,13 +71,20 @@ export function DiaryEntryCard({ entry, plant, onDeleted }: DiaryEntryCardProps)
           </div>
 
           {/* Metrics */}
-          {(entry.ph || entry.ec || entry.waterAmount) && (
+          {(entry.ph || entry.phRunoff || entry.ec || entry.waterAmount) && (
             <div className="flex flex-wrap gap-3 py-2 border-t border-border">
               {entry.ph && (
                 <div className="flex items-center gap-1.5 text-xs">
                   <Droplets size={11} className="text-blue-400" />
-                  <span className="text-muted-foreground">pH</span>
+                  <span className="text-muted-foreground">pH in</span>
                   <span className="font-semibold text-foreground">{entry.ph}</span>
+                </div>
+              )}
+              {entry.phRunoff && (
+                <div className="flex items-center gap-1.5 text-xs">
+                  <Droplets size={11} className="text-cyan-400" />
+                  <span className="text-muted-foreground">pH out</span>
+                  <span className="font-semibold text-foreground">{entry.phRunoff}</span>
                 </div>
               )}
               {entry.ec && (
@@ -89,7 +96,7 @@ export function DiaryEntryCard({ entry, plant, onDeleted }: DiaryEntryCardProps)
               )}
               {entry.waterAmount && (
                 <div className="flex items-center gap-1.5 text-xs">
-                  <Droplets size={11} className="text-cyan-400" />
+                  <Droplets size={11} className="text-sky-400" />
                   <span className="font-semibold text-foreground">{entry.waterAmount} mL</span>
                 </div>
               )}

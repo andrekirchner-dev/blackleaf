@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { GrowSpace, Plant } from "@/lib/types";
+import { useFertilizers } from "@/hooks/use-fertilizers";
 import { STAGE_LABELS, STAGE_COLORS } from "@/lib/constants";
 import { getSpaceMeta } from "@/lib/space-constants";
 import {
@@ -28,6 +29,7 @@ interface Props {
 export function SpacePlantsSheet({ space, plants, open, onClose, onDiarySuccess }: Props) {
   const meta = getSpaceMeta(space.type);
   const [diaryPlantId, setDiaryPlantId] = useState<string | null>(null);
+  const { fertilizers } = useFertilizers();
   const diaryPlant = plants.find((p) => p.id === diaryPlantId);
 
   return (
@@ -109,6 +111,7 @@ export function SpacePlantsSheet({ space, plants, open, onClose, onDiarySuccess 
           {diaryPlantId && (
             <DiaryForm
               plants={plants}
+              fertilizers={fertilizers}
               defaultPlantId={diaryPlantId}
               onSuccess={() => {
                 setDiaryPlantId(null);
