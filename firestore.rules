@@ -11,12 +11,14 @@ service cloud.firestore {
     }
 
     match /plants/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read: if isAuth();
+      allow update, delete: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /spaces/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read: if isAuth();
+      allow update, delete: if isOwner(resource.data.userId);
       allow create: if isOwner(request.resource.data.userId);
     }
 

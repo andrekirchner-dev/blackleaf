@@ -32,6 +32,7 @@ import {
   Sun,
   Zap,
   Droplets,
+  Users,
 } from "lucide-react";
 
 interface NavItem {
@@ -74,6 +75,13 @@ const NAV_GROUPS: NavGroup[] = [
     collapsible: false,
     items: [
       { href: "/shopping", label: "Lista de Compras", icon: ShoppingCart },
+    ],
+  },
+  {
+    label: "Social",
+    collapsible: false,
+    items: [
+      { href: "/community", label: "Comunidade", icon: Users },
     ],
   },
   {
