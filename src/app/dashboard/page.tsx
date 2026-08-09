@@ -32,6 +32,8 @@ import { WidgetDLI } from "@/components/dashboard/widget-dli";
 import { WidgetFlush } from "@/components/dashboard/widget-flush";
 import { WidgetDiary } from "@/components/dashboard/widget-diary";
 import { WidgetShopping } from "@/components/dashboard/widget-shopping";
+import { WidgetQuickLog } from "@/components/dashboard/widget-quick-log";
+import { useGCal } from "@/hooks/use-gcal";
 import type { WidgetId } from "@/lib/dashboard-widgets";
 
 function fmt(date: string) {
@@ -51,6 +53,7 @@ export default function DashboardPage() {
   const { styles } = useGrowStyles();
   const { events } = useEvents();
   const { layout } = useDashboardLayout();
+  const { isConnected: isGcalConnected } = useGCal();
 
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [selectedChartSpace, setSelectedChartSpace] = useState<string>("__all__");
@@ -366,6 +369,15 @@ export default function DashboardPage() {
               </Button>
             </Link>
           </div>
+        </MotionItem>
+
+        {/* Quick log — always visible shortcut */}
+        <MotionItem>
+          <WidgetQuickLog
+            plants={plants}
+            isGcalConnected={isGcalConnected}
+            onSaved={() => { }}
+          />
         </MotionItem>
 
         {/* Dynamic widgets */}

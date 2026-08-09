@@ -6,8 +6,9 @@ import { getCommunityFeed } from "@/lib/community";
 import type { CommunityUser } from "@/lib/community";
 import { STAGE_LABELS, STAGE_COLORS } from "@/lib/constants";
 import { differenceInDays } from "date-fns";
-import { Leaf, LayoutGrid, Users, Loader2 } from "lucide-react";
+import { Leaf, LayoutGrid, Users, Loader2, ChevronLeft } from "lucide-react";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
+import Link from "next/link";
 
 const GENETICS_LABELS: Record<string, string> = {
   sativa: "Sativa",
@@ -170,13 +171,22 @@ export default function CommunityPage() {
     <MotionPage>
       <div className="space-y-6 max-w-4xl mx-auto">
         <MotionItem>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
-              <Users size={18} className="text-primary" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold">Comunidade</h1>
-              <p className="text-sm text-muted-foreground mt-0.5">Veja o cultivo de outros growers</p>
+          <div className="space-y-3">
+            <Link
+              href="/dashboard"
+              className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <ChevronLeft size={14} />
+              Dashboard
+            </Link>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+                <Users size={18} className="text-primary" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold">Comunidade</h1>
+                <p className="text-sm text-muted-foreground mt-0.5">Veja o cultivo de outros growers</p>
+              </div>
             </div>
           </div>
         </MotionItem>

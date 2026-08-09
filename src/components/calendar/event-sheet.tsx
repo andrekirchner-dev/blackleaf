@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,15 +19,31 @@ interface Props {
   onSaved: () => void;
   plants: Plant[];
   defaultDate?: string;
+  defaultTime?: string;
+  defaultType?: GrowEventType;
   isGcalConnected?: boolean;
 }
 
-export function EventSheet({ open, onClose, onSaved, plants, defaultDate, isGcalConnected }: Props) {
+export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaultTime, defaultType, isGcalConnected }: Props) {
   const { user } = useAuth();
-  const [type, setType] = useState<GrowEventType>("rega");
+  const [type, setType] = useState<GrowEventType>(defaultType ?? "rega");
   const [plantIds, setPlantIds] = useState<string[]>([]);
   const [date, setDate] = useState(defaultDate ?? new Date().toISOString().split("T")[0]);
-  const [time, setTime] = useState("");
+  const [time, setTime] = useState(defaultTime ?? "");
+
+  // Re-apply defaults each time the sheet opens (quick log passes different type each time)
+  useEffect(() => {
+    if (open) {
+      setType(defaultType ?? "rega");
+      setTime(defaultTime ?? "");
+      setDate(defaultDate ?? new Date().toISOString().split("T")[0]);
+      setPlantIds([]);
+      setNotes("");
+      setSaved(false);
+      setError(null);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
