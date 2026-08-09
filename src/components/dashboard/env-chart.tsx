@@ -59,6 +59,18 @@ export function EnvChart({
   const hasData = data.some((d) => d.value !== null);
   const hasZone = refMin !== undefined && refMax !== undefined;
 
+  // Expand Y domain to always include the ideal zone boundaries
+  const yDomain = (() => {
+    if (!hasData) return undefined;
+    const values = data.filter((d) => d.value !== null).map((d) => d.value as number);
+    const dataMin = Math.min(...values);
+    const dataMax = Math.max(...values);
+    const lo = refMin !== undefined ? Math.min(dataMin, refMin) : dataMin;
+    const hi = refMax !== undefined ? Math.max(dataMax, refMax) : dataMax;
+    const pad = (hi - lo) * 0.12 || 0.5;
+    return [lo - pad, hi + pad] as [number, number];
+  })();
+
   return (
     <div className={cn("bg-card border border-border rounded-2xl p-4", className)}>
       <div className="flex items-center justify-between mb-3">
@@ -85,6 +97,7 @@ export function EnvChart({
               interval="preserveStartEnd"
             />
             <YAxis
+              domain={yDomain}
               tick={{ fontSize: 9, fill: "rgba(255,255,255,0.4)" }}
               axisLine={false}
               tickLine={false}
@@ -98,8 +111,9 @@ export function EnvChart({
                 y1={refMin}
                 y2={refMax}
                 fill={color}
-                fillOpacity={0.08}
+                fillOpacity={0.12}
                 strokeOpacity={0}
+                ifOverflow="visible"
               />
             )}
 
@@ -109,8 +123,9 @@ export function EnvChart({
                 y={refMin}
                 stroke={color}
                 strokeDasharray="4 4"
-                strokeOpacity={0.5}
+                strokeOpacity={0.6}
                 strokeWidth={1}
+                ifOverflow="visible"
               />
             )}
             {refMax !== undefined && (
@@ -118,8 +133,9 @@ export function EnvChart({
                 y={refMax}
                 stroke={color}
                 strokeDasharray="4 4"
-                strokeOpacity={0.5}
+                strokeOpacity={0.6}
                 strokeWidth={1}
+                ifOverflow="visible"
               />
             )}
 
