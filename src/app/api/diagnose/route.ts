@@ -1,116 +1,55 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const SYSTEM_PROMPTS: Record<string, string> = {
-  pests: `Você é um entomologista especialista em pragas de cannabis com 20 anos de experiência.
+// ── Server-side rule engine for nutrients ──────────────────────────────────
+interface VisualChecklist {
+  burnedEdgesTips: "SIM" | "NÃO";   // bordas/pontas queimadas, marrons, crocantes
+  purpleColoring: "SIM" | "NÃO";    // coloração roxa/violeta/vinho nas folhas ou caule
+  uniformYellowing: "SIM" | "NÃO";  // amarelamento uniforme da folha inteira
+  interveinalChlorosis: "SIM" | "NÃO"; // nervuras verdes com miolo amarelo
+  newLeavesAffected: "SIM" | "NÃO"; // sintomas predominam nas folhas novas (topo)
+  newGrowthDeformed: "SIM" | "NÃO"; // folhas novas deformadas, grossas, enroladas
+}
 
-PASSO 1 — OBSERVE os detalhes visuais:
-- Há insetos visíveis (corpo, pernas, asas)?
-- Há teias finas (ácaros), trilhas prateadas (trips/lesmas), substância pegajosa (pulgões/cochonilhas)?
-- Qual o padrão de dano: pontinhos brancos/prateados na folha, buracos, bordas comidas, mosqueado?
-- Os danos estão na face superior ou inferior das folhas?
-- Há ovos, exúvias ou excrementos visíveis?
+function deriveNutrientName(c: VisualChecklist): string {
+  // Burned edges/tips = Potassium (hard rule — not phosphorus)
+  if (c.burnedEdgesTips === "SIM" && c.purpleColoring === "NÃO") return "Deficiência de Potássio (K)";
+  // Purple/violet = Phosphorus (hard rule — not potassium)
+  if (c.purpleColoring === "SIM" && c.burnedEdgesTips === "NÃO") return "Deficiência de Fósforo (P)";
+  // Both burned + purple = more likely K than P
+  if (c.burnedEdgesTips === "SIM" && c.purpleColoring === "SIM") return "Deficiência de Potássio (K)";
+  // Uniform yellowing on old leaves = Nitrogen
+  if (c.uniformYellowing === "SIM" && c.newLeavesAffected === "NÃO") return "Deficiência de Nitrogênio (N)";
+  // Uniform yellowing on new leaves = Sulfur
+  if (c.uniformYellowing === "SIM" && c.newLeavesAffected === "SIM") return "Deficiência de Enxofre (S)";
+  // Interveinal chlorosis on old leaves = Magnesium
+  if (c.interveinalChlorosis === "SIM" && c.newLeavesAffected === "NÃO") return "Deficiência de Magnésio (Mg)";
+  // Interveinal chlorosis on new leaves = Iron
+  if (c.interveinalChlorosis === "SIM" && c.newLeavesAffected === "SIM") return "Deficiência de Ferro (Fe)";
+  // Deformed new growth = Calcium or Boron
+  if (c.newGrowthDeformed === "SIM") return "Deficiência de Cálcio (Ca) ou Boro (B)";
+  return "Problema nutricional não identificado com clareza";
+}
 
-PASSO 2 — REFERÊNCIA de identificação:
-- ÁCARO-RAJADO: pontinhos brancos/amarelos na face superior, teias finas na inferior, invisíveis a olho nu
-- PULGÃO: insetos verdes/pretos em colônias, substância pegajosa (honeydew), folhas enroladas
-- TRIPS: estrias prateadas/brancas na folha, bordas com aspecto papelão, insetos alongados minúsculos
-- MOSCA-BRANCA: nuvem de insetos brancos ao sacudir, ovos na face inferior, folhas amarelas
-- FUNGUS GNAT: larvas no solo, adultos voando rente à terra, raízes com dano
-- COCHONILHA: massa branca/algodão nos caules e nós, substância pegajosa
-- LAGARTA: buracos grandes nas folhas, excrementos escuros (frass) visíveis
-- LESMA/CARACOL: trilhas brilhantes secas, buracos irregulares, atividade noturna
+// ── Prompts ────────────────────────────────────────────────────────────────
+const PROMPTS = {
+  pests: `Você é um entomologista especialista em pragas de cannabis.
 
-Se não houver praga identificável, retorne "identified": false.
+OBSERVE a imagem e identifique:
+- Insetos visíveis (corpo, pernas, asas, ovos, excrementos)
+- Padrão de dano: pontinhos brancos, teias, estrias prateadas, buracos, substância pegajosa
+- Localização: face superior ou inferior das folhas, caule, solo
 
-Responda APENAS com JSON válido, sem markdown:
-{
-  "identified": boolean,
-  "name": string,
-  "confidence": "alta" | "média" | "baixa",
-  "description": string,
-  "urgency": "alta" | "média" | "baixa",
-  "symptoms": string[],
-  "treatment": string[],
-  "prevention": string[],
-  "additionalNotes": string
-}`,
+REFERÊNCIA:
+- ÁCARO-RAJADO: pontinhos brancos/amarelos na face superior, teias finas na inferior
+- PULGÃO: colônias de insetos verdes/pretos, substância pegajosa, folhas enroladas
+- TRIPS: estrias prateadas, bordas com aspecto papelão, insetos minúsculos alongados
+- MOSCA-BRANCA: insetos brancos que voam, ovos na face inferior, folhas amarelas
+- FUNGUS GNAT: adultos voando rente ao solo, larvas nas raízes
+- COCHONILHA: massa branca/algodão nos nós e caules
+- LAGARTA: buracos grandes, excrementos escuros (frass)
 
-  diseases: `Você é um fitopatologista especialista em doenças de cannabis com 20 anos de experiência.
-
-PASSO 1 — OBSERVE os sintomas com atenção:
-- Há pó branco na superfície das folhas (não confunda com tricomas)?
-- Há manchas marrons/cinzas com mofo visível?
-- As lesões têm bordas definidas ou são difusas?
-- O problema está nas folhas, caule, raízes ou flores?
-- Há odor diferente (podridão)?
-- Os sintomas aparecem em pontos isolados ou se espalham em padrão?
-
-PASSO 2 — REFERÊNCIA de identificação:
-- OÍDIO (Powdery Mildew): pó BRANCO na face SUPERIOR das folhas, circular, se espalha. NÃO é removível facilmente.
-- MÍLDIO (Downy Mildew): manchas amarelas na face superior, mofo cinza/roxo na face INFERIOR correspondente.
-- BOTRYTIS (Mofo Cinzento): mofo CINZA-MARROM em flores/caules, tecido apodrecido, úmido.
-- FUSARIUM: murcha súbita de um lado da planta, caule interno marrom-avermelhado.
-- PYTHIUM (Podridão de Raiz): raízes marrons/pretas, caule na base apodrecido, crescimento lento.
-- MANCHA FOLIAR BACTERIANA: manchas marrons com halo amarelo, aspecto encharcado.
-- ALTAS TEMPERATURAS/QUEIMADURA: bordas secas sem patógeno visível.
-
-Se não houver doença identificável, retorne "identified": false.
-
-Responda APENAS com JSON válido, sem markdown:
-{
-  "identified": boolean,
-  "name": string,
-  "confidence": "alta" | "média" | "baixa",
-  "description": string,
-  "urgency": "alta" | "média" | "baixa",
-  "symptoms": string[],
-  "treatment": string[],
-  "prevention": string[],
-  "additionalNotes": string
-}`,
-
-  nutrients: `Você é um fitopatologista especialista em cannabis. Analise a imagem com MÁXIMA atenção visual antes de concluir qualquer coisa.
-
-═══ REGRA CRÍTICA ═══
-DESCREVA O QUE VOCÊ REALMENTE VÊ na imagem antes de nomear qualquer deficiência.
-Nunca assuma — observe a cor real, o local real, o padrão real.
-
-═══ GUIA DE OBSERVAÇÃO ═══
-Responda mentalmente a estas perguntas antes de preencher o JSON:
-
-1. AS FOLHAS TÊM BORDA/PONTA QUEIMADA OU MARROM CROCANTE?
-   → SIM: provavelmente POTÁSSIO. Não é fósforo.
-
-2. AS FOLHAS TÊM COR ROXA, VIOLETA OU VINHO (especialmente na face de baixo)?
-   → SIM: provavelmente FÓSFORO. Não é potássio.
-
-3. AS FOLHAS ESTÃO COMPLETAMENTE AMARELAS (uniforme)?
-   → SIM nas folhas velhas: NITROGÊNIO.
-   → SIM nas folhas novas: ENXOFRE ou FERRO.
-
-4. AS NERVURAS ESTÃO VERDES ENQUANTO O MIOLO DA FOLHA ESTÁ AMARELO?
-   → SIM em folhas velhas: MAGNÉSIO.
-   → SIM em folhas novas: FERRO ou MANGANÊS.
-
-5. AS FOLHAS NOVAS ESTÃO DEFORMADAS, GROSSAS OU COM PONTAS MORTAS?
-   → CÁLCIO ou BORO.
-
-═══ TABELA DE DISTINÇÃO RÁPIDA ═══
-| Sintoma visual             | Deficiência CORRETA         |
-|----------------------------|-----------------------------|
-| Borda/ponta queimada marrom| POTÁSSIO — não fósforo      |
-| Cor roxa/vinho na folha    | FÓSFORO — não potássio      |
-| Amarelo uniforme fol. velha| NITROGÊNIO                  |
-| Verde-veia + amarelo fol.v.| MAGNÉSIO                    |
-| Verde-veia + amarelo fol.n.| FERRO                       |
-| Mancha marrom fol. nova    | CÁLCIO                      |
-| Fol. nova deformada/grossa | BORO                        |
-
-═══ FORMATO DE RESPOSTA ═══
-Preencha o campo "visualObservation" com o que você LITERALMENTE VÊ na imagem (cores, padrões, localização dos sintomas) ANTES de concluir o diagnóstico. Isso é obrigatório.
-
-Responda APENAS com JSON válido, sem markdown:
+Responda APENAS JSON válido:
 {
   "identified": boolean,
   "name": string,
@@ -123,8 +62,80 @@ Responda APENAS com JSON válido, sem markdown:
   "prevention": string[],
   "additionalNotes": string
 }`,
+
+  diseases: `Você é um fitopatologista especialista em doenças de cannabis.
+
+OBSERVE a imagem e identifique:
+- Pó branco na superfície das folhas (não confunda com tricomas)
+- Manchas com mofo, coloração, bordas definidas
+- Tecido apodrecido, murcha, aspecto encharcado
+
+REFERÊNCIA:
+- OÍDIO: pó BRANCO circular na face SUPERIOR, se espalha facilmente
+- MÍLDIO: manchas amarelas na face superior + mofo cinza/roxo na face INFERIOR
+- BOTRYTIS: mofo CINZA-MARROM em flores/caules, tecido úmido e apodrecido
+- FUSARIUM: murcha de um lado da planta, caule interno marrom-avermelhado
+- PYTHIUM: raízes marrons/pretas, base do caule apodrecida, crescimento lento
+- MANCHA BACTERIANA: manchas marrons com halo amarelo, aspecto encharcado
+
+Responda APENAS JSON válido:
+{
+  "identified": boolean,
+  "name": string,
+  "confidence": "alta" | "média" | "baixa",
+  "visualObservation": string,
+  "description": string,
+  "urgency": "alta" | "média" | "baixa",
+  "symptoms": string[],
+  "treatment": string[],
+  "prevention": string[],
+  "additionalNotes": string
+}`,
+
+  nutrients: `Você é um especialista em nutrição de cannabis. Sua tarefa é APENAS preencher o checklist visual abaixo com SIM ou NÃO, observando com máxima atenção a imagem.
+
+CHECKLIST VISUAL — responda SIM ou NÃO para cada item com base no que você LITERALMENTE VÊ:
+
+1. burnedEdgesTips: As BORDAS ou PONTAS das folhas estão MARRONS, CROCANTES ou com aspecto de queimadura? (Necrose marginal — tecido morto nas extremidades)
+   ATENÇÃO: Cor marrom/torrada nas pontas = SIM. Coloração roxa = NÃO para esta pergunta.
+
+2. purpleColoring: Há coloração ROXA, VIOLETA ou VINHO nas folhas ou no caule? (especialmente na face inferior)
+   ATENÇÃO: Roxo real, não marrom. Marrom queimado = NÃO para esta pergunta.
+
+3. uniformYellowing: As folhas estão ficando COMPLETAMENTE AMARELAS de forma uniforme (a folha toda, não só bordas)?
+
+4. interveinalChlorosis: As NERVURAS das folhas continuam VERDES enquanto o tecido ENTRE elas está AMARELO? (padrão listrado verde-amarelo)
+
+5. newLeavesAffected: Os sintomas aparecem PRINCIPALMENTE nas folhas NOVAS/JOVENS (topo da planta)?
+
+6. newGrowthDeformed: As folhas NOVAS estão DEFORMADAS, GROSSAS, ENROLADAS ou com PONTAS MORTAS?
+
+Além do checklist, descreva em "visualObservation" o que você literalmente vê (cores, padrões, localização).
+Preencha "description", "symptoms", "treatment" e "prevention" para a deficiência que o checklist indicar.
+
+Responda APENAS JSON válido:
+{
+  "identified": boolean,
+  "visualChecklist": {
+    "burnedEdgesTips": "SIM" | "NÃO",
+    "purpleColoring": "SIM" | "NÃO",
+    "uniformYellowing": "SIM" | "NÃO",
+    "interveinalChlorosis": "SIM" | "NÃO",
+    "newLeavesAffected": "SIM" | "NÃO",
+    "newGrowthDeformed": "SIM" | "NÃO"
+  },
+  "visualObservation": string,
+  "confidence": "alta" | "média" | "baixa",
+  "description": string,
+  "urgency": "alta" | "média" | "baixa",
+  "symptoms": string[],
+  "treatment": string[],
+  "prevention": string[],
+  "additionalNotes": string
+}`,
 };
 
+// ── Route handler ──────────────────────────────────────────────────────────
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -133,12 +144,11 @@ export async function POST(req: NextRequest) {
     }
 
     const { imageBase64, mimeType, category } = await req.json();
-
     if (!imageBase64 || !category) {
       return NextResponse.json({ error: "imageBase64 e category são obrigatórios" }, { status: 400 });
     }
 
-    const prompt = SYSTEM_PROMPTS[category];
+    const prompt = PROMPTS[category as keyof typeof PROMPTS];
     if (!prompt) {
       return NextResponse.json({ error: "Categoria inválida" }, { status: 400 });
     }
@@ -154,10 +164,14 @@ export async function POST(req: NextRequest) {
       { inlineData: { mimeType: mimeType || "image/jpeg", data: imageBase64 } },
     ]);
 
-    const text = result.response.text();
-    const diagnosis = JSON.parse(text);
+    const raw = JSON.parse(result.response.text());
 
-    return NextResponse.json({ diagnosis });
+    // For nutrients: server derives name from checklist — model cannot override
+    if (category === "nutrients" && raw.visualChecklist) {
+      raw.name = raw.identified ? deriveNutrientName(raw.visualChecklist) : "Nenhuma deficiência identificada";
+    }
+
+    return NextResponse.json({ diagnosis: raw });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error("[diagnose]", msg);

@@ -5,11 +5,21 @@ import { Camera, Upload, X, Loader2, AlertTriangle, CheckCircle2, ChevronDown, C
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
+interface VisualChecklist {
+  burnedEdgesTips: "SIM" | "NÃO";
+  purpleColoring: "SIM" | "NÃO";
+  uniformYellowing: "SIM" | "NÃO";
+  interveinalChlorosis: "SIM" | "NÃO";
+  newLeavesAffected: "SIM" | "NÃO";
+  newGrowthDeformed: "SIM" | "NÃO";
+}
+
 interface Diagnosis {
   identified: boolean;
   name: string;
   confidence: "alta" | "média" | "baixa";
   visualObservation?: string;
+  visualChecklist?: VisualChecklist;
   description: string;
   urgency?: "alta" | "média" | "baixa";
   symptoms: string[];
@@ -249,6 +259,40 @@ export function PhotoDiagnose({ category, title, hint }: Props) {
               <div>
                 <p className="text-[10px] font-semibold text-blue-400 mb-0.5 uppercase tracking-wide">O que a IA observou</p>
                 <p className="text-[11px] text-muted-foreground leading-relaxed">{diagnosis.visualObservation}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Visual checklist — nutrients only */}
+          {diagnosis.visualChecklist && (
+            <div className="bg-muted/10 border border-border/50 rounded-xl px-3 py-2.5">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-2">Checklist Visual</p>
+              <div className="grid grid-cols-1 gap-1">
+                {(
+                  [
+                    ["burnedEdgesTips",     "Bordas/pontas queimadas (marrons, crocantes)"],
+                    ["purpleColoring",      "Coloração roxa/violeta nas folhas ou caule"],
+                    ["uniformYellowing",    "Amarelamento uniforme da folha inteira"],
+                    ["interveinalChlorosis","Nervuras verdes com miolo amarelo (clorose interveinal)"],
+                    ["newLeavesAffected",   "Sintomas nas folhas novas (topo da planta)"],
+                    ["newGrowthDeformed",   "Folhas novas deformadas, enroladas ou com pontas mortas"],
+                  ] as [keyof VisualChecklist, string][]
+                ).map(([key, label]) => {
+                  const val = diagnosis.visualChecklist![key];
+                  return (
+                    <div key={key} className="flex items-center gap-2">
+                      <span className={cn(
+                        "text-[10px] font-bold w-8 text-center rounded px-1 py-0.5",
+                        val === "SIM"
+                          ? "bg-amber-400/15 text-amber-400"
+                          : "bg-muted/30 text-muted-foreground"
+                      )}>
+                        {val}
+                      </span>
+                      <span className="text-[11px] text-muted-foreground">{label}</span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           )}
