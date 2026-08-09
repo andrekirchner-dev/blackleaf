@@ -5,6 +5,9 @@ import { useAuth } from "@/contexts/auth-context";
 import { useEnvironment } from "@/hooks/use-environment";
 import { useSpaces } from "@/hooks/use-spaces";
 import { createEnvironmentRecord, deleteEnvironmentRecord, calcVPD } from "@/lib/environment";
+import { STAGE_ENV_RANGES, STAGE_RANGE_LABELS, STAGE_RANGE_EMOJI } from "@/lib/env-ranges";
+import { STAGE_ORDER } from "@/lib/constants";
+import type { GrowStage } from "@/lib/types";
 import { EnvChart } from "@/components/dashboard/env-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,6 +42,7 @@ export default function EnvironmentPage() {
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [chartStage, setChartStage] = useState<GrowStage>("vegetativo");
 
   const [form, setForm] = useState({
     spaceId: "",
@@ -194,11 +198,38 @@ export default function EnvironmentPage() {
 
       {/* Charts */}
       <MotionItem>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <EnvChart title="Temperatura" unit="°C" data={toChartData("temperature")} color="#f97316" refMin={20} refMax={28} />
-        <EnvChart title="Umidade" unit="%" data={toChartData("humidity")} color="#3b82f6" refMin={40} refMax={70} decimals={0} />
-        <EnvChart title="VPD" unit=" kPa" data={vpdData} color="#a855f7" refMin={0.4} refMax={1.2} />
-        <EnvChart title="CO₂" unit=" ppm" data={toChartData("co2")} color="#22c55e" refMin={700} refMax={1500} decimals={0} />
+      <div className="space-y-3">
+        {/* Seletor de fase */}
+        <div className="flex gap-1.5 flex-wrap">
+          {STAGE_ORDER.map((s) => (
+            <button
+              key={s}
+              onClick={() => setChartStage(s)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                chartStage === s
+                  ? "bg-primary/10 border-primary/30 text-primary"
+                  : "bg-card border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span>{STAGE_RANGE_EMOJI[s]}</span>
+              {STAGE_RANGE_LABELS[s]}
+            </button>
+          ))}
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <EnvChart title="Temperatura" unit="°C" data={toChartData("temperature")} color="#f97316"
+            refMin={STAGE_ENV_RANGES[chartStage].temperature.min}
+            refMax={STAGE_ENV_RANGES[chartStage].temperature.max} />
+          <EnvChart title="Umidade" unit="%" data={toChartData("humidity")} color="#3b82f6" decimals={0}
+            refMin={STAGE_ENV_RANGES[chartStage].humidity.min}
+            refMax={STAGE_ENV_RANGES[chartStage].humidity.max} />
+          <EnvChart title="VPD" unit=" kPa" data={vpdData} color="#a855f7"
+            refMin={STAGE_ENV_RANGES[chartStage].vpd.min}
+            refMax={STAGE_ENV_RANGES[chartStage].vpd.max} />
+          <EnvChart title="CO₂" unit=" ppm" data={toChartData("co2")} color="#22c55e" decimals={0}
+            refMin={STAGE_ENV_RANGES[chartStage].co2.min}
+            refMax={STAGE_ENV_RANGES[chartStage].co2.max} />
+        </div>
       </div>
       </MotionItem>
 

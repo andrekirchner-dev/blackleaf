@@ -9,6 +9,7 @@ import {
   CartesianGrid,
   Tooltip,
   ReferenceLine,
+  ReferenceArea,
 } from "recharts";
 import { cn } from "@/lib/utils";
 
@@ -56,10 +57,18 @@ export function EnvChart({
   className,
 }: Props) {
   const hasData = data.some((d) => d.value !== null);
+  const hasZone = refMin !== undefined && refMax !== undefined;
 
   return (
     <div className={cn("bg-card border border-border rounded-2xl p-4", className)}>
-      <p className="text-xs font-semibold text-foreground mb-3">{title}</p>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-semibold text-foreground">{title}</p>
+        {hasZone && (
+          <span className="text-[10px] text-muted-foreground bg-muted/40 rounded px-1.5 py-0.5">
+            {refMin}–{refMax}{unit.trim()}
+          </span>
+        )}
+      </div>
       {!hasData ? (
         <div className="h-[120px] flex items-center justify-center">
           <p className="text-xs text-muted-foreground/60">{emptyMessage}</p>
@@ -82,12 +91,38 @@ export function EnvChart({
               tickFormatter={(v) => v.toFixed(decimals)}
             />
             <Tooltip content={<CustomTooltip unit={unit} />} />
+
+            {/* Zona ideal — banda colorida */}
+            {hasZone && (
+              <ReferenceArea
+                y1={refMin}
+                y2={refMax}
+                fill={color}
+                fillOpacity={0.08}
+                strokeOpacity={0}
+              />
+            )}
+
+            {/* Linhas de limite */}
             {refMin !== undefined && (
-              <ReferenceLine y={refMin} stroke={color} strokeDasharray="4 4" strokeOpacity={0.4} />
+              <ReferenceLine
+                y={refMin}
+                stroke={color}
+                strokeDasharray="4 4"
+                strokeOpacity={0.5}
+                strokeWidth={1}
+              />
             )}
             {refMax !== undefined && (
-              <ReferenceLine y={refMax} stroke={color} strokeDasharray="4 4" strokeOpacity={0.4} />
+              <ReferenceLine
+                y={refMax}
+                stroke={color}
+                strokeDasharray="4 4"
+                strokeOpacity={0.5}
+                strokeWidth={1}
+              />
             )}
+
             <Line
               type="monotone"
               dataKey="value"

@@ -10,6 +10,9 @@ import { useGrowStyles } from "@/hooks/use-grow-styles";
 import { useEvents } from "@/hooks/use-events";
 import { useDashboardLayout } from "@/hooks/use-dashboard-layout";
 import { calcVPD } from "@/lib/environment";
+import { STAGE_ENV_RANGES, STAGE_RANGE_LABELS, STAGE_RANGE_EMOJI } from "@/lib/env-ranges";
+import type { GrowStage } from "@/lib/types";
+import { STAGE_ORDER } from "@/lib/constants";
 import { SpaceStatusCard } from "@/components/dashboard/space-status-card";
 import { SpacePlantsSheet } from "@/components/dashboard/space-plants-sheet";
 import { GrowCalendar } from "@/components/dashboard/grow-calendar";
@@ -51,6 +54,7 @@ export default function DashboardPage() {
 
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [selectedChartSpace, setSelectedChartSpace] = useState<string>("__all__");
+  const [chartStage, setChartStage] = useState<GrowStage>("vegetativo");
 
   const firstName = user?.displayName?.split(" ")[0] ?? "Grower";
   const inFlower = plants.filter((p) => p.stage === "floracao").length;
@@ -225,29 +229,54 @@ export default function DashboardPage() {
             >
               <option value="__all__">Todos os espaços</option>
               {spaces.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
+                <option key={s.id} value={s.id}>{s.name}</option>
               ))}
             </select>
             <Link href="/environment">
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground"
-              >
+              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground">
                 Registrar
               </Button>
             </Link>
           </div>
         </div>
+
+        {/* Seletor de fase para zona ideal */}
+        <div className="flex gap-1.5 flex-wrap mb-3">
+          {STAGE_ORDER.map((s) => (
+            <button
+              key={s}
+              onClick={() => setChartStage(s)}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                chartStage === s
+                  ? "bg-primary/10 border-primary/30 text-primary"
+                  : "bg-card border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <span>{STAGE_RANGE_EMOJI[s]}</span>
+              {STAGE_RANGE_LABELS[s]}
+            </button>
+          ))}
+        </div>
+
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          <EnvChart title="Temperatura" unit="°C" data={toChartData("temperature")} color="#f97316" refMin={20} refMax={28} />
-          <EnvChart title="Umidade" unit="%" data={toChartData("humidity")} color="#3b82f6" refMin={40} refMax={70} decimals={0} />
-          <EnvChart title="VPD" unit=" kPa" data={vpdData} color="#a855f7" refMin={0.4} refMax={1.2} />
-          <EnvChart title="CO₂" unit=" ppm" data={toChartData("co2")} color="#22c55e" refMin={700} refMax={1500} decimals={0} />
-          <EnvChart title="pH Entrada (Run-in)" unit="" data={phInData} color="#eab308" refMin={5.8} refMax={6.8} />
-          <EnvChart title="pH Saída (Run-off)" unit="" data={phOutData} color="#ec4899" refMin={5.8} refMax={6.8} />
+          <EnvChart title="Temperatura" unit="°C" data={toChartData("temperature")} color="#f97316"
+            refMin={STAGE_ENV_RANGES[chartStage].temperature.min}
+            refMax={STAGE_ENV_RANGES[chartStage].temperature.max} />
+          <EnvChart title="Umidade" unit="%" data={toChartData("humidity")} color="#3b82f6" decimals={0}
+            refMin={STAGE_ENV_RANGES[chartStage].humidity.min}
+            refMax={STAGE_ENV_RANGES[chartStage].humidity.max} />
+          <EnvChart title="VPD" unit=" kPa" data={vpdData} color="#a855f7"
+            refMin={STAGE_ENV_RANGES[chartStage].vpd.min}
+            refMax={STAGE_ENV_RANGES[chartStage].vpd.max} />
+          <EnvChart title="CO₂" unit=" ppm" data={toChartData("co2")} color="#22c55e" decimals={0}
+            refMin={STAGE_ENV_RANGES[chartStage].co2.min}
+            refMax={STAGE_ENV_RANGES[chartStage].co2.max} />
+          <EnvChart title="pH Entrada (Run-in)" unit="" data={phInData} color="#eab308"
+            refMin={STAGE_ENV_RANGES[chartStage].ph.min}
+            refMax={STAGE_ENV_RANGES[chartStage].ph.max} />
+          <EnvChart title="pH Saída (Run-off)" unit="" data={phOutData} color="#ec4899"
+            refMin={STAGE_ENV_RANGES[chartStage].ph.min}
+            refMax={STAGE_ENV_RANGES[chartStage].ph.max} />
         </div>
       </div>
     ),
