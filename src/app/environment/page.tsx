@@ -101,12 +101,24 @@ export default function EnvironmentPage() {
     refresh();
   }
 
-  // Latest values from most recent record
+  // Averages over all records
+  function avg(key: "temperature" | "humidity" | "co2"): number | null {
+    const vals = records.map((r) => r[key]).filter((v): v is number => v != null);
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  }
+
+  const avgTemp = avg("temperature");
+  const avgHum  = avg("humidity");
+  const avgCo2  = avg("co2");
+  const avgVPD  = (() => {
+    const vals = records
+      .filter((r) => r.temperature != null && r.humidity != null)
+      .map((r) => calcVPD(r.temperature!, r.humidity!));
+    return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
+  })();
+
+  // Latest for secondary display
   const latest = records[0];
-  const latestVPD =
-    latest?.temperature != null && latest?.humidity != null
-      ? calcVPD(latest.temperature, latest.humidity)
-      : null;
 
   const chartRecords = [...records].reverse().slice(-14);
 
@@ -141,7 +153,7 @@ export default function EnvironmentPage() {
       </div>
       </MotionItem>
 
-      {/* Current readings */}
+      {/* Stats — média histórica */}
       <MotionItem>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {[
@@ -150,32 +162,34 @@ export default function EnvironmentPage() {
             icon: Thermometer,
             color: "text-orange-400",
             bg: "bg-orange-400/10",
-            value: latest?.temperature != null ? `${latest.temperature}°C` : "—",
-            ideal: "20–28°C",
+            avg: avgTemp != null ? `${avgTemp.toFixed(1)}°C` : "—",
+            last: latest?.temperature != null ? `${latest.temperature}°C` : null,
           },
           {
             label: "Umidade",
             icon: Droplets,
             color: "text-blue-400",
             bg: "bg-blue-400/10",
-            value: latest?.humidity != null ? `${latest.humidity}%` : "—",
-            ideal: "40–70%",
+            avg: avgHum != null ? `${avgHum.toFixed(1)}%` : "—",
+            last: latest?.humidity != null ? `${latest.humidity}%` : null,
           },
           {
             label: "VPD",
             icon: Wind,
             color: "text-purple-400",
             bg: "bg-purple-400/10",
-            value: latestVPD != null ? `${latestVPD} kPa` : "—",
-            ideal: "0.4–1.2 kPa",
+            avg: avgVPD != null ? `${avgVPD.toFixed(2)} kPa` : "—",
+            last: latest?.temperature != null && latest?.humidity != null
+              ? `${calcVPD(latest.temperature, latest.humidity)} kPa`
+              : null,
           },
           {
             label: "CO₂",
             icon: Wind,
             color: "text-green-400",
             bg: "bg-green-400/10",
-            value: latest?.co2 != null ? `${latest.co2} ppm` : "—",
-            ideal: "700–1500 ppm",
+            avg: avgCo2 != null ? `${Math.round(avgCo2)} ppm` : "—",
+            last: latest?.co2 != null ? `${latest.co2} ppm` : null,
           },
         ].map((m) => (
           <Card key={m.label} className="bg-card border-border">
@@ -188,8 +202,15 @@ export default function EnvironmentPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-2xl font-bold text-foreground">{m.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">Ideal: {m.ideal}</p>
+              <p className="text-2xl font-bold text-foreground">{m.avg}</p>
+              <p className="text-[11px] text-muted-foreground mt-1">
+                Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}
+              </p>
+              {m.last && (
+                <p className="text-[11px] text-muted-foreground/60 mt-0.5">
+                  Último: {m.last}
+                </p>
+              )}
             </CardContent>
           </Card>
         ))}
