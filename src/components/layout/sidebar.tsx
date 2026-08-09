@@ -278,7 +278,7 @@ export function Sidebar() {
       {/* Navigation */}
       <nav
         className={cn(
-          "flex-1 py-4 space-y-4 overflow-y-auto",
+          "flex-1 py-4 space-y-4 overflow-y-auto scrollbar-thin",
           collapsed ? "px-1.5" : "px-3"
         )}
       >

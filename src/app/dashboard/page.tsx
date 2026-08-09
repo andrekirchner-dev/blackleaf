@@ -174,7 +174,7 @@ export default function DashboardPage() {
             <span className="w-1.5 h-1.5 rounded-full bg-primary" />
             Ambientes Ativos
           </h2>
-          <div className="flex gap-3 overflow-x-auto pb-2 -mx-1 px-1">
+          <div className="flex gap-3 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-hide">
             {loadingSpaces ? (
               Array.from({ length: 2 }, (_, i) => (
                 <Skeleton key={i} className="w-52 h-28 shrink-0 rounded-2xl bg-muted" />
