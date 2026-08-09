@@ -9,6 +9,7 @@ interface Diagnosis {
   identified: boolean;
   name: string;
   confidence: "alta" | "média" | "baixa";
+  visualObservation?: string;
   description: string;
   urgency?: "alta" | "média" | "baixa";
   symptoms: string[];
@@ -240,6 +241,17 @@ export function PhotoDiagnose({ category, title, hint }: Props) {
               )}
             </div>
           </div>
+
+          {/* Visual observation — reasoning trace */}
+          {diagnosis.visualObservation && (
+            <div className="bg-blue-500/5 border border-blue-500/15 rounded-xl px-3 py-2.5 flex items-start gap-2">
+              <span className="text-xs shrink-0 mt-0.5">👁️</span>
+              <div>
+                <p className="text-[10px] font-semibold text-blue-400 mb-0.5 uppercase tracking-wide">O que a IA observou</p>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{diagnosis.visualObservation}</p>
+              </div>
+            </div>
+          )}
 
           {/* Sections */}
           {diagnosis.identified && (

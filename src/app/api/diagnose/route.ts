@@ -70,54 +70,52 @@ Responda APENAS com JSON válido, sem markdown:
   "additionalNotes": string
 }`,
 
-  nutrients: `Você é um fitopatologista especialista em cannabis com 20 anos de experiência em diagnóstico visual de deficiências nutricionais.
+  nutrients: `Você é um fitopatologista especialista em cannabis. Analise a imagem com MÁXIMA atenção visual antes de concluir qualquer coisa.
 
-PASSO 1 — OBSERVE com atenção antes de concluir:
-- Onde os sintomas aparecem: folhas velhas (baixeiras) ou folhas novas (topo)?
-- Qual é a cor predominante: amarelo, marrom, roxo, vermelho, manchas?
-- Onde na folha: bordas/pontas, entre as nervuras, uniforme, manchas?
-- As nervuras ficam verdes enquanto o restante amarela (clorose interveinal)?
-- As pontas/bordas estão queimadas/marrons/crocantes?
-- Há coloração roxa ou avermelhada no caule ou na face inferior das folhas?
+═══ REGRA CRÍTICA ═══
+DESCREVA O QUE VOCÊ REALMENTE VÊ na imagem antes de nomear qualquer deficiência.
+Nunca assuma — observe a cor real, o local real, o padrão real.
 
-PASSO 2 — USE esta tabela de referência para diferenciar as deficiências:
+═══ GUIA DE OBSERVAÇÃO ═══
+Responda mentalmente a estas perguntas antes de preencher o JSON:
 
-NUTRIENTES MÓVEIS (sintomas nas folhas VELHAS/baixeiras primeiro):
-- NITROGÊNIO (N): amarelamento uniforme da folha inteira, começando pelas mais velhas. Folha fica completamente amarela depois pálida.
-- FÓSFORO (P): coloração ROXA ou VERMELHO-ESCURA na face inferior das folhas e no caule. NÃO é queimadura de borda. A folha fica roxeada, especialmente embaixo.
-- POTÁSSIO (K): BORDAS E PONTAS queimadas/marrons/crocantes (necrose marginal). A queimadura começa na ponta e avança pelas bordas. O centro da folha pode ficar amarelo depois.
-- MAGNÉSIO (Mg): CLOROSE INTERVEINAL nas folhas velhas — nervuras ficam verdes enquanto o tecido entre elas amarela. Aspecto de "folha com veias verdes em fundo amarelo".
-- MOLIBDÊNIO (Mo): manchas amarelas/laranja nas folhas velhas, bordas podem enrolar.
+1. AS FOLHAS TÊM BORDA/PONTA QUEIMADA OU MARROM CROCANTE?
+   → SIM: provavelmente POTÁSSIO. Não é fósforo.
 
-NUTRIENTES IMÓVEIS (sintomas nas folhas NOVAS/topo primeiro):
-- CÁLCIO (Ca): manchas marrons irregulares nas folhas novas, pontas enrolam, crescimento deformado.
-- FERRO (Fe): folhas novas amarelas com nervuras verdes (clorose interveinal no topo).
-- ZINCO (Zn): folhas novas pequenas, deformadas, com clorose interveinal fina.
-- MANGANÊS (Mn): manchas amarelas/marrons entre as nervuras nas folhas novas.
-- BORO (B): pontas de crescimento mortas, folhas novas grossas e deformadas.
-- ENXOFRE (S): amarelamento uniforme nas folhas novas (diferente do N que começa nas velhas).
+2. AS FOLHAS TÊM COR ROXA, VIOLETA OU VINHO (especialmente na face de baixo)?
+   → SIM: provavelmente FÓSFORO. Não é potássio.
 
-TOXICIDADES:
-- NITROGÊNIO (excesso): folhas verde-escuro brilhante, pontas enrolam para baixo ("garras"), caule grosso.
-- POTÁSSIO (excesso): bloqueia Ca e Mg — sintomas secundários de deficiência desses.
-- NUTRIENTES em geral (excesso): queimadura de ponta nas folhas, solo com alto EC.
+3. AS FOLHAS ESTÃO COMPLETAMENTE AMARELAS (uniforme)?
+   → SIM nas folhas velhas: NITROGÊNIO.
+   → SIM nas folhas novas: ENXOFRE ou FERRO.
 
-PASSO 3 — DIFERENCIE casos similares:
-- Queimadura de borda/ponta → POTÁSSIO (não confunda com fósforo que é roxo)
-- Coloração roxa/violeta → FÓSFORO ou temperatura fria (não é potássio)
-- Amarelamento entre nervuras em folhas velhas → MAGNÉSIO (não nitrogênio)
-- Amarelamento uniforme em folhas velhas → NITROGÊNIO
-- Amarelamento em folhas novas → FERRO ou ENXOFRE
+4. AS NERVURAS ESTÃO VERDES ENQUANTO O MIOLO DA FOLHA ESTÁ AMARELO?
+   → SIM em folhas velhas: MAGNÉSIO.
+   → SIM em folhas novas: FERRO ou MANGANÊS.
 
-PASSO 4 — Conclua com base nos sinais visuais reais da imagem, não em suposições.
+5. AS FOLHAS NOVAS ESTÃO DEFORMADAS, GROSSAS OU COM PONTAS MORTAS?
+   → CÁLCIO ou BORO.
 
-Se não for possível identificar com segurança, retorne "identified": false com confidence "baixa".
+═══ TABELA DE DISTINÇÃO RÁPIDA ═══
+| Sintoma visual             | Deficiência CORRETA         |
+|----------------------------|-----------------------------|
+| Borda/ponta queimada marrom| POTÁSSIO — não fósforo      |
+| Cor roxa/vinho na folha    | FÓSFORO — não potássio      |
+| Amarelo uniforme fol. velha| NITROGÊNIO                  |
+| Verde-veia + amarelo fol.v.| MAGNÉSIO                    |
+| Verde-veia + amarelo fol.n.| FERRO                       |
+| Mancha marrom fol. nova    | CÁLCIO                      |
+| Fol. nova deformada/grossa | BORO                        |
 
-Responda APENAS com JSON válido, sem markdown, no seguinte formato exato:
+═══ FORMATO DE RESPOSTA ═══
+Preencha o campo "visualObservation" com o que você LITERALMENTE VÊ na imagem (cores, padrões, localização dos sintomas) ANTES de concluir o diagnóstico. Isso é obrigatório.
+
+Responda APENAS com JSON válido, sem markdown:
 {
   "identified": boolean,
   "name": string,
   "confidence": "alta" | "média" | "baixa",
+  "visualObservation": string,
   "description": string,
   "urgency": "alta" | "média" | "baixa",
   "symptoms": string[],
@@ -147,7 +145,7 @@ export async function POST(req: NextRequest) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-flash-lite-latest",
+      model: "gemini-flash-latest",
       generationConfig: { responseMimeType: "application/json" },
     });
 
