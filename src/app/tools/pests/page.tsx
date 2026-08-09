@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ShieldAlert, Leaf, FlaskConical, CheckCircle2, AlertTriangle, Bug } from "lucide-react";
+import { PhotoDiagnose } from "@/components/tools/photo-diagnose";
 
 const SEVERITY_CONFIG: Record<PestSeverity, { label: string; color: string; bg: string }> = {
   high: { label: "Risco Alto", color: "text-destructive", bg: "bg-destructive/10 border-destructive/20" },
@@ -226,6 +227,14 @@ export default function PestsToolPage() {
             <strong className="text-foreground">Quarentena é essencial:</strong> novas plantas, clones e ferramentas são as principais vias de entrada de pragas. Inspecione com lupa 10x regularmente.
           </p>
         </div>
+      </MotionItem>
+
+      <MotionItem>
+        <PhotoDiagnose
+          category="pests"
+          title="Diagnóstico por Foto"
+          hint="Envie uma foto da planta ou do inseto para identificação via IA"
+        />
       </MotionItem>
 
       <div className="space-y-2">

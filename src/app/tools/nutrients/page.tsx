@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, Info, AlertTriangle, CheckCircle2, Leaf, Microscope } from "lucide-react";
+import { PhotoDiagnose } from "@/components/tools/photo-diagnose";
 
 const MOBILITY_CONFIG = {
   mobile: { label: "Móvel", color: "text-primary", bg: "bg-primary/10 border-primary/20", description: "Sintomas nas folhas VELHAS primeiro" },
@@ -239,6 +240,14 @@ export default function NutrientsToolPage() {
             </p>
           </div>
         </div>
+      </MotionItem>
+
+      <MotionItem>
+        <PhotoDiagnose
+          category="nutrients"
+          title="Diagnóstico por Foto"
+          hint="Envie uma foto das folhas para identificar deficiências ou toxicidades via IA"
+        />
       </MotionItem>
 
       {/* Mobility guide */}

@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 import { motion, AnimatePresence } from "framer-motion";
 import { ChevronDown, ShieldAlert, Leaf, FlaskConical, CheckCircle2, AlertTriangle, Stethoscope, XCircle } from "lucide-react";
+import { PhotoDiagnose } from "@/components/tools/photo-diagnose";
 
 const SEVERITY_CONFIG: Record<DiseaseSeverity, { label: string; color: string; bg: string }> = {
   critical: { label: "Crítico", color: "text-destructive", bg: "bg-destructive/10 border-destructive/20" },
@@ -261,6 +262,14 @@ export default function DiseasesToolPage() {
             <strong className="text-foreground">Prevenção é sempre superior ao tratamento.</strong> A maioria das doenças fúngicas não tem cura — propagam-se por esporos aéreos. Controle ambiental (UR, temperatura, ventilação) é a primeira linha de defesa.
           </p>
         </div>
+      </MotionItem>
+
+      <MotionItem>
+        <PhotoDiagnose
+          category="diseases"
+          title="Diagnóstico por Foto"
+          hint="Envie uma foto das folhas ou caules afetados para identificação via IA"
+        />
       </MotionItem>
 
       <MotionItem>
