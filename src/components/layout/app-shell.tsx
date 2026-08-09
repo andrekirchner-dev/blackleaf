@@ -3,8 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { Sidebar } from "./sidebar";
-import { MobileNav } from "./mobile-nav";
+import { TopNav } from "./top-nav";
 import { SmartTipsPanel } from "./smart-tips-panel";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
@@ -26,12 +25,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   if (!user) return null;
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <MobileNav />
-        <main className="flex-1 p-4 md:p-6">{children}</main>
-      </div>
+    <div className="flex flex-col min-h-screen bg-background">
+      <TopNav />
+      <main className="flex-1 w-full p-4 md:p-6">{children}</main>
       <SmartTipsPanel />
     </div>
   );
