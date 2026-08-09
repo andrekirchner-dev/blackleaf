@@ -101,6 +101,21 @@ export default function DashboardPage() {
 
   const phInData = filteredEntries.map((e) => ({ label: fmt(e.date), value: e.ph ?? null }));
   const phOutData = filteredEntries.map((e) => ({ label: fmt(e.date), value: e.phRunoff ?? null }));
+
+  const waterData = useMemo(() => {
+    const spPlantIds = selectedChartSpace === "__all__"
+      ? null
+      : plants.filter((p) => p.spaceId === selectedChartSpace).map((p) => p.id);
+    return entries
+      .filter((e) =>
+        (e.type === "rega" || e.type === "nutrientes") &&
+        e.waterAmount != null &&
+        (spPlantIds === null || spPlantIds.includes(e.plantId))
+      )
+      .slice(-20)
+      .reverse()
+      .map((e) => ({ label: fmt(e.date), value: e.waterAmount ?? null }));
+  }, [entries, selectedChartSpace, plants]);
   const activeSheet = spacesWithPlants.find((s) => s.space.id === activeSpaceId);
   const loading = loadingPlants || loadingSpaces;
 
@@ -277,6 +292,7 @@ export default function DashboardPage() {
           <EnvChart title="pH Saída (Run-off)" unit="" data={phOutData} color="#ec4899"
             refMin={STAGE_ENV_RANGES[chartStage].ph.min}
             refMax={STAGE_ENV_RANGES[chartStage].ph.max} />
+          <EnvChart title="Volume de Rega" unit=" mL" data={waterData} color="#38bdf8" decimals={0} />
         </div>
       </div>
     ),
