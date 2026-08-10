@@ -234,7 +234,7 @@ export default function DashboardPage() {
 
     env_charts: (
       <div className="space-y-4">
-        {/* Header */}
+        {/* Header row */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-1 bg-muted/40 rounded-xl p-1">
             <button
@@ -258,23 +258,53 @@ export default function DashboardPage() {
               💧 Água
             </button>
           </div>
-          <div className="flex items-center gap-1.5">
-            <select
-              value={selectedChartSpace}
-              onChange={(e) => setSelectedChartSpace(e.target.value)}
-              className="bg-background border border-border rounded-lg text-xs px-2 py-1 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
-            >
-              <option value="__all__">Todos os espaços</option>
-              {spaces.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-            <Link href="/environment">
-              <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground">
-                Registrar
-              </Button>
-            </Link>
-          </div>
+          <Link href="/environment">
+            <Button variant="ghost" size="sm" className="text-xs h-7 px-2 text-muted-foreground hover:text-foreground gap-1">
+              <Thermometer size={12} />
+              Registrar
+            </Button>
+          </Link>
+        </div>
+
+        {/* Space selector pills */}
+        <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1 scrollbar-hide">
+          <button
+            onClick={() => setSelectedChartSpace("__all__")}
+            className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+              selectedChartSpace === "__all__"
+                ? "bg-primary/15 border-primary/40 text-primary"
+                : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border/80"
+            }`}
+          >
+            <span>🌍</span>
+            <span>Todos</span>
+            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+              selectedChartSpace === "__all__"
+                ? "bg-primary/20 text-primary"
+                : "bg-muted text-muted-foreground"
+            }`}>{plants.length}</span>
+          </button>
+          {spacesWithPlants.map(({ space, plants: sPlants }) => {
+            const active = selectedChartSpace === space.id;
+            return (
+              <button
+                key={space.id}
+                onClick={() => setSelectedChartSpace(space.id)}
+                className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                  active
+                    ? "bg-primary/15 border-primary/40 text-primary"
+                    : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border/80"
+                }`}
+              >
+                <span>{space.name}</span>
+                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                  active
+                    ? "bg-primary/20 text-primary"
+                    : "bg-muted text-muted-foreground"
+                }`}>{sPlants.length}</span>
+              </button>
+            );
+          })}
         </div>
 
         {/* Aba Ambiente */}
