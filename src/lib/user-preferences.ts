@@ -2,8 +2,9 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "./firebase";
 import type { WidgetId } from "./dashboard-widgets";
 
-interface UserPreferences {
+export interface UserPreferences {
   dashboardLayout?: WidgetId[];
+  defaultEnvironmentSpaceId?: string;
 }
 
 export async function getUserPreferences(userId: string): Promise<UserPreferences> {
@@ -16,4 +17,9 @@ export async function getUserPreferences(userId: string): Promise<UserPreference
 export async function saveDashboardLayout(userId: string, layout: WidgetId[]): Promise<void> {
   const ref = doc(db, "user_preferences", userId);
   await setDoc(ref, { dashboardLayout: layout }, { merge: true });
+}
+
+export async function saveEnvironmentDefaultSpace(userId: string, spaceId: string | null): Promise<void> {
+  const ref = doc(db, "user_preferences", userId);
+  await setDoc(ref, { defaultEnvironmentSpaceId: spaceId ?? null }, { merge: true });
 }

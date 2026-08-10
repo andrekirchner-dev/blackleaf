@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useEnvironment } from "@/hooks/use-environment";
 import { useSpaces } from "@/hooks/use-spaces";
@@ -8,16 +8,18 @@ import { createEnvironmentRecord, deleteEnvironmentRecord, calcVPD } from "@/lib
 import { STAGE_ENV_RANGES, STAGE_RANGE_LABELS, STAGE_RANGE_EMOJI } from "@/lib/env-ranges";
 import { STAGE_ORDER } from "@/lib/constants";
 import type { GrowStage } from "@/lib/types";
+import { getUserPreferences, saveEnvironmentDefaultSpace } from "@/lib/user-preferences";
 import { EnvChart } from "@/components/dashboard/env-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Thermometer, Droplets, Wind, Plus, Trash2, Loader2 } from "lucide-react";
+import { Thermometer, Droplets, Wind, Plus, Trash2, Loader2, Star } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
+import { cn } from "@/lib/utils";
 
 function fmt(date: string) {
   try {
@@ -46,8 +48,10 @@ export default function EnvironmentPage() {
   const { spaces } = useSpaces();
   const [open, setOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [savingDefault, setSavingDefault] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [chartStage, setChartStage] = useState<GrowStage>("vegetativo");
+  const [defaultSpaceId, setDefaultSpaceId] = useState<string | null>(null);
 
   const [form, setForm] = useState({
     spaceId: "",
@@ -57,13 +61,26 @@ export default function EnvironmentPage() {
     recordedAt: localDatetimeStr(),
   });
 
+  // Load saved default space preference
+  useEffect(() => {
+    if (!user) return;
+    getUserPreferences(user.uid).then((prefs) => {
+      if (prefs.defaultEnvironmentSpaceId !== undefined) {
+        setDefaultSpaceId(prefs.defaultEnvironmentSpaceId ?? null);
+      }
+    });
+  }, [user]);
+
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
   }
 
   function openForm() {
+    const preferred = defaultSpaceId && spaces.some((s) => s.id === defaultSpaceId)
+      ? defaultSpaceId
+      : spaces[0]?.id ?? "";
     setForm({
-      spaceId: spaces[0]?.id ?? "",
+      spaceId: preferred,
       temperature: "",
       humidity: "",
       co2: "",
@@ -71,6 +88,17 @@ export default function EnvironmentPage() {
     });
     setError(null);
     setOpen(true);
+  }
+
+  async function handleSaveDefault() {
+    if (!user) return;
+    setSavingDefault(true);
+    try {
+      await saveEnvironmentDefaultSpace(user.uid, form.spaceId || null);
+      setDefaultSpaceId(form.spaceId || null);
+    } finally {
+      setSavingDefault(false);
+    }
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -316,14 +344,38 @@ export default function EnvironmentPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             {spaces.length > 0 && (
               <div className="space-y-1.5">
-                <Label>Espaço</Label>
+                <div className="flex items-center justify-between">
+                  <Label>Espaço</Label>
+                  <button
+                    type="button"
+                    onClick={handleSaveDefault}
+                    disabled={savingDefault}
+                    title={form.spaceId === defaultSpaceId ? "Espaço padrão salvo" : "Salvar como espaço padrão"}
+                    className={cn(
+                      "flex items-center gap-1 text-[11px] font-medium transition-colors px-2 py-0.5 rounded-lg",
+                      form.spaceId === defaultSpaceId
+                        ? "text-amber-400"
+                        : "text-muted-foreground hover:text-amber-400"
+                    )}
+                  >
+                    <Star
+                      size={13}
+                      fill={form.spaceId === defaultSpaceId ? "currentColor" : "none"}
+                    />
+                    {form.spaceId === defaultSpaceId ? "Padrão" : "Definir padrão"}
+                  </button>
+                </div>
                 <select
                   value={form.spaceId}
                   onChange={(e) => set("spaceId", e.target.value)}
                   className="w-full bg-background border border-border rounded-lg text-sm px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-primary"
                 >
                   <option value="">Nenhum (geral)</option>
-                  {spaces.map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
+                  {spaces.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}{s.id === defaultSpaceId ? " ★" : ""}
+                    </option>
+                  ))}
                 </select>
               </div>
             )}
