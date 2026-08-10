@@ -2,21 +2,24 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getPlant, deletePlant, advanceStage, archivePlant } from "@/lib/plants";
+import { getPlant, deletePlant, advanceStage, archivePlant, updatePlant } from "@/lib/plants";
 import { STAGE_LABELS, STAGE_ORDER, STAGE_COLORS, STAGE_DOT, ENV_LABELS, MEDIUM_LABELS } from "@/lib/constants";
 import type { Plant, GrowStage } from "@/lib/types";
 import { differenceInDays, parseISO, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Leaf, Calendar, Droplets, FlaskConical, Pencil, Trash2,
   ChevronRight, ChevronLeft, ArrowLeft, Thermometer, Sprout, Dna, Clock,
-  TrendingUp, BookOpen, History, Archive,
+  TrendingUp, BookOpen, History, Archive, MoveRight, Check,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
+import { useSpaces } from "@/hooks/use-spaces";
+import { getSpaceMeta } from "@/lib/space-constants";
 import { cn } from "@/lib/utils";
 
 const GENETICS_LABEL: Record<string, string> = {
@@ -37,12 +40,24 @@ export default function PlantDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const router = useRouter();
+  const { spaces } = useSpaces();
   const [plant, setPlant] = useState<Plant | null>(null);
   const [loading, setLoading] = useState(true);
   const [advancing, setAdvancing] = useState(false);
   const [regressing, setRegressing] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  const [moveSheetOpen, setMoveSheetOpen] = useState(false);
+  const [moving, setMoving] = useState(false);
+
+  async function handleMoveToSpace(spaceId: string | null) {
+    if (!plant) return;
+    setMoving(true);
+    await updatePlant(id, { spaceId: spaceId ?? undefined });
+    setPlant((p) => p ? { ...p, spaceId: spaceId ?? undefined } : p);
+    setMoveSheetOpen(false);
+    setMoving(false);
+  }
 
   useEffect(() => {
     getPlant(id).then(setPlant).finally(() => setLoading(false));
@@ -123,13 +138,22 @@ export default function PlantDetailPage() {
           Plantas
         </Link>
         {isOwner && (
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap justify-end">
             <Link href={`/plants/${id}/edit`}>
               <Button variant="outline" size="sm" className="gap-1.5 border-border">
                 <Pencil size={13} />
                 Editar
               </Button>
             </Link>
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 border-border text-muted-foreground hover:text-foreground"
+              onClick={() => setMoveSheetOpen(true)}
+            >
+              <MoveRight size={13} />
+              Mover
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -385,6 +409,78 @@ export default function PlantDetailPage() {
       <p className="text-xs text-muted-foreground/50 text-center pb-2">
         Cadastrada em {format(parseISO(plant.createdAt || new Date().toISOString()), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
       </p>
+
+      {/* Move to space sheet */}
+      <Sheet open={moveSheetOpen} onOpenChange={setMoveSheetOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl max-h-[80dvh] overflow-y-auto bg-card border-border pb-8">
+          <SheetHeader className="pb-4">
+            <SheetTitle className="text-base font-semibold flex items-center gap-2">
+              <MoveRight size={16} className="text-primary" />
+              Mover para espaço
+            </SheetTitle>
+            <p className="text-sm text-muted-foreground">
+              Selecione o destino de <span className="font-medium text-foreground">{plant.name}</span>
+            </p>
+          </SheetHeader>
+
+          <div className="space-y-2">
+            {/* No space option */}
+            <button
+              onClick={() => handleMoveToSpace(null)}
+              disabled={moving || !plant.spaceId}
+              className={cn(
+                "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                !plant.spaceId
+                  ? "bg-primary/10 border-primary/30"
+                  : "bg-background border-border hover:border-primary/30 hover:bg-primary/5"
+              )}
+            >
+              <div className="w-10 h-10 rounded-xl bg-muted/40 flex items-center justify-center text-xl shrink-0">
+                🌿
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-foreground">Sem espaço</p>
+                <p className="text-xs text-muted-foreground">Remover de qualquer ambiente</p>
+              </div>
+              {!plant.spaceId && <Check size={16} className="text-primary shrink-0" />}
+            </button>
+
+            {spaces.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-6">
+                Nenhum espaço cadastrado.{" "}
+                <Link href="/spaces" className="text-primary hover:underline">Criar espaço</Link>
+              </p>
+            )}
+
+            {spaces.map((space) => {
+              const meta = getSpaceMeta(space.type);
+              const isCurrent = plant.spaceId === space.id;
+              return (
+                <button
+                  key={space.id}
+                  onClick={() => handleMoveToSpace(space.id)}
+                  disabled={moving || isCurrent}
+                  className={cn(
+                    "w-full flex items-center gap-3 p-3 rounded-xl border transition-all text-left",
+                    isCurrent
+                      ? "bg-primary/10 border-primary/30"
+                      : "bg-background border-border hover:border-primary/30 hover:bg-primary/5"
+                  )}
+                >
+                  <div className="w-10 h-10 rounded-xl bg-primary/5 border border-border flex items-center justify-center text-xl shrink-0">
+                    {meta.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">{space.name}</p>
+                    <p className="text-xs text-muted-foreground">{meta.label}</p>
+                  </div>
+                  {isCurrent && <Check size={16} className="text-primary shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
