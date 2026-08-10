@@ -45,7 +45,7 @@ export function HarvestForm({ open, onClose, onSaved, plants, defaultPlantId }: 
     }
     return "";
   });
-  const [harvestDate, setHarvestDate] = useState(new Date().toISOString().split("T")[0]);
+  const [harvestDate, setHarvestDate] = useState((() => { const d = new Date(), p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; })());
   const [wetWeightG, setWetWeightG] = useState("");
   const [dryWeightG, setDryWeightG] = useState("");
   const [curedWeightG, setCuredWeightG] = useState("");
@@ -76,7 +76,7 @@ export function HarvestForm({ open, onClose, onSaved, plants, defaultPlantId }: 
     const p = defaultPlantId ? plants.find((pl) => pl.id === defaultPlantId) : undefined;
     setPlantName(p?.name ?? "");
     setStrain(p?.strain ?? "");
-    setHarvestDate(new Date().toISOString().split("T")[0]);
+    setHarvestDate((() => { const d = new Date(), p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; })());
     setWetWeightG("");
     setDryWeightG("");
     setCuredWeightG("");

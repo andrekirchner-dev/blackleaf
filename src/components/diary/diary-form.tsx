@@ -40,7 +40,7 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
   const [form, setForm] = useState({
     plantId: defaultPlantId ?? plants[0]?.id ?? "",
     type: (defaultType ?? "rega") as EntryType,
-    date: new Date().toISOString().slice(0, 16),
+    date: (() => { const d = new Date(), p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
     notes: "",
     ph: "",
     phRunoff: "",

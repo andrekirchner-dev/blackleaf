@@ -38,7 +38,8 @@ function formatDateShort(date: Date): string {
 
 export default function FlushPage() {
   const today = new Date();
-  const todayStr = today.toISOString().split("T")[0];
+  const _p = (n: number) => String(n).padStart(2, "0");
+  const todayStr = `${today.getFullYear()}-${_p(today.getMonth()+1)}-${_p(today.getDate())}`;
 
   const [flipDate, setFlipDate] = useState<string>(todayStr);
   const [strainWeeks, setStrainWeeks] = useState<string>("9");

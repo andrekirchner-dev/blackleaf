@@ -124,7 +124,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     stage:               (plant?.stage ?? "semente") as GrowStage,
     environment:         (plant?.environment ?? "indoor") as GrowEnv,
     medium:              (plant?.medium ?? "terra") as Medium,
-    germinationDate:     plant?.germinationDate ?? new Date().toISOString().split("T")[0],
+    germinationDate:     plant?.germinationDate ?? (() => { const d = new Date(), p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; })(),
     potSize:             plant?.potSize?.toString() ?? "",
     spaceId:             plant?.spaceId ?? "",
     previousGrowNotes:   plant?.previousGrowNotes ?? "",
@@ -284,7 +284,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
           spaceId: "",
           previousGrowNotes: "",
           notes: "",
-          germinationDate: new Date().toISOString().split("T")[0],
+          germinationDate: (() => { const d = new Date(), p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}`; })(),
           stage: "semente",
         }));
         setPhotos([]);

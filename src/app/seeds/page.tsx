@@ -39,7 +39,11 @@ function AddSeedModal({ onClose, onAdd }: {
   const [feminized, setFeminized] = useState(true);
   const [quantity, setQuantity] = useState("1");
   const [storageMethod, setStorageMethod] = useState<StorageMethod>("fridge");
-  const [storageDate, setStorageDate] = useState(new Date().toISOString().slice(0, 10));
+  const [storageDate, setStorageDate] = useState(() => {
+    const d = new Date();
+    const p = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  });
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 

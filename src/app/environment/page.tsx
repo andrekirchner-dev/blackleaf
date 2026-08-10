@@ -35,6 +35,11 @@ function fmtShort(date: string) {
   }
 }
 
+function localDatetimeStr(d = new Date()) {
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
 export default function EnvironmentPage() {
   const { user } = useAuth();
   const { records, loading, refresh } = useEnvironment();
@@ -49,7 +54,7 @@ export default function EnvironmentPage() {
     temperature: "",
     humidity: "",
     co2: "",
-    recordedAt: new Date().toISOString().slice(0, 16),
+    recordedAt: localDatetimeStr(),
   });
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
@@ -62,7 +67,7 @@ export default function EnvironmentPage() {
       temperature: "",
       humidity: "",
       co2: "",
-      recordedAt: new Date().toISOString().slice(0, 16),
+      recordedAt: localDatetimeStr(),
     });
     setError(null);
     setOpen(true);

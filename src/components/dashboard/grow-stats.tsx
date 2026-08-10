@@ -49,8 +49,10 @@ export function GrowStats({ plants, events }: Props) {
     // 2. Eventos esta semana
     const weekStart = startOfWeek(today, { weekStartsOn: 0 });
     const weekEnd = endOfWeek(today, { weekStartsOn: 0 });
-    const weekStartStr = weekStart.toISOString().slice(0, 10);
-    const weekEndStr = weekEnd.toISOString().slice(0, 10);
+    const lp = (n: number) => String(n).padStart(2, "0");
+    const localDate = (d: Date) => `${d.getFullYear()}-${lp(d.getMonth()+1)}-${lp(d.getDate())}`;
+    const weekStartStr = localDate(weekStart);
+    const weekEndStr = localDate(weekEnd);
     const eventsThisWeek = events.filter((e) => {
       const d = e.date.slice(0, 10);
       return d >= weekStartStr && d <= weekEndStr;
