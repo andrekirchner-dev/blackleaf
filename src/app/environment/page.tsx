@@ -15,11 +15,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Thermometer, Droplets, Wind, Plus, Trash2, Loader2, Star, Lightbulb, ArrowUp, ArrowDown, ChevronLeft } from "lucide-react";
+import { Thermometer, Droplets, Wind, Plus, Trash2, Loader2, Star, Lightbulb, ArrowUp, ArrowDown } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
-import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 function fmt(date: string) {
@@ -225,7 +224,7 @@ export default function EnvironmentPage() {
           </CardContent>
         </Card>
 
-        {/* VPD — com flip de dica */}
+        {/* VPD — com dica de ajuste */}
         {(() => {
           const latestVPD = latest?.temperature != null && latest?.humidity != null
             ? calcVPD(latest.temperature, latest.humidity)
@@ -236,15 +235,15 @@ export default function EnvironmentPage() {
               ? {
                   summary: "VPD abaixo do ideal — risco de mofo.",
                   actions: [
-                    { icon: Thermometer, label: "Temperatura", action: "Aumente a temperatura", direction: "up" as const },
-                    { icon: Droplets,    label: "Umidade",     action: "Diminua a umidade",     direction: "down" as const },
+                    { Icon: Thermometer, label: "Temperatura", text: "Aumente a temperatura", up: true  },
+                    { Icon: Droplets,    label: "Umidade",     text: "Diminua a umidade",     up: false },
                   ],
                 }
               : {
                   summary: "VPD acima do ideal — estresse hídrico.",
                   actions: [
-                    { icon: Thermometer, label: "Temperatura", action: "Reduza a temperatura",      direction: "down" as const },
-                    { icon: Droplets,    label: "Umidade",     action: "Aumente a umidade relativa", direction: "up" as const },
+                    { Icon: Thermometer, label: "Temperatura", text: "Reduza a temperatura",       up: false },
+                    { Icon: Droplets,    label: "Umidade",     text: "Aumente a umidade relativa", up: true  },
                   ],
                 }
             : null;
@@ -262,63 +261,43 @@ export default function EnvironmentPage() {
                   {tips && (
                     <button
                       onClick={() => setVpdFlipped((f) => !f)}
-                      title={vpdFlipped ? "Voltar" : "Ver dica"}
-                      className="flex items-center gap-1"
+                      className="flex items-center gap-1 px-1.5 py-0.5 rounded-lg hover:bg-muted/30 transition-colors"
                     >
-                      {vpdFlipped
-                        ? <ChevronLeft size={14} className="text-muted-foreground hover:text-foreground transition-colors" />
-                        : <Lightbulb size={15} className="text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.9)] animate-pulse" fill="rgba(251,191,36,0.25)" />
-                      }
+                      <Lightbulb
+                        size={14}
+                        className="text-amber-400"
+                        style={{ filter: "drop-shadow(0 0 4px rgba(251,191,36,0.9))", fill: "rgba(251,191,36,0.3)" }}
+                      />
+                      <span className="text-[10px] text-amber-400 font-semibold">
+                        {vpdFlipped ? "Fechar" : "Dica"}
+                      </span>
                     </button>
                   )}
                 </CardTitle>
               </CardHeader>
-              <CardContent className="pt-0">
-                <div style={{ perspective: "400px" }}>
-                  <AnimatePresence mode="wait" initial={false}>
-                    {!vpdFlipped ? (
-                      <motion.div
-                        key="vpd-front"
-                        initial={{ rotateY: 90, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} exit={{ rotateY: -90, opacity: 0 }}
-                        transition={{ duration: 0.18, ease: "easeInOut" }}
-                      >
-                        <p className="text-2xl font-bold text-foreground">{avgVPD != null ? `${avgVPD.toFixed(2)} kPa` : "—"}</p>
-                        <p className="text-[11px] text-muted-foreground mt-1">Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}</p>
-                        {latestVPD != null && (
-                          <p className={cn("text-[11px] mt-0.5 font-medium", isOutOfRange ? "text-amber-400" : "text-muted-foreground/60")}>
-                            Último: {latestVPD.toFixed(2)} kPa{isOutOfRange ? " ⚠️" : ""}
-                          </p>
-                        )}
-                      </motion.div>
-                    ) : (
-                      <motion.div
-                        key="vpd-back"
-                        initial={{ rotateY: 90, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} exit={{ rotateY: -90, opacity: 0 }}
-                        transition={{ duration: 0.18, ease: "easeInOut" }}
-                        className="space-y-1.5"
-                      >
-                        {tips && (
-                          <>
-                            <p className="text-[10px] text-muted-foreground leading-relaxed">{tips.summary}</p>
-                            {tips.actions.map((a) => {
-                              const Icon = a.icon;
-                              return (
-                                <div key={a.label} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2 py-1.5">
-                                  <Icon size={11} className="text-muted-foreground shrink-0" />
-                                  <p className="text-[11px] font-medium text-foreground flex-1 leading-tight">{a.action}</p>
-                                  {a.direction === "up"
-                                    ? <ArrowUp   size={12} className="text-emerald-400 shrink-0" />
-                                    : <ArrowDown size={12} className="text-rose-400    shrink-0" />
-                                  }
-                                </div>
-                              );
-                            })}
-                          </>
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </div>
+              <CardContent className="pt-0 space-y-2">
+                <p className="text-2xl font-bold text-foreground">{avgVPD != null ? `${avgVPD.toFixed(2)} kPa` : "—"}</p>
+                <p className="text-[11px] text-muted-foreground">Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}</p>
+                {latestVPD != null && (
+                  <p className={cn("text-[11px] font-medium", isOutOfRange ? "text-amber-400" : "text-muted-foreground/60")}>
+                    Último: {latestVPD.toFixed(2)} kPa{isOutOfRange ? " ⚠️" : ""}
+                  </p>
+                )}
+                {tips && vpdFlipped && (
+                  <div className="mt-2 rounded-xl border border-amber-400/20 bg-amber-400/5 p-2.5 space-y-1.5">
+                    <p className="text-[10px] text-muted-foreground">{tips.summary}</p>
+                    {tips.actions.map((a) => (
+                      <div key={a.label} className="flex items-center gap-2 bg-black/20 rounded-lg px-2 py-1.5">
+                        <a.Icon size={11} className="text-foreground/60 shrink-0" />
+                        <p className="text-[11px] font-medium text-foreground flex-1">{a.text}</p>
+                        {a.up
+                          ? <ArrowUp   size={12} className="text-emerald-400 shrink-0" />
+                          : <ArrowDown size={12} className="text-rose-400    shrink-0" />
+                        }
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           );
