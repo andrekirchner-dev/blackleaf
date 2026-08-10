@@ -10,59 +10,78 @@ service cloud.firestore {
       return isAuth() && request.auth.uid == userId;
     }
 
+    function isAdmin() {
+      return isAuth() && request.auth.token.email == "kirchner.andre@gmail.com";
+    }
+
     match /plants/{docId} {
       allow read: if isAuth();
-      allow update, delete: if isOwner(resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /spaces/{docId} {
       allow read: if isAuth();
-      allow update, delete: if isOwner(resource.data.userId);
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /diary/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /environments/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /grow_styles/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /shopping_items/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /seeds/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /fertilizers/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /user_preferences/{docId} {
-      allow read, write: if isAuth() && request.auth.uid == docId;
+      allow read, write: if (isAuth() && request.auth.uid == docId) || isAdmin();
     }
 
     match /harvest_logs/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /grow_events/{docId} {
-      allow read, update, delete: if isOwner(resource.data.userId);
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+    }
+
+    match /grow_tasks/{docId} {
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+    }
+
+    match /grow_costs/{docId} {
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
+      allow create: if isOwner(request.resource.data.userId);
+    }
+
+    match /nutrition_recipes/{docId} {
+      allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
   }
