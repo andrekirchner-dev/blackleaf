@@ -15,10 +15,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Thermometer, Droplets, Wind, Plus, Trash2, Loader2, Star } from "lucide-react";
+import { Thermometer, Droplets, Wind, Plus, Trash2, Loader2, Star, Lightbulb, ArrowUp, ArrowDown, ChevronLeft } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
+import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 function fmt(date: string) {
@@ -52,6 +53,7 @@ export default function EnvironmentPage() {
   const [error, setError] = useState<string | null>(null);
   const [chartStage, setChartStage] = useState<GrowStage>("vegetativo");
   const [defaultSpaceId, setDefaultSpaceId] = useState<string | null>(null);
+  const [vpdFlipped, setVpdFlipped] = useState(false);
 
   const [form, setForm] = useState({
     spaceId: "",
@@ -189,64 +191,155 @@ export default function EnvironmentPage() {
       {/* Stats — média histórica */}
       <MotionItem>
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
-          {
-            label: "Temperatura",
-            icon: Thermometer,
-            color: "text-orange-400",
-            bg: "bg-orange-400/10",
-            avg: avgTemp != null ? `${avgTemp.toFixed(1)}°C` : "—",
-            last: latest?.temperature != null ? `${latest.temperature}°C` : null,
-          },
-          {
-            label: "Umidade",
-            icon: Droplets,
-            color: "text-blue-400",
-            bg: "bg-blue-400/10",
-            avg: avgHum != null ? `${avgHum.toFixed(1)}%` : "—",
-            last: latest?.humidity != null ? `${latest.humidity}%` : null,
-          },
-          {
-            label: "VPD",
-            icon: Wind,
-            color: "text-purple-400",
-            bg: "bg-purple-400/10",
-            avg: avgVPD != null ? `${avgVPD.toFixed(2)} kPa` : "—",
-            last: latest?.temperature != null && latest?.humidity != null
-              ? `${calcVPD(latest.temperature, latest.humidity)} kPa`
-              : null,
-          },
-          {
-            label: "CO₂",
-            icon: Wind,
-            color: "text-green-400",
-            bg: "bg-green-400/10",
-            avg: avgCo2 != null ? `${Math.round(avgCo2)} ppm` : "—",
-            last: latest?.co2 != null ? `${latest.co2} ppm` : null,
-          },
-        ].map((m) => (
-          <Card key={m.label} className="bg-card border-border">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
-                <div className={`w-7 h-7 rounded-md ${m.bg} flex items-center justify-center`}>
-                  <m.icon size={14} className={m.color} />
+        {/* Temperatura */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-orange-400/10 flex items-center justify-center">
+                <Thermometer size={14} className="text-orange-400" />
+              </div>
+              Temperatura
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-foreground">{avgTemp != null ? `${avgTemp.toFixed(1)}°C` : "—"}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}</p>
+            {latest?.temperature != null && <p className="text-[11px] text-muted-foreground/60 mt-0.5">Último: {latest.temperature}°C</p>}
+          </CardContent>
+        </Card>
+
+        {/* Umidade */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-blue-400/10 flex items-center justify-center">
+                <Droplets size={14} className="text-blue-400" />
+              </div>
+              Umidade
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-foreground">{avgHum != null ? `${avgHum.toFixed(1)}%` : "—"}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}</p>
+            {latest?.humidity != null && <p className="text-[11px] text-muted-foreground/60 mt-0.5">Último: {latest.humidity}%</p>}
+          </CardContent>
+        </Card>
+
+        {/* VPD — com flip de dica */}
+        {(() => {
+          const latestVPD = latest?.temperature != null && latest?.humidity != null
+            ? calcVPD(latest.temperature, latest.humidity)
+            : null;
+          const isOutOfRange = latestVPD !== null && (latestVPD < 0.8 || latestVPD > 1.6);
+          const tips = isOutOfRange && latestVPD !== null
+            ? latestVPD < 0.8
+              ? {
+                  summary: "VPD abaixo do ideal — risco de mofo.",
+                  actions: [
+                    { icon: Thermometer, label: "Temperatura", action: "Aumente a temperatura", direction: "up" as const },
+                    { icon: Droplets,    label: "Umidade",     action: "Diminua a umidade",     direction: "down" as const },
+                  ],
+                }
+              : {
+                  summary: "VPD acima do ideal — estresse hídrico.",
+                  actions: [
+                    { icon: Thermometer, label: "Temperatura", action: "Reduza a temperatura",      direction: "down" as const },
+                    { icon: Droplets,    label: "Umidade",     action: "Aumente a umidade relativa", direction: "up" as const },
+                  ],
+                }
+            : null;
+
+          return (
+            <Card className="bg-card border-border overflow-hidden">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs font-medium text-muted-foreground flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-md bg-purple-400/10 flex items-center justify-center">
+                      <Wind size={14} className="text-purple-400" />
+                    </div>
+                    VPD
+                  </div>
+                  {tips && (
+                    <button
+                      onClick={() => setVpdFlipped((f) => !f)}
+                      title={vpdFlipped ? "Voltar" : "Ver dica"}
+                      className="flex items-center gap-1"
+                    >
+                      {vpdFlipped
+                        ? <ChevronLeft size={14} className="text-muted-foreground hover:text-foreground transition-colors" />
+                        : <Lightbulb size={15} className="text-amber-400 drop-shadow-[0_0_5px_rgba(251,191,36,0.9)] animate-pulse" fill="rgba(251,191,36,0.25)" />
+                      }
+                    </button>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="pt-0">
+                <div style={{ perspective: "400px" }}>
+                  <AnimatePresence mode="wait" initial={false}>
+                    {!vpdFlipped ? (
+                      <motion.div
+                        key="vpd-front"
+                        initial={{ rotateY: 90, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} exit={{ rotateY: -90, opacity: 0 }}
+                        transition={{ duration: 0.18, ease: "easeInOut" }}
+                      >
+                        <p className="text-2xl font-bold text-foreground">{avgVPD != null ? `${avgVPD.toFixed(2)} kPa` : "—"}</p>
+                        <p className="text-[11px] text-muted-foreground mt-1">Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}</p>
+                        {latestVPD != null && (
+                          <p className={cn("text-[11px] mt-0.5 font-medium", isOutOfRange ? "text-amber-400" : "text-muted-foreground/60")}>
+                            Último: {latestVPD.toFixed(2)} kPa{isOutOfRange ? " ⚠️" : ""}
+                          </p>
+                        )}
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="vpd-back"
+                        initial={{ rotateY: 90, opacity: 0 }} animate={{ rotateY: 0, opacity: 1 }} exit={{ rotateY: -90, opacity: 0 }}
+                        transition={{ duration: 0.18, ease: "easeInOut" }}
+                        className="space-y-1.5"
+                      >
+                        {tips && (
+                          <>
+                            <p className="text-[10px] text-muted-foreground leading-relaxed">{tips.summary}</p>
+                            {tips.actions.map((a) => {
+                              const Icon = a.icon;
+                              return (
+                                <div key={a.label} className="flex items-center gap-2 bg-muted/30 rounded-lg px-2 py-1.5">
+                                  <Icon size={11} className="text-muted-foreground shrink-0" />
+                                  <p className="text-[11px] font-medium text-foreground flex-1 leading-tight">{a.action}</p>
+                                  {a.direction === "up"
+                                    ? <ArrowUp   size={12} className="text-emerald-400 shrink-0" />
+                                    : <ArrowDown size={12} className="text-rose-400    shrink-0" />
+                                  }
+                                </div>
+                              );
+                            })}
+                          </>
+                        )}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-                {m.label}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-2xl font-bold text-foreground">{m.avg}</p>
-              <p className="text-[11px] text-muted-foreground mt-1">
-                Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}
-              </p>
-              {m.last && (
-                <p className="text-[11px] text-muted-foreground/60 mt-0.5">
-                  Último: {m.last}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          );
+        })()}
+
+        {/* CO₂ */}
+        <Card className="bg-card border-border">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2">
+              <div className="w-7 h-7 rounded-md bg-green-400/10 flex items-center justify-center">
+                <Wind size={14} className="text-green-400" />
+              </div>
+              CO₂
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-foreground">{avgCo2 != null ? `${Math.round(avgCo2)} ppm` : "—"}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}</p>
+            {latest?.co2 != null && <p className="text-[11px] text-muted-foreground/60 mt-0.5">Último: {latest.co2} ppm</p>}
+          </CardContent>
+        </Card>
       </div>
       </MotionItem>
 
