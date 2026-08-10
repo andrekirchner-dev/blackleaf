@@ -13,8 +13,8 @@ interface Props {
   onSaved: () => void;
 }
 
-function todayStr() {
-  return new Date().toISOString().split("T")[0];
+function localDateStr(d = new Date()) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 function nowTimeStr() {
@@ -26,13 +26,13 @@ export function WidgetQuickLog({ plants, isGcalConnected, onSaved }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<GrowEventType>("rega");
   const [openedAt, setOpenedAt] = useState<{ date: string; time: string }>({
-    date: todayStr(),
+    date: localDateStr(),
     time: nowTimeStr(),
   });
 
   function openWith(type: GrowEventType) {
     setSelectedType(type);
-    setOpenedAt({ date: todayStr(), time: nowTimeStr() });
+    setOpenedAt({ date: localDateStr(), time: nowTimeStr() });
     setSheetOpen(true);
   }
 

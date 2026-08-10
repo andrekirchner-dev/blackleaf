@@ -13,6 +13,11 @@ import type { Plant, GrowEventType } from "@/lib/types";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+function localDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -28,7 +33,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
   const { user } = useAuth();
   const [type, setType] = useState<GrowEventType>(defaultType ?? "rega");
   const [plantIds, setPlantIds] = useState<string[]>([]);
-  const [date, setDate] = useState(defaultDate ?? new Date().toISOString().split("T")[0]);
+  const [date, setDate] = useState(defaultDate ?? localDateStr());
   const [time, setTime] = useState(defaultTime ?? "");
 
   // Re-apply defaults each time the sheet opens (quick log passes different type each time)
@@ -36,7 +41,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
     if (open) {
       setType(defaultType ?? "rega");
       setTime(defaultTime ?? "");
-      setDate(defaultDate ?? new Date().toISOString().split("T")[0]);
+      setDate(defaultDate ?? localDateStr());
       setPlantIds([]);
       setNotes("");
       setSaved(false);
