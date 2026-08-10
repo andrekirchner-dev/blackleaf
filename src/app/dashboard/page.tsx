@@ -33,6 +33,15 @@ import { WidgetFlush } from "@/components/dashboard/widget-flush";
 import { WidgetDiary } from "@/components/dashboard/widget-diary";
 import { WidgetShopping } from "@/components/dashboard/widget-shopping";
 import { WidgetQuickLog } from "@/components/dashboard/widget-quick-log";
+import { WidgetPhaseTracker } from "@/components/dashboard/widget-phase-tracker";
+import { WidgetTasks } from "@/components/dashboard/widget-tasks";
+import { WidgetROI } from "@/components/dashboard/widget-roi";
+import { WidgetRecipes } from "@/components/dashboard/widget-recipes";
+import { WidgetGrowGuide } from "@/components/dashboard/widget-grow-guide";
+import { useTasks } from "@/hooks/use-tasks";
+import { useCosts } from "@/hooks/use-costs";
+import { useRecipes } from "@/hooks/use-recipes";
+import { useHarvest } from "@/hooks/use-harvest";
 import { useGCal } from "@/hooks/use-gcal";
 import type { WidgetId } from "@/lib/dashboard-widgets";
 
@@ -54,6 +63,10 @@ export default function DashboardPage() {
   const { events } = useEvents();
   const { layout } = useDashboardLayout();
   const { isConnected: isGcalConnected } = useGCal();
+  const { tasks } = useTasks();
+  const { costs } = useCosts();
+  const { recipes } = useRecipes();
+  const { harvests } = useHarvest();
 
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
   const [selectedChartSpace, setSelectedChartSpace] = useState<string>("__all__");
@@ -231,6 +244,21 @@ export default function DashboardPage() {
     widget_diary: <WidgetDiary entries={entries} plants={plants} />,
 
     widget_shopping: <WidgetShopping />,
+
+    widget_phase_tracker: <WidgetPhaseTracker plants={plants} />,
+
+    widget_tasks: <WidgetTasks tasks={tasks} />,
+
+    widget_roi: (
+      <WidgetROI
+        costs={costs}
+        harvestTotalG={harvests.reduce((s, h) => s + (h.curedWeightG ?? 0), 0)}
+      />
+    ),
+
+    widget_recipes: <WidgetRecipes recipes={recipes} />,
+
+    widget_grow_guide: <WidgetGrowGuide plants={plants} />,
 
     env_charts: (
       <div className="space-y-4">

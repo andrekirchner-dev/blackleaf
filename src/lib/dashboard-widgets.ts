@@ -10,7 +10,12 @@ export type WidgetId =
   | "widget_dli"
   | "widget_flush"
   | "widget_diary"
-  | "widget_shopping";
+  | "widget_shopping"
+  | "widget_phase_tracker"
+  | "widget_tasks"
+  | "widget_roi"
+  | "widget_recipes"
+  | "widget_grow_guide";
 
 export interface WidgetMeta {
   id: WidgetId;
@@ -92,6 +97,45 @@ export const WIDGET_REGISTRY: WidgetMeta[] = [
     label: "Flush & Colheita",
     description: "Datas de flush e colheita para plantas em floração",
     emoji: "💧",
+    category: "ferramentas",
+  },
+
+  // Dashboard extras
+  {
+    id: "widget_phase_tracker",
+    label: "Contador de Fases",
+    description: "Dias em cada fase e progresso por planta",
+    emoji: "📅",
+    category: "dashboard",
+  },
+  {
+    id: "widget_tasks",
+    label: "Tarefas do Cultivo",
+    description: "Próximas tarefas pendentes com toggle rápido",
+    emoji: "✅",
+    category: "dashboard",
+  },
+
+  // Ferramentas extras
+  {
+    id: "widget_roi",
+    label: "Custo de Produção",
+    description: "Total investido, custo/grama e ROI",
+    emoji: "💰",
+    category: "ferramentas",
+  },
+  {
+    id: "widget_recipes",
+    label: "Receitas de Nutrição",
+    description: "Contagem de receitas por fase de cultivo",
+    emoji: "🧪",
+    category: "ferramentas",
+  },
+  {
+    id: "widget_grow_guide",
+    label: "Guia de Cultivo",
+    description: "Dicas pro para a fase mais crítica das suas plantas",
+    emoji: "📚",
     category: "ferramentas",
   },
 

@@ -33,6 +33,9 @@ import {
   Zap,
   Droplets,
   Users,
+  CheckSquare,
+  DollarSign,
+  BarChart2,
 } from "lucide-react";
 
 interface NavItem {
@@ -78,6 +81,13 @@ const NAV_GROUPS: NavGroup[] = [
     ],
   },
   {
+    label: "Tarefas",
+    collapsible: false,
+    items: [
+      { href: "/tasks", label: "Tarefas", icon: CheckSquare },
+    ],
+  },
+  {
     label: "Social",
     collapsible: false,
     items: [
@@ -96,6 +106,10 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/tools/dli", label: "DLI", icon: Sun },
       { href: "/tools/energy", label: "Energia", icon: Zap },
       { href: "/tools/flush", label: "Flush", icon: Droplets },
+      { href: "/tools/roi", label: "ROI / Custos", icon: DollarSign },
+      { href: "/tools/recipes", label: "Receitas", icon: FlaskConical },
+      { href: "/tools/compare", label: "Comparativo", icon: BarChart2 },
+      { href: "/tools/grow-guide", label: "Guia de Cultivo", icon: BookOpen },
     ],
   },
 ];
