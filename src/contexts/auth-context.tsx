@@ -5,6 +5,8 @@ import {
   User,
   onAuthStateChanged,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
 } from "firebase/auth";
 import { auth, googleProvider } from "@/lib/firebase";
@@ -18,6 +20,23 @@ interface AuthContextValue {
   logout: () => Promise<void>;
 }
 
+function friendlyError(code?: string): string {
+  switch (code) {
+    case "auth/popup-blocked":
+      return "Popup bloqueado pelo navegador. Libere popups para este site e tente novamente.";
+    case "auth/network-request-failed":
+      return "Erro de rede. Verifique sua conexão e tente novamente.";
+    case "auth/unauthorized-domain":
+      return "Domínio não autorizado. Entre em contato com o suporte.";
+    case "auth/internal-error":
+      return "Erro interno. Tente novamente em alguns instantes.";
+    case "auth/too-many-requests":
+      return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+    default:
+      return "Erro ao fazer login. Tente novamente.";
+  }
+}
+
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -27,6 +46,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   useEffect(() => {
+    // Handle redirect result after mobile sign-in flow returns
+    getRedirectResult(auth).catch((err: unknown) => {
+      const code = (err as { code?: string }).code;
+      if (code && code !== "auth/null-user") {
+        setAuthError(friendlyError(code));
+        setSigningIn(false);
+      }
+    });
+
     const unsub = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
@@ -39,11 +67,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setAuthError(null);
     setSigningIn(true);
     try {
-      await signInWithPopup(auth, googleProvider);
+      const isMobile =
+        typeof navigator !== "undefined" &&
+        /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+      if (isMobile) {
+        // Redirect flow — page navigates away, result handled in useEffect above
+        await signInWithRedirect(auth, googleProvider);
+      } else {
+        await signInWithPopup(auth, googleProvider);
+      }
     } catch (err: unknown) {
       const code = (err as { code?: string }).code;
-      const message = (err as { message?: string }).message;
-      console.error("[Blackleaf Auth]", { code, message, err });
       if (
         code === "auth/popup-closed-by-user" ||
         code === "auth/cancelled-popup-request"
@@ -51,8 +85,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setSigningIn(false);
         return;
       }
-      // Show raw code/message so we can diagnose
-      setAuthError(code ? `Erro: ${code}` : `Erro: ${message ?? "desconhecido"}`);
+      setAuthError(friendlyError(code));
       setSigningIn(false);
     }
   }
@@ -77,17 +110,3 @@ export function useAuth() {
   return ctx;
 }
 
-function friendlyError(code?: string): string {
-  switch (code) {
-    case "auth/popup-blocked":
-      return "Popup bloqueado pelo navegador. Libere popups para este site e tente novamente.";
-    case "auth/network-request-failed":
-      return "Erro de rede. Verifique sua conexão.";
-    case "auth/unauthorized-domain":
-      return "Domínio não autorizado no Firebase. Verifique as configurações.";
-    case "auth/internal-error":
-      return "Erro interno. Tente novamente em alguns instantes.";
-    default:
-      return code ? `Erro: ${code}` : "Erro ao fazer login. Tente novamente.";
-  }
-}
