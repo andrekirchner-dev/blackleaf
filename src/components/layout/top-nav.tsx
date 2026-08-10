@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
@@ -24,6 +24,7 @@ import {
   Microscope,
   Stethoscope,
   ChevronDown,
+  ChevronLeft,
   Beaker,
   CalendarDays,
   Archive,
@@ -216,41 +217,68 @@ function DrawerGroup({
 
 const ADMIN_EMAIL = "kirchner.andre@gmail.com";
 
+// Pages that show a back button instead of (or alongside) logo
+const BACK_ROUTES: { match: (p: string) => boolean; label: string; href: string }[] = [
+  { match: (p) => p.startsWith("/tools/"),   label: "Ferramentas", href: "/dashboard" },
+  { match: (p) => p === "/tasks",            label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/shopping",         label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/community",        label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/archive",          label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/seeds",            label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/nutrients",        label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/admin",            label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/settings",         label: "Dashboard",   href: "/dashboard" },
+];
+
 export function TopNav() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const pathname = usePathname();
+  const router = useRouter();
   const { user, logout } = useAuth();
   const isAdmin = user?.email === ADMIN_EMAIL;
+
+  const backRoute = BACK_ROUTES.find((r) => r.match(pathname));
 
   return (
     <>
       {/* ── Top bar ─────────────────────────────────────────────────── */}
       <header className="sticky top-0 z-40 flex items-center h-14 px-4 gap-3 border-b border-sidebar-border bg-sidebar/95 backdrop-blur-md shrink-0">
-        {/* Hamburger + Logo */}
+        {/* Hamburger */}
         <motion.button
           onClick={() => setDrawerOpen(true)}
           whileTap={{ scale: 0.9 }}
-          className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-sidebar-accent"
+          className="text-muted-foreground hover:text-foreground transition-colors p-1 rounded-lg hover:bg-sidebar-accent shrink-0"
           title="Abrir menu"
         >
           <Menu size={20} />
         </motion.button>
 
-        <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
-          <div className="relative w-7 h-7">
-            <div className="absolute inset-0 rounded-full bg-primary/20 blur-sm animate-glow-pulse" />
-            <Image
-              src="/logo-icon.png"
-              alt="Blackleaf"
-              fill
-              className="object-contain relative z-10"
-            />
-          </div>
-          <span className="font-bold text-base tracking-wider uppercase hidden sm:block">
-            <span className="text-foreground">Black</span>
-            <span className="text-accent">leaf</span>
-          </span>
-        </Link>
+        {/* Back button (sub-pages) OR Logo */}
+        {backRoute ? (
+          <button
+            onClick={() => router.back()}
+            className="flex items-center gap-1 text-muted-foreground hover:text-foreground transition-colors px-2 py-1.5 rounded-lg hover:bg-sidebar-accent shrink-0"
+          >
+            <ChevronLeft size={16} />
+            <span className="text-sm font-medium hidden sm:block">{backRoute.label}</span>
+          </button>
+        ) : (
+          <Link href="/dashboard" className="flex items-center gap-2 shrink-0">
+            <div className="relative w-7 h-7">
+              <div className="absolute inset-0 rounded-full bg-primary/20 blur-sm animate-glow-pulse" />
+              <Image
+                src="/logo-icon.png"
+                alt="Blackleaf"
+                fill
+                className="object-contain relative z-10"
+              />
+            </div>
+            <span className="font-bold text-base tracking-wider uppercase hidden sm:block">
+              <span className="text-foreground">Black</span>
+              <span className="text-accent">leaf</span>
+            </span>
+          </Link>
+        )}
 
         {/* Primary nav links — desktop only */}
         <nav className="hidden lg:flex items-center gap-0.5 ml-2">
