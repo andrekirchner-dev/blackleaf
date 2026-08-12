@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { usePlants } from "@/hooks/use-plants";
 import { useSpaces } from "@/hooks/use-spaces";
@@ -69,9 +69,17 @@ export default function DashboardPage() {
   const { harvests } = useHarvest();
 
   const [activeSpaceId, setActiveSpaceId] = useState<string | null>(null);
-  const [selectedChartSpace, setSelectedChartSpace] = useState<string>("__all__");
+  const [selectedChartSpace, setSelectedChartSpace] = useState<string>("");
+  const chartSpaceInitialized = useRef(false);
   const [chartStage, setChartStage] = useState<GrowStage>("vegetativo");
   const [chartTab, setChartTab] = useState<"ambiente" | "agua">("ambiente");
+
+  // Auto-select first space when spaces load
+  useEffect(() => {
+    if (chartSpaceInitialized.current || spaces.length === 0) return;
+    setSelectedChartSpace(spaces[0].id);
+    chartSpaceInitialized.current = true;
+  }, [spaces]);
 
   const firstName = user?.displayName?.split(" ")[0] ?? "Grower";
   const inFlower = plants.filter((p) => p.stage === "floracao").length;
@@ -84,7 +92,7 @@ export default function DashboardPage() {
   const unallocatedPlants = plants.filter((p) => !p.spaceId);
 
   const filteredRecords = useMemo(() => {
-    if (selectedChartSpace === "__all__") return records;
+    if (!selectedChartSpace) return [];
     return records.filter((r) => r.spaceId === selectedChartSpace);
   }, [records, selectedChartSpace]);
 
@@ -110,8 +118,8 @@ export default function DashboardPage() {
   );
 
   const filteredEntries = useMemo(() => {
+    if (!selectedChartSpace) return [];
     const withPh = entries.filter((e) => e.ph != null || e.phRunoff != null);
-    if (selectedChartSpace === "__all__") return withPh.slice(-14).reverse();
     const spPlantIds = plants.filter((p) => p.spaceId === selectedChartSpace).map((p) => p.id);
     return withPh.filter((e) => spPlantIds.includes(e.plantId)).slice(-14).reverse();
   }, [entries, selectedChartSpace, plants]);
@@ -120,14 +128,13 @@ export default function DashboardPage() {
   const phOutData = filteredEntries.map((e) => ({ label: fmt(e.date), value: e.phRunoff ?? null }));
 
   const waterData = useMemo(() => {
-    const spPlantIds = selectedChartSpace === "__all__"
-      ? null
-      : plants.filter((p) => p.spaceId === selectedChartSpace).map((p) => p.id);
+    if (!selectedChartSpace) return [];
+    const spPlantIds = plants.filter((p) => p.spaceId === selectedChartSpace).map((p) => p.id);
     return entries
       .filter((e) =>
         (e.type === "rega" || e.type === "nutrientes") &&
         e.waterAmount != null &&
-        (spPlantIds === null || spPlantIds.includes(e.plantId))
+        spPlantIds.includes(e.plantId)
       )
       .slice(-20)
       .reverse()
@@ -295,45 +302,31 @@ export default function DashboardPage() {
         </div>
 
         {/* Space selector pills */}
-        <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1 scrollbar-hide">
-          <button
-            onClick={() => setSelectedChartSpace("__all__")}
-            className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
-              selectedChartSpace === "__all__"
-                ? "bg-primary/15 border-primary/40 text-primary"
-                : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border/80"
-            }`}
-          >
-            <span>🌍</span>
-            <span>Todos</span>
-            <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
-              selectedChartSpace === "__all__"
-                ? "bg-primary/20 text-primary"
-                : "bg-muted text-muted-foreground"
-            }`}>{plants.length}</span>
-          </button>
-          {spacesWithPlants.map(({ space, plants: sPlants }) => {
-            const active = selectedChartSpace === space.id;
-            return (
-              <button
-                key={space.id}
-                onClick={() => setSelectedChartSpace(space.id)}
-                className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
-                  active
-                    ? "bg-primary/15 border-primary/40 text-primary"
-                    : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border/80"
-                }`}
-              >
-                <span>{space.name}</span>
-                <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
-                  active
-                    ? "bg-primary/20 text-primary"
-                    : "bg-muted text-muted-foreground"
-                }`}>{sPlants.length}</span>
-              </button>
-            );
-          })}
-        </div>
+        {spaces.length > 0 && (
+          <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1 scrollbar-hide">
+            {spacesWithPlants.map(({ space, plants: sPlants }) => {
+              const active = selectedChartSpace === space.id;
+              return (
+                <button
+                  key={space.id}
+                  onClick={() => setSelectedChartSpace(space.id)}
+                  className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                    active
+                      ? "bg-primary/15 border-primary/40 text-primary"
+                      : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border/80"
+                  }`}
+                >
+                  <span>{space.name}</span>
+                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
+                    active
+                      ? "bg-primary/20 text-primary"
+                      : "bg-muted text-muted-foreground"
+                  }`}>{sPlants.length}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Aba Ambiente */}
         {chartTab === "ambiente" && (
