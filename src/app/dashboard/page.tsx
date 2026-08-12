@@ -97,7 +97,7 @@ export default function DashboardPage() {
   }, [records, selectedChartSpace]);
 
   const chartRecords = useMemo(
-    () => [...filteredRecords].reverse().slice(-14),
+    () => [...filteredRecords].reverse(),
     [filteredRecords]
   );
 

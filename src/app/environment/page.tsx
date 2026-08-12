@@ -171,7 +171,7 @@ export default function EnvironmentPage() {
   // Latest for secondary display
   const latest = filteredRecords[0];
 
-  const chartRecords = [...filteredRecords].reverse().slice(-30);
+  const chartRecords = [...filteredRecords].reverse();
 
   function toChartData(key: "temperature" | "humidity" | "co2") {
     return chartRecords.map((r) => ({
