@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { useEnvironment } from "@/hooks/use-environment";
 import { useSpaces } from "@/hooks/use-spaces";
@@ -53,6 +53,7 @@ export default function EnvironmentPage() {
   const [chartStage, setChartStage] = useState<GrowStage>("vegetativo");
   const [defaultSpaceId, setDefaultSpaceId] = useState<string | null>(null);
   const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
+  const spaceFilterInitialized = useRef(false);
   const [vpdFlipped, setVpdFlipped] = useState(false);
 
   const [form, setForm] = useState({
@@ -67,11 +68,22 @@ export default function EnvironmentPage() {
   useEffect(() => {
     if (!user) return;
     getUserPreferences(user.uid).then((prefs) => {
-      if (prefs.defaultEnvironmentSpaceId !== undefined) {
-        setDefaultSpaceId(prefs.defaultEnvironmentSpaceId ?? null);
+      const saved = prefs.defaultEnvironmentSpaceId ?? null;
+      setDefaultSpaceId(saved);
+      // Pre-select default space on first load
+      if (!spaceFilterInitialized.current && saved) {
+        setSelectedSpaceId(saved);
+        spaceFilterInitialized.current = true;
       }
     });
   }, [user]);
+
+  // If no saved default, auto-select first space when spaces load
+  useEffect(() => {
+    if (spaceFilterInitialized.current || spaces.length === 0) return;
+    setSelectedSpaceId(spaces[0].id);
+    spaceFilterInitialized.current = true;
+  }, [spaces]);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));
