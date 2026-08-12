@@ -52,6 +52,7 @@ export default function EnvironmentPage() {
   const [error, setError] = useState<string | null>(null);
   const [chartStage, setChartStage] = useState<GrowStage>("vegetativo");
   const [defaultSpaceId, setDefaultSpaceId] = useState<string | null>(null);
+  const [selectedSpaceId, setSelectedSpaceId] = useState<string | null>(null);
   const [vpdFlipped, setVpdFlipped] = useState(false);
 
   const [form, setForm] = useState({
@@ -135,9 +136,13 @@ export default function EnvironmentPage() {
     refresh();
   }
 
-  // Averages over all records
+  // Filter records by selected space (null = all)
+  const filteredRecords = selectedSpaceId
+    ? records.filter((r) => r.spaceId === selectedSpaceId)
+    : records;
+
   function avg(key: "temperature" | "humidity" | "co2"): number | null {
-    const vals = records.map((r) => r[key]).filter((v): v is number => v != null);
+    const vals = filteredRecords.map((r) => r[key]).filter((v): v is number => v != null);
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   }
 
@@ -145,16 +150,16 @@ export default function EnvironmentPage() {
   const avgHum  = avg("humidity");
   const avgCo2  = avg("co2");
   const avgVPD  = (() => {
-    const vals = records
+    const vals = filteredRecords
       .filter((r) => r.temperature != null && r.humidity != null)
       .map((r) => calcVPD(r.temperature!, r.humidity!));
     return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
   })();
 
   // Latest for secondary display
-  const latest = records[0];
+  const latest = filteredRecords[0];
 
-  const chartRecords = [...records].reverse().slice(-14);
+  const chartRecords = [...filteredRecords].reverse().slice(-30);
 
   function toChartData(key: "temperature" | "humidity" | "co2") {
     return chartRecords.map((r) => ({
@@ -202,7 +207,7 @@ export default function EnvironmentPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-foreground">{avgTemp != null ? `${avgTemp.toFixed(1)}°C` : "—"}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Média · {filteredRecords.length} registro{filteredRecords.length !== 1 ? "s" : ""}</p>
             {latest?.temperature != null && <p className="text-[11px] text-muted-foreground/60 mt-0.5">Último: {latest.temperature}°C</p>}
           </CardContent>
         </Card>
@@ -219,7 +224,7 @@ export default function EnvironmentPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-foreground">{avgHum != null ? `${avgHum.toFixed(1)}%` : "—"}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Média · {filteredRecords.length} registro{filteredRecords.length !== 1 ? "s" : ""}</p>
             {latest?.humidity != null && <p className="text-[11px] text-muted-foreground/60 mt-0.5">Último: {latest.humidity}%</p>}
           </CardContent>
         </Card>
@@ -277,7 +282,7 @@ export default function EnvironmentPage() {
               </CardHeader>
               <CardContent className="pt-0 space-y-2">
                 <p className="text-2xl font-bold text-foreground">{avgVPD != null ? `${avgVPD.toFixed(2)} kPa` : "—"}</p>
-                <p className="text-[11px] text-muted-foreground">Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}</p>
+                <p className="text-[11px] text-muted-foreground">Média · {filteredRecords.length} registro{filteredRecords.length !== 1 ? "s" : ""}</p>
                 {latestVPD != null && (
                   <p className={cn("text-[11px] font-medium", isOutOfRange ? "text-amber-400" : "text-muted-foreground/60")}>
                     Último: {latestVPD.toFixed(2)} kPa{isOutOfRange ? " ⚠️" : ""}
@@ -315,7 +320,7 @@ export default function EnvironmentPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-foreground">{avgCo2 != null ? `${Math.round(avgCo2)} ppm` : "—"}</p>
-            <p className="text-[11px] text-muted-foreground mt-1">Média geral · {records.length} registro{records.length !== 1 ? "s" : ""}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">Média · {filteredRecords.length} registro{filteredRecords.length !== 1 ? "s" : ""}</p>
             {latest?.co2 != null && <p className="text-[11px] text-muted-foreground/60 mt-0.5">Último: {latest.co2} ppm</p>}
           </CardContent>
         </Card>
@@ -325,6 +330,35 @@ export default function EnvironmentPage() {
       {/* Charts */}
       <MotionItem>
       <div className="space-y-3">
+        {/* Seletor de espaço */}
+        {spaces.length > 0 && (
+          <div className="flex gap-1.5 flex-wrap">
+            <button
+              onClick={() => setSelectedSpaceId(null)}
+              className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                selectedSpaceId === null
+                  ? "bg-primary/10 border-primary/30 text-primary"
+                  : "bg-card border-border text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Todos os espaços
+            </button>
+            {spaces.map((s) => (
+              <button
+                key={s.id}
+                onClick={() => setSelectedSpaceId(s.id)}
+                className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
+                  selectedSpaceId === s.id
+                    ? "bg-primary/10 border-primary/30 text-primary"
+                    : "bg-card border-border text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                {s.name}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* Seletor de fase */}
         <div className="flex gap-1.5 flex-wrap">
           {STAGE_ORDER.map((s) => (
@@ -363,19 +397,26 @@ export default function EnvironmentPage() {
       <MotionItem>
       <Card className="bg-card border-border">
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">Histórico de registros</CardTitle>
+          <CardTitle className="text-sm font-semibold">
+            Histórico de registros
+            {selectedSpaceId && spaces.find((s) => s.id === selectedSpaceId) && (
+              <span className="ml-2 text-xs font-normal text-primary/70">
+                — {spaces.find((s) => s.id === selectedSpaceId)?.name}
+              </span>
+            )}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <p className="text-xs text-muted-foreground py-4 text-center">Carregando...</p>
-          ) : records.length === 0 ? (
+          ) : filteredRecords.length === 0 ? (
             <div className="py-8 text-center">
               <Thermometer size={28} className="mx-auto text-muted-foreground/30 mb-2" />
               <p className="text-sm text-muted-foreground">Nenhum registro ainda.</p>
             </div>
           ) : (
             <div className="space-y-2">
-              {records.slice(0, 20).map((r) => {
+              {filteredRecords.slice(0, 20).map((r) => {
                 const space = spaces.find((s) => s.id === r.spaceId);
                 const vpd = r.temperature != null && r.humidity != null ? calcVPD(r.temperature, r.humidity) : null;
                 return (
