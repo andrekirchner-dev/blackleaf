@@ -345,16 +345,6 @@ export default function EnvironmentPage() {
         {/* Seletor de espaço */}
         {spaces.length > 0 && (
           <div className="flex gap-1.5 flex-wrap">
-            <button
-              onClick={() => setSelectedSpaceId(null)}
-              className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-all ${
-                selectedSpaceId === null
-                  ? "bg-primary/10 border-primary/30 text-primary"
-                  : "bg-card border-border text-muted-foreground hover:text-foreground"
-              }`}
-            >
-              Todos os espaços
-            </button>
             {spaces.map((s) => (
               <button
                 key={s.id}
