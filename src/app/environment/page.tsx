@@ -64,26 +64,30 @@ export default function EnvironmentPage() {
     recordedAt: localDatetimeStr(),
   });
 
-  // Load saved default space preference
+  // Load saved default space preference (used only for form pre-selection)
   useEffect(() => {
     if (!user) return;
     getUserPreferences(user.uid).then((prefs) => {
-      const saved = prefs.defaultEnvironmentSpaceId ?? null;
-      setDefaultSpaceId(saved);
-      // Pre-select default space on first load
-      if (!spaceFilterInitialized.current && saved) {
-        setSelectedSpaceId(saved);
-        spaceFilterInitialized.current = true;
-      }
+      setDefaultSpaceId(prefs.defaultEnvironmentSpaceId ?? null);
     });
   }, [user]);
 
-  // If no saved default, auto-select first space when spaces load
+  // Auto-select the space with the most records once data is loaded
   useEffect(() => {
-    if (spaceFilterInitialized.current || spaces.length === 0) return;
-    setSelectedSpaceId(spaces[0].id);
+    if (spaceFilterInitialized.current || spaces.length === 0 || loading) return;
+    const counts = new Map<string, number>();
+    for (const r of records) {
+      if (r.spaceId) counts.set(r.spaceId, (counts.get(r.spaceId) ?? 0) + 1);
+    }
+    let bestId = spaces[0].id;
+    let bestCount = -1;
+    for (const s of spaces) {
+      const c = counts.get(s.id) ?? 0;
+      if (c > bestCount) { bestCount = c; bestId = s.id; }
+    }
+    setSelectedSpaceId(bestId);
     spaceFilterInitialized.current = true;
-  }, [spaces]);
+  }, [spaces, records, loading]);
 
   function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
     setForm((p) => ({ ...p, [k]: v }));

@@ -74,12 +74,22 @@ export default function DashboardPage() {
   const [chartStage, setChartStage] = useState<GrowStage>("vegetativo");
   const [chartTab, setChartTab] = useState<"ambiente" | "agua">("ambiente");
 
-  // Auto-select first space when spaces load
+  // Auto-select the space with the most environment records once data is loaded
   useEffect(() => {
     if (chartSpaceInitialized.current || spaces.length === 0) return;
-    setSelectedChartSpace(spaces[0].id);
+    const counts = new Map<string, number>();
+    for (const r of records) {
+      if (r.spaceId) counts.set(r.spaceId, (counts.get(r.spaceId) ?? 0) + 1);
+    }
+    let bestId = spaces[0].id;
+    let bestCount = -1;
+    for (const s of spaces) {
+      const c = counts.get(s.id) ?? 0;
+      if (c > bestCount) { bestCount = c; bestId = s.id; }
+    }
+    setSelectedChartSpace(bestId);
     chartSpaceInitialized.current = true;
-  }, [spaces]);
+  }, [spaces, records]);
 
   const firstName = user?.displayName?.split(" ")[0] ?? "Grower";
   const inFlower = plants.filter((p) => p.stage === "floracao").length;
