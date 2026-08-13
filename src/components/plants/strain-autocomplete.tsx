@@ -241,7 +241,10 @@ export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, c
               {results.length} strain{results.length !== 1 ? "s" : ""} encontradas
             </span>
           </div>
-          <ul className="max-h-64 overflow-y-auto py-1">
+          <ul
+            className="max-h-64 overflow-y-auto py-1 overscroll-contain"
+            style={{ WebkitOverflowScrolling: "touch" } as React.CSSProperties}
+          >
             {results.map((r, i) => {
               const bank = getBank(r);
               const weeks = mapWeeks(r);
@@ -258,7 +261,8 @@ export function StrainAutocomplete({ value, onChange, onAutoFill, placeholder, c
                 <li key={`${r.strain_name}-${i}`}>
                   <button
                     type="button"
-                    onMouseDown={(e) => { e.preventDefault(); selectResult(r); }}
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => selectResult(r)}
                     onMouseEnter={() => setHighlighted(i)}
                     className={cn(
                       "w-full text-left flex items-start gap-3 px-3 py-2.5 transition-colors",
