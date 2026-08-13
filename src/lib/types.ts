@@ -57,7 +57,7 @@ export type GrowEventType =
   | "poda" | "treino" | "rega_fertilizante" | "rega"
   | "flush_pre_flip" | "flush_pre_colheita" | "escuridao"
   | "colheita" | "secagem" | "germinacao" | "transplante"
-  | "top_dress" | "retirar_clones" | "cura";
+  | "top_dress" | "retirar_clones" | "cura" | "defoliacao";
 
 export interface GrowEvent {
   id: string;
@@ -177,7 +177,7 @@ export interface DiaryEntry {
   plantId: string;
   userId: string;
   date: string;
-  type: "rega" | "nutrientes" | "poda" | "treinamento" | "observacao" | "foto";
+  type: "rega" | "nutrientes" | "poda" | "treinamento" | "observacao" | "foto" | "defoliacao";
   notes: string;
   ph?: number;
   phRunoff?: number;

@@ -10,6 +10,7 @@ export const GROW_EVENT_TYPES: {
   { value: "germinacao",        label: "Germinação",           emoji: "🌱", color: "text-green-400",   bg: "bg-green-400/10 border-green-400/30" },
   { value: "transplante",       label: "Transplante",          emoji: "🪴", color: "text-lime-400",    bg: "bg-lime-400/10 border-lime-400/30" },
   { value: "poda",              label: "Poda",                 emoji: "✂️", color: "text-yellow-400",  bg: "bg-yellow-400/10 border-yellow-400/30" },
+  { value: "defoliacao",        label: "Defoliação",           emoji: "🍃", color: "text-green-400",   bg: "bg-green-400/10 border-green-400/30" },
   { value: "treino",            label: "Treinamento",          emoji: "🪢", color: "text-blue-400",    bg: "bg-blue-400/10 border-blue-400/30" },
   { value: "retirar_clones",    label: "Retirar Clones",       emoji: "🔬", color: "text-purple-400",  bg: "bg-purple-400/10 border-purple-400/30" },
   { value: "top_dress",         label: "Top Dress",            emoji: "🌿", color: "text-emerald-400", bg: "bg-emerald-400/10 border-emerald-400/30" },
