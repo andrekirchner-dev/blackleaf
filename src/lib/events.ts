@@ -27,12 +27,18 @@ function normalize(id: string, data: Record<string, unknown>): GrowEvent {
   } as GrowEvent;
 }
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 export async function createGrowEvent(
   userId: string,
   data: Omit<GrowEvent, "id" | "userId" | "createdAt">
 ): Promise<string> {
   const ref = await addDoc(collection(db, COLLECTION), {
-    ...data,
+    ...strip(data),
     userId,
     createdAt: serverTimestamp(),
   });
