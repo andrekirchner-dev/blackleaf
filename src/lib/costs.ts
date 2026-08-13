@@ -50,6 +50,12 @@ export const COST_CATEGORY_LABELS: Record<CostCategory, string> = {
 
 const COLLECTION = "grow_costs";
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 function normalize(id: string, data: Record<string, unknown>): GrowCost {
   return { ...data, id } as GrowCost;
 }
@@ -58,11 +64,11 @@ export async function createCost(
   userId: string,
   data: Omit<GrowCost, "id" | "userId" | "createdAt">
 ): Promise<string> {
-  const ref = await addDoc(collection(db, COLLECTION), {
+  const ref = await addDoc(collection(db, COLLECTION), strip({
     ...data,
     userId,
     createdAt: new Date().toISOString(),
-  });
+  }));
   return ref.id;
 }
 

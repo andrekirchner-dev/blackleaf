@@ -49,7 +49,7 @@ export async function updateGrowEvent(
   id: string,
   data: Partial<Omit<GrowEvent, "id" | "userId" | "createdAt">>
 ): Promise<void> {
-  await setDoc(doc(db, COLLECTION, id), data, { merge: true });
+  await setDoc(doc(db, COLLECTION, id), strip(data), { merge: true });
 }
 
 export async function deleteGrowEvent(id: string): Promise<void> {

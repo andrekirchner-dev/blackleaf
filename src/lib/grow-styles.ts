@@ -15,6 +15,12 @@ import type { GrowStyle, FeedingType } from "./types";
 
 const COLLECTION = "grow_styles";
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 export const FEEDING_LABELS: Record<FeedingType, string> = {
   organico: "Orgânico",
   organomineral: "Organo-mineral",
@@ -122,16 +128,16 @@ export async function createGrowStyle(
   userId: string,
   data: Omit<GrowStyle, "id" | "userId" | "createdAt">
 ) {
-  const ref = await addDoc(collection(db, COLLECTION), {
+  const ref = await addDoc(collection(db, COLLECTION), strip({
     ...data,
     userId,
     createdAt: serverTimestamp(),
-  });
+  }));
   return ref.id;
 }
 
 export async function updateGrowStyle(id: string, data: Partial<GrowStyle>) {
-  await updateDoc(doc(db, COLLECTION, id), data);
+  await updateDoc(doc(db, COLLECTION, id), strip(data));
 }
 
 export async function deleteGrowStyle(id: string) {

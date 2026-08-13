@@ -34,6 +34,12 @@ export interface NutritionRecipe {
 
 const COLLECTION = "nutrition_recipes";
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 function normalize(id: string, data: Record<string, unknown>): NutritionRecipe {
   return { ...data, id } as NutritionRecipe;
 }
@@ -42,11 +48,11 @@ export async function createRecipe(
   userId: string,
   data: Omit<NutritionRecipe, "id" | "userId" | "createdAt">
 ): Promise<string> {
-  const ref = await addDoc(collection(db, COLLECTION), {
+  const ref = await addDoc(collection(db, COLLECTION), strip({
     ...data,
     userId,
     createdAt: new Date().toISOString(),
-  });
+  }));
   return ref.id;
 }
 

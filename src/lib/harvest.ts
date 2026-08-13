@@ -27,12 +27,18 @@ function normalize(id: string, data: Record<string, unknown>): HarvestLog {
   } as HarvestLog;
 }
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 export async function createHarvestLog(
   userId: string,
   data: Omit<HarvestLog, "id" | "userId" | "createdAt">
 ): Promise<string> {
   const ref = await addDoc(collection(db, COLLECTION), {
-    ...data,
+    ...strip(data),
     userId,
     createdAt: serverTimestamp(),
   });

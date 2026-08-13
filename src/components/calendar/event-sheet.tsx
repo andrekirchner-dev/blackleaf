@@ -96,20 +96,24 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
         notes: notes.trim() || undefined,
       });
 
-      let synced = false;
-      if (isGcalConnected) {
-        const res = await fetch("/api/calendar/push", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ eventId, title, date, time: time || undefined, notes: notes.trim() || undefined }),
-        });
-        const data = await res.json();
-        synced = data.ok === true;
-      }
-
+      // Firestore save confirmed — notify parent and show success immediately.
+      // GCal sync is attempted separately and never blocks or reverts the save.
       onSaved();
-      setGcalSynced(synced);
       setSaved(true);
+
+      if (isGcalConnected) {
+        try {
+          const res = await fetch("/api/calendar/push", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ eventId, title, date, time: time || undefined, notes: notes.trim() || undefined }),
+          });
+          const data = await res.json();
+          setGcalSynced(data.ok === true);
+        } catch {
+          // GCal sync failure is silent — the event is already persisted.
+        }
+      }
     } catch (e) {
       setError(e instanceof Error ? e.message : "Erro ao salvar");
     } finally {

@@ -16,20 +16,26 @@ import type { GrowSpace } from "./types";
 
 const COLLECTION = "spaces";
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 export async function createSpace(
   userId: string,
   data: Omit<GrowSpace, "id" | "userId" | "createdAt">
 ) {
-  const ref = await addDoc(collection(db, COLLECTION), {
+  const ref = await addDoc(collection(db, COLLECTION), strip({
     ...data,
     userId,
     createdAt: serverTimestamp(),
-  });
+  }));
   return ref.id;
 }
 
 export async function updateSpace(id: string, data: Partial<GrowSpace>) {
-  await updateDoc(doc(db, COLLECTION, id), data);
+  await updateDoc(doc(db, COLLECTION, id), strip(data));
 }
 
 export async function deleteSpace(id: string) {

@@ -30,6 +30,12 @@ export interface GrowTask {
 
 const COLLECTION = "grow_tasks";
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 const p = (n: number) => String(n).padStart(2, "0");
 function toDateStr(d: Date): string {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
@@ -59,11 +65,11 @@ export async function createTask(
   userId: string,
   data: Omit<GrowTask, "id" | "userId" | "createdAt">
 ): Promise<string> {
-  const ref = await addDoc(collection(db, COLLECTION), {
+  const ref = await addDoc(collection(db, COLLECTION), strip({
     ...data,
     userId,
     createdAt: new Date().toISOString(),
-  });
+  }));
   return ref.id;
 }
 
@@ -81,7 +87,7 @@ export async function updateTask(
   id: string,
   data: Partial<Omit<GrowTask, "id" | "userId" | "createdAt">>
 ): Promise<void> {
-  await setDoc(doc(db, COLLECTION, id), data, { merge: true });
+  await setDoc(doc(db, COLLECTION, id), strip(data), { merge: true });
 }
 
 export async function deleteTask(id: string): Promise<void> {
@@ -91,13 +97,13 @@ export async function deleteTask(id: string): Promise<void> {
 export async function completeTask(task: GrowTask): Promise<void> {
   await setDoc(
     doc(db, COLLECTION, task.id),
-    { completed: true, completedAt: new Date().toISOString() },
+    strip({ completed: true, completedAt: new Date().toISOString() }),
     { merge: true }
   );
 
   if (task.recurrence !== "none") {
     const nextDate = nextDueDate(task.dueDate, task.recurrence);
-    await addDoc(collection(db, COLLECTION), {
+    await addDoc(collection(db, COLLECTION), strip({
       userId: task.userId,
       title: task.title,
       type: task.type,
@@ -107,6 +113,6 @@ export async function completeTask(task: GrowTask): Promise<void> {
       completed: false,
       notes: task.notes ?? "",
       createdAt: new Date().toISOString(),
-    });
+    }));
   }
 }

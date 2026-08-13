@@ -15,12 +15,18 @@ import type { DiaryEntry } from "./types";
 
 const COLLECTION = "diary";
 
+function strip<T extends object>(obj: T): Partial<T> {
+  return Object.fromEntries(
+    Object.entries(obj).filter(([, v]) => v !== undefined)
+  ) as Partial<T>;
+}
+
 export async function createEntry(
   userId: string,
   data: Omit<DiaryEntry, "id" | "userId" | "createdAt">
 ) {
   const ref = await addDoc(collection(db, COLLECTION), {
-    ...data,
+    ...strip(data),
     userId,
     createdAt: serverTimestamp(),
   });
@@ -28,7 +34,7 @@ export async function createEntry(
 }
 
 export async function updateEntry(id: string, data: Partial<DiaryEntry>) {
-  await updateDoc(doc(db, COLLECTION, id), data);
+  await updateDoc(doc(db, COLLECTION, id), strip(data));
 }
 
 export async function deleteEntry(id: string) {
