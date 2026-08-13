@@ -60,7 +60,7 @@ export default function DashboardPage() {
   const { records } = useEnvironment();
   const { entries, refresh: refreshDiary } = useDiary();
   const { styles } = useGrowStyles();
-  const { events } = useEvents();
+  const { events, refresh: refreshEvents } = useEvents();
   const { layout } = useDashboardLayout();
   const { isConnected: isGcalConnected } = useGCal();
   const { tasks } = useTasks();
@@ -432,7 +432,7 @@ export default function DashboardPage() {
           <WidgetQuickLog
             plants={plants}
             isGcalConnected={isGcalConnected}
-            onSaved={() => { }}
+            onSaved={() => { refreshEvents(); }}
           />
         </MotionItem>
 
