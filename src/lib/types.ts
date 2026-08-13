@@ -59,12 +59,16 @@ export type GrowEventType =
   | "colheita" | "secagem" | "germinacao" | "transplante"
   | "top_dress" | "retirar_clones" | "cura" | "defoliacao";
 
+export type PruningType =
+  | "topping" | "fim" | "lollipopping" | "desbaste" | "mainlining" | "schwazzing";
+
 export interface GrowEvent {
   id: string;
   userId: string;
   plantId?: string;
   plantIds?: string[];
   type: GrowEventType;
+  pruningType?: PruningType;
   date: string;
   time?: string;
   notes?: string;
@@ -178,6 +182,7 @@ export interface DiaryEntry {
   userId: string;
   date: string;
   type: "rega" | "nutrientes" | "poda" | "treinamento" | "observacao" | "foto" | "defoliacao";
+  pruningType?: PruningType;
   notes: string;
   ph?: number;
   phRunoff?: number;

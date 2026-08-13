@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createGrowEvent } from "@/lib/events";
 import { GROW_EVENT_TYPES } from "@/lib/event-constants";
+import { PRUNING_TYPES } from "@/lib/pruning-constants";
 import { useAuth } from "@/contexts/auth-context";
-import type { Plant, GrowEventType } from "@/lib/types";
+import type { Plant, GrowEventType, PruningType } from "@/lib/types";
 import { CheckCircle2, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ interface Props {
 export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaultTime, defaultType, isGcalConnected }: Props) {
   const { user } = useAuth();
   const [type, setType] = useState<GrowEventType>(defaultType ?? "rega");
+  const [pruningType, setPruningType] = useState<PruningType | "">("");
   const [plantIds, setPlantIds] = useState<string[]>([]);
   const [date, setDate] = useState(defaultDate ?? localDateStr());
   const [time, setTime] = useState(defaultTime ?? "");
@@ -40,6 +42,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
   useEffect(() => {
     if (open) {
       setType(defaultType ?? "rega");
+      setPruningType("");
       setTime(defaultTime ?? "");
       setDate(defaultDate ?? localDateStr());
       setPlantIds([]);
@@ -85,6 +88,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
 
       const eventId = await createGrowEvent(user.uid, {
         type,
+        pruningType: type === "poda" && pruningType ? pruningType : undefined,
         plantIds: plantIds.length > 0 ? plantIds : undefined,
         plantId: plantIds[0] || undefined,
         date,
@@ -150,7 +154,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
                   <button
                     key={t.value}
                     type="button"
-                    onClick={() => setType(t.value)}
+                    onClick={() => { setType(t.value); setPruningType(""); }}
                     className={cn(
                       "flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border text-[11px] font-medium transition-all",
                       type === t.value
@@ -164,6 +168,31 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
                 ))}
               </div>
             </div>
+
+            {/* Pruning sub-type (only when poda is selected) */}
+            {type === "poda" && (
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Poda</Label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {PRUNING_TYPES.map((p) => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setPruningType(pruningType === p.value ? "" : p.value)}
+                      className={cn(
+                        "flex flex-col items-start gap-0.5 py-2 px-3 rounded-xl border text-left transition-all",
+                        pruningType === p.value
+                          ? "bg-orange-400/10 border-orange-400/40 text-orange-400"
+                          : "bg-background border-border text-muted-foreground hover:text-foreground"
+                      )}
+                    >
+                      <span className="text-[11px] font-semibold">{p.label}</span>
+                      <span className="text-[10px] leading-tight opacity-70">{p.desc}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Date + Time */}
             <div className="grid grid-cols-2 gap-3">

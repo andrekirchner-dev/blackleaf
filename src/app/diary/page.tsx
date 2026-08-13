@@ -15,6 +15,7 @@ import { useHarvest } from "@/hooks/use-harvest";
 import { useSpaces } from "@/hooks/use-spaces";
 import { getEntryMeta } from "@/lib/diary-constants";
 import { EVENT_BY_TYPE } from "@/lib/event-constants";
+import { PRUNING_BY_TYPE } from "@/lib/pruning-constants";
 import { deleteEntry } from "@/lib/diary";
 import { deleteGrowEvent } from "@/lib/events";
 import { deleteEnvironmentRecord, calcVPD } from "@/lib/environment";
@@ -176,6 +177,7 @@ export default function DiaryPage() {
     for (const e of entries) {
       const meta = getEntryMeta(e.type);
       const chips: string[] = [];
+      if (e.pruningType) chips.push(PRUNING_BY_TYPE[e.pruningType]?.label ?? e.pruningType);
       if (e.ph)         chips.push(`pH in: ${e.ph}`);
       if (e.phRunoff)   chips.push(`pH out: ${e.phRunoff}`);
       if (e.ec)         chips.push(`EC: ${e.ec} mS/cm`);
@@ -202,6 +204,8 @@ export default function DiaryPage() {
       if (!meta) continue;
       const plantIds = ev.plantIds ?? (ev.plantId ? [ev.plantId] : []);
       const subtitle = plantIds.map((id) => plantMap.get(id)?.name).filter(Boolean).join(", ");
+      const eventChips: string[] = [];
+      if (ev.type === "poda" && ev.pruningType) eventChips.push(PRUNING_BY_TYPE[ev.pruningType]?.label ?? ev.pruningType);
       let sortDate: Date;
       try { sortDate = new Date(`${ev.date}T${ev.time ?? "00:00"}`); }
       catch { sortDate = new Date(ev.date); }
@@ -213,6 +217,7 @@ export default function DiaryPage() {
         label: meta.label,
         color: `${meta.color} ${meta.bg}`,
         subtitle: subtitle || undefined,
+        chips: eventChips.length > 0 ? eventChips : undefined,
         notes: ev.notes || undefined,
         plantId: plantIds[0],
         onDelete: async () => { await deleteGrowEvent(ev.id); refreshEvents(); },
@@ -249,7 +254,7 @@ export default function DiaryPage() {
       if (h.rating)       chips.push(`⭐ ${h.rating}/5`);
       items.push({
         id: `harvest_${h.id}`,
-        sortDate: new Date(h.harvestDate),
+        sortDate: safeParse(h.harvestDate),
         source: "harvest",
         emoji: "🌾",
         label: "Colheita",
@@ -257,6 +262,7 @@ export default function DiaryPage() {
         subtitle: `${h.plantName}${h.strain ? ` · ${h.strain}` : ""}`,
         chips,
         notes: h.notes || undefined,
+        plantId: h.plantId,
         onDelete: async () => { await deleteHarvestLog(h.id); refreshHarvest(); },
       });
     }

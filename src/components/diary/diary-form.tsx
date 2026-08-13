@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/auth-context";
 import { createEntry } from "@/lib/diary";
 import { ENTRY_TYPES } from "@/lib/diary-constants";
-import type { Plant, DiaryEntry, Fertilizer, DiaryFertilizerUsage } from "@/lib/types";
+import { PRUNING_TYPES } from "@/lib/pruning-constants";
+import type { Plant, DiaryEntry, Fertilizer, DiaryFertilizerUsage, PruningType } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +41,7 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
   const [form, setForm] = useState({
     plantId: defaultPlantId ?? plants[0]?.id ?? "",
     type: (defaultType ?? "rega") as EntryType,
+    pruningType: "" as PruningType | "",
     date: (() => { const d = new Date(), p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
     notes: "",
     ph: "",
@@ -87,6 +89,7 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
       await createEntry(user.uid, {
         plantId: form.plantId,
         type: form.type,
+        pruningType: form.type === "poda" && form.pruningType ? form.pruningType : undefined,
         date: form.date,
         notes: form.notes.trim(),
         ph: form.ph ? Number(form.ph) : undefined,
@@ -141,7 +144,7 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
             <button
               key={t.value}
               type="button"
-              onClick={() => set("type", t.value)}
+              onClick={() => { set("type", t.value); set("pruningType", ""); }}
               className={cn(
                 "flex flex-col items-center gap-1 py-3 px-2 rounded-xl border text-xs font-medium transition-all",
                 form.type === t.value
@@ -155,6 +158,31 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
           ))}
         </div>
       </div>
+
+      {/* Pruning sub-type */}
+      {form.type === "poda" && (
+        <div className="space-y-1.5">
+          <Label>Tipo de Poda</Label>
+          <div className="grid grid-cols-3 gap-2">
+            {PRUNING_TYPES.map((p) => (
+              <button
+                key={p.value}
+                type="button"
+                onClick={() => set("pruningType", form.pruningType === p.value ? "" : p.value)}
+                className={cn(
+                  "flex flex-col items-start gap-0.5 py-2 px-3 rounded-xl border text-left transition-all",
+                  form.pruningType === p.value
+                    ? "bg-orange-400/10 border-orange-400/40 text-orange-400"
+                    : "bg-background border-border text-muted-foreground hover:text-foreground"
+                )}
+              >
+                <span className="text-[11px] font-semibold">{p.label}</span>
+                <span className="text-[10px] leading-tight opacity-70">{p.desc}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Data */}
       <div className="space-y-1.5">
