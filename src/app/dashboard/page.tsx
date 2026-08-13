@@ -314,24 +314,19 @@ export default function DashboardPage() {
         {/* Space selector pills */}
         {spaces.length > 0 && (
           <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-1 px-1 scrollbar-hide">
-            {spacesWithPlants.map(({ space, plants: sPlants }) => {
+            {spacesWithPlants.map(({ space }) => {
               const active = selectedChartSpace === space.id;
               return (
                 <button
                   key={space.id}
                   onClick={() => setSelectedChartSpace(space.id)}
-                  className={`flex items-center gap-1.5 shrink-0 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
+                  className={`shrink-0 px-3 py-1.5 rounded-full border text-xs font-medium transition-all ${
                     active
                       ? "bg-primary/15 border-primary/40 text-primary"
                       : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border/80"
                   }`}
                 >
-                  <span>{space.name}</span>
-                  <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-semibold ${
-                    active
-                      ? "bg-primary/20 text-primary"
-                      : "bg-muted text-muted-foreground"
-                  }`}>{sPlants.length}</span>
+                  {space.name}
                 </button>
               );
             })}
