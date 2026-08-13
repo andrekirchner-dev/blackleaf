@@ -273,7 +273,7 @@ export default function EnergyPage() {
                     </div>
                     <div className="w-full bg-muted/30 rounded-full h-1.5 overflow-hidden">
                       <div
-                        className="h-full bg-amber-400 rounded-full transition-all duration-500"
+                        className="h-full bg-amber-400 transition-all duration-500"
                         style={{ width: `${biggestPct}%` }}
                       />
                     </div>

@@ -214,7 +214,7 @@ export default function FlushPage() {
                 <div className="relative w-full h-4 bg-muted/30 rounded-full overflow-hidden">
                   {/* Flora progress */}
                   <div
-                    className="absolute left-0 top-0 h-full bg-primary/80 rounded-full transition-all duration-500"
+                    className="absolute left-0 top-0 h-full bg-primary/80 transition-all duration-500"
                     style={{ width: `${results.progressPct}%` }}
                   />
                   {/* Flush zone marker */}

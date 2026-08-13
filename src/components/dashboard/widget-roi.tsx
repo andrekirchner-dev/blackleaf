@@ -57,7 +57,7 @@ export function WidgetROI({ costs, harvestTotalG }: Props) {
           )}
           <div className="h-1.5 bg-muted/40 rounded-full overflow-hidden">
             <div
-              className="h-full bg-accent rounded-full"
+              className="h-full bg-accent"
               style={{ width: costPerGram !== null ? `${Math.min(100, (costPerGram / 50) * 100)}%` : "0%" }}
             />
           </div>

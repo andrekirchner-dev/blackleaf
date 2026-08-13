@@ -204,7 +204,7 @@ export default function ROIPage() {
                   </div>
                   <div className="h-2 bg-muted/40 rounded-full overflow-hidden">
                     <div
-                      className={cn("h-full rounded-full", CATEGORY_COLORS[cat])}
+                      className={cn("h-full", CATEGORY_COLORS[cat])}
                       style={{ width: `${(sum / maxAmount) * 100}%` }}
                     />
                   </div>

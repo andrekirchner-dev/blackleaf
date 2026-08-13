@@ -79,7 +79,7 @@ export function WidgetPhaseTracker({ plants }: Props) {
                 </div>
                 <div className="h-1 bg-muted/40 rounded-full overflow-hidden">
                   <div
-                    className="h-full bg-primary rounded-full transition-all"
+                    className="h-full bg-primary transition-all"
                     style={{ width: `${progress}%` }}
                   />
                 </div>

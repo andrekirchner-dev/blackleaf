@@ -334,7 +334,7 @@ function SeedCard({ seed }: { seed: SeedEntry }) {
               initial={{ width: 0 }}
               animate={{ width: `${pct * 100}%` }}
               transition={{ duration: 0.8, ease: "easeOut" }}
-              className={cn("h-full rounded-full", hs.bar)}
+              className={cn("h-full", hs.bar)}
             />
           </div>
           <p className="text-[10px] text-muted-foreground mt-0.5">

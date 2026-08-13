@@ -111,7 +111,7 @@ export function HarvestCountdown({ plants }: Props) {
             <div className="w-full h-2 bg-muted/40 rounded-full overflow-hidden">
               <div
                 className={cn(
-                  "h-full rounded-full transition-all duration-500",
+                  "h-full transition-all duration-500",
                   daysRemaining <= 0
                     ? "bg-red-500"
                     : daysRemaining <= 3
