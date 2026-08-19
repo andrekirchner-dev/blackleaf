@@ -1,10 +1,6 @@
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth, GoogleAuthProvider } from "firebase/auth";
-import {
-  getFirestore,
-  initializeFirestore,
-  persistentLocalCache,
-} from "firebase/firestore";
+import { getFirestore } from "firebase/firestore";
 import { getStorage } from "firebase/storage";
 
 const firebaseConfig = {
@@ -18,20 +14,7 @@ const firebaseConfig = {
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 
-// Enable persistent local cache so writes resolve immediately from IndexedDB
-// and sync to server in the background — prevents indefinite hangs on slow networks.
-// Falls back to default (memory) cache on SSR or if already initialized.
-function initDb() {
-  try {
-    return initializeFirestore(app, {
-      localCache: persistentLocalCache(),
-    });
-  } catch {
-    return getFirestore(app);
-  }
-}
-
 export const auth = getAuth(app);
-export const db = initDb();
+export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const googleProvider = new GoogleAuthProvider();

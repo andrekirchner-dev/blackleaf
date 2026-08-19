@@ -82,7 +82,14 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user || !form.plantId) return;
+    if (!user) {
+      setError("Sessão expirada. Recarregue a página.");
+      return;
+    }
+    if (!form.plantId) {
+      setError("Selecione uma planta.");
+      return;
+    }
     setLoading(true);
     setError(null);
     try {

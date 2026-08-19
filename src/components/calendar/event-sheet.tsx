@@ -76,7 +76,10 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
   }
 
   async function handleSave() {
-    if (!user) return;
+    if (!user) {
+      setError("Sessão expirada. Recarregue a página.");
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
