@@ -22,6 +22,7 @@ export const GROW_EVENT_TYPES: {
   { value: "colheita",          label: "Colheita",             emoji: "🌾", color: "text-orange-400",  bg: "bg-orange-400/10 border-orange-400/30" },
   { value: "secagem",           label: "Secagem",              emoji: "🍂", color: "text-amber-400",   bg: "bg-amber-400/10 border-amber-400/30" },
   { value: "cura",              label: "Cura",                 emoji: "🫙", color: "text-rose-400",    bg: "bg-rose-400/10 border-rose-400/30" },
+  { value: "run_off",           label: "Run Off",              emoji: "🔵", color: "text-blue-300",    bg: "bg-blue-300/10 border-blue-300/30" },
 ];
 
 export const EVENT_BY_TYPE = Object.fromEntries(

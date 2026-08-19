@@ -206,9 +206,25 @@ export default function DiaryPage() {
       const subtitle = plantIds.map((id) => plantMap.get(id)?.name).filter(Boolean).join(", ");
       const eventChips: string[] = [];
       if (ev.type === "poda" && ev.pruningType) eventChips.push(PRUNING_BY_TYPE[ev.pruningType]?.label ?? ev.pruningType);
+      if (ev.waterAmount != null) eventChips.push(`${ev.waterAmount} mL`);
+      if (ev.ph != null) eventChips.push(`pH in: ${ev.ph}`);
+      if (ev.ppm != null) eventChips.push(`${ev.ppm} ppm`);
+      if (ev.phRunoff != null) eventChips.push(`pH out: ${ev.phRunoff}`);
+      if (ev.ppmRunoff != null) eventChips.push(`${ev.ppmRunoff} ppm out`);
+      if (ev.irrigationType) eventChips.push(
+        ev.irrigationType === "gotejamento" ? "Gotejamento" :
+        ev.irrigationType === "aspersao" ? "Aspersão" :
+        ev.irrigationType === "automatico" ? "Automático" : "Manual"
+      );
       let sortDate: Date;
       try { sortDate = new Date(`${ev.date}T${ev.time ?? "00:00"}`); }
       catch { sortDate = new Date(ev.date); }
+
+      // Build a partial DiaryEntry to reuse fertilizer rendering in ActivityCard
+      const evAsDiaryLike = ev.fertilizersUsed && ev.fertilizersUsed.length > 0
+        ? { fertilizersUsed: ev.fertilizersUsed } as import("@/lib/types").DiaryEntry
+        : undefined;
+
       items.push({
         id: `event_${ev.id}`,
         sortDate,
@@ -220,6 +236,7 @@ export default function DiaryPage() {
         chips: eventChips.length > 0 ? eventChips : undefined,
         notes: ev.notes || undefined,
         plantId: plantIds[0],
+        diaryEntry: evAsDiaryLike,
         onDelete: async () => { await deleteGrowEvent(ev.id); refreshEvents(); },
       });
     }

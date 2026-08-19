@@ -57,7 +57,10 @@ export type GrowEventType =
   | "poda" | "treino" | "rega_fertilizante" | "rega"
   | "flush_pre_flip" | "flush_pre_colheita" | "escuridao"
   | "colheita" | "secagem" | "germinacao" | "transplante"
-  | "top_dress" | "retirar_clones" | "cura" | "defoliacao";
+  | "top_dress" | "retirar_clones" | "cura" | "defoliacao"
+  | "run_off";
+
+export type WaterIrrigationType = "manual" | "gotejamento" | "aspersao" | "automatico";
 
 export type PruningType =
   | "topping" | "fim" | "lollipopping" | "desbaste" | "mainlining" | "schwazzing";
@@ -73,6 +76,14 @@ export interface GrowEvent {
   time?: string;
   notes?: string;
   googleEventId?: string;
+  // Water fields (rega, rega_fertilizante, run_off)
+  waterAmount?: number;
+  irrigationType?: WaterIrrigationType;
+  fertilizersUsed?: DiaryFertilizerUsage[];
+  ph?: number;
+  ppm?: number;
+  phRunoff?: number;
+  ppmRunoff?: number;
   createdAt: string;
 }
 

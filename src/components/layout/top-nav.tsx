@@ -71,6 +71,7 @@ const NAV_GROUPS: NavGroup[] = [
     items: [
       { href: "/diary", label: "Diário", icon: BookOpen },
       { href: "/calendar", label: "Calendário", icon: CalendarDays },
+      { href: "/water", label: "Rega & Run Off", icon: Droplets },
       { href: "/harvest", label: "Colheitas", icon: Trophy },
       { href: "/archive", label: "Arquivo", icon: Archive },
     ],

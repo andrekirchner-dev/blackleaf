@@ -9,15 +9,26 @@ import { Textarea } from "@/components/ui/textarea";
 import { createGrowEvent } from "@/lib/events";
 import { GROW_EVENT_TYPES } from "@/lib/event-constants";
 import { PRUNING_TYPES } from "@/lib/pruning-constants";
+import { useFertilizers } from "@/hooks/use-fertilizers";
 import { useAuth } from "@/contexts/auth-context";
-import type { Plant, GrowEventType, PruningType } from "@/lib/types";
-import { CheckCircle2, Loader2 } from "lucide-react";
+import type { Plant, GrowEventType, PruningType, WaterIrrigationType, DiaryFertilizerUsage, Fertilizer } from "@/lib/types";
+import { CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 function localDateStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
+
+const IRRIGATION_TYPES: { value: WaterIrrigationType; label: string; desc: string }[] = [
+  { value: "manual",      label: "Manual",      desc: "Regador ou mangueira" },
+  { value: "gotejamento", label: "Gotejamento", desc: "Sistema drip" },
+  { value: "aspersao",    label: "Aspersão",    desc: "Sprinkler" },
+  { value: "automatico",  label: "Automático",  desc: "Sistema programado" },
+];
+
+const WATER_TYPES: GrowEventType[] = ["rega", "rega_fertilizante", "flush_pre_flip", "flush_pre_colheita"];
+const RUNOFF_TYPES: GrowEventType[] = ["run_off"];
 
 interface Props {
   open: boolean;
@@ -32,13 +43,27 @@ interface Props {
 
 export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaultTime, defaultType, isGcalConnected }: Props) {
   const { user } = useAuth();
+  const { fertilizers } = useFertilizers();
   const [type, setType] = useState<GrowEventType>(defaultType ?? "rega");
   const [pruningType, setPruningType] = useState<PruningType | "">("");
   const [plantIds, setPlantIds] = useState<string[]>([]);
   const [date, setDate] = useState(defaultDate ?? localDateStr());
   const [time, setTime] = useState(defaultTime ?? "");
+  const [notes, setNotes] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [saved, setSaved] = useState(false);
+  const [gcalSynced, setGcalSynced] = useState(false);
 
-  // Re-apply defaults each time the sheet opens (quick log passes different type each time)
+  // Water fields
+  const [waterAmount, setWaterAmount] = useState("");
+  const [irrigationType, setIrrigationType] = useState<WaterIrrigationType | "">("");
+  const [ph, setPh] = useState("");
+  const [ppm, setPpm] = useState("");
+  const [phRunoff, setPhRunoff] = useState("");
+  const [ppmRunoff, setPpmRunoff] = useState("");
+  const [selectedFertilizers, setSelectedFertilizers] = useState<DiaryFertilizerUsage[]>([]);
+
   useEffect(() => {
     if (open) {
       setType(defaultType ?? "rega");
@@ -49,20 +74,39 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
       setNotes("");
       setSaved(false);
       setError(null);
+      setWaterAmount("");
+      setIrrigationType("");
+      setPh("");
+      setPpm("");
+      setPhRunoff("");
+      setPpmRunoff("");
+      setSelectedFertilizers([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-  const [notes, setNotes] = useState("");
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-  const [gcalSynced, setGcalSynced] = useState(false);
 
   const selectedType = GROW_EVENT_TYPES.find((t) => t.value === type)!;
+  const showWaterFields = WATER_TYPES.includes(type);
+  const showFertilizers = type === "rega_fertilizante" && fertilizers.length > 0;
+  const showRunoffFields = RUNOFF_TYPES.includes(type);
 
   function togglePlant(id: string) {
     setPlantIds((prev) =>
       prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id]
+    );
+  }
+
+  function toggleFertilizer(f: Fertilizer) {
+    setSelectedFertilizers((prev) => {
+      const exists = prev.find((u) => u.fertilizerId === f.id);
+      if (exists) return prev.filter((u) => u.fertilizerId !== f.id);
+      return [...prev, { fertilizerId: f.id, name: f.name, mlPerLiter: f.doses?.vegetativo ?? 0 }];
+    });
+  }
+
+  function updateDose(fertilizerId: string, value: string) {
+    setSelectedFertilizers((prev) =>
+      prev.map((u) => u.fertilizerId === fertilizerId ? { ...u, mlPerLiter: Number(value) || 0 } : u)
     );
   }
 
@@ -73,6 +117,13 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
     setError(null);
     setSaved(false);
     setGcalSynced(false);
+    setWaterAmount("");
+    setIrrigationType("");
+    setPh("");
+    setPpm("");
+    setPhRunoff("");
+    setPpmRunoff("");
+    setSelectedFertilizers([]);
   }
 
   async function handleSave() {
@@ -97,10 +148,16 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
         date,
         time: time || undefined,
         notes: notes.trim() || undefined,
+        // Water fields
+        waterAmount: waterAmount ? Number(waterAmount) : undefined,
+        irrigationType: (showWaterFields || showRunoffFields) && irrigationType ? irrigationType : undefined,
+        ph: (showWaterFields) && ph ? Number(ph) : undefined,
+        ppm: (showWaterFields) && ppm ? Number(ppm) : undefined,
+        phRunoff: showRunoffFields && phRunoff ? Number(phRunoff) : undefined,
+        ppmRunoff: showRunoffFields && ppmRunoff ? Number(ppmRunoff) : undefined,
+        fertilizersUsed: showFertilizers && selectedFertilizers.length > 0 ? selectedFertilizers : undefined,
       });
 
-      // Firestore save confirmed — notify parent and show success immediately.
-      // GCal sync is attempted separately and never blocks or reverts the save.
       onSaved();
       setSaved(true);
 
@@ -161,7 +218,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
                   <button
                     key={t.value}
                     type="button"
-                    onClick={() => { setType(t.value); setPruningType(""); }}
+                    onClick={() => { setType(t.value); setPruningType(""); setSelectedFertilizers([]); }}
                     className={cn(
                       "flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border text-[11px] font-medium transition-all",
                       type === t.value
@@ -176,7 +233,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
               </div>
             </div>
 
-            {/* Pruning sub-type (only when poda is selected) */}
+            {/* Pruning sub-type */}
             {type === "poda" && (
               <div className="space-y-2">
                 <Label className="text-xs text-muted-foreground uppercase tracking-wide">Tipo de Poda</Label>
@@ -197,6 +254,178 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
                       <span className="text-[10px] leading-tight opacity-70">{p.desc}</span>
                     </button>
                   ))}
+                </div>
+              </div>
+            )}
+
+            {/* Water fields: rega, rega_fertilizante, flush */}
+            {showWaterFields && (
+              <div className="space-y-4 rounded-xl border border-cyan-400/20 bg-cyan-400/5 p-3.5">
+                <p className="text-[11px] font-semibold text-cyan-400 uppercase tracking-wide">Dados da Rega</p>
+
+                {/* Tipo de irrigação */}
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Tipo de Irrigação</Label>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {IRRIGATION_TYPES.map((it) => (
+                      <button
+                        key={it.value}
+                        type="button"
+                        onClick={() => setIrrigationType(irrigationType === it.value ? "" : it.value)}
+                        className={cn(
+                          "flex flex-col items-start gap-0.5 py-2 px-3 rounded-xl border text-left transition-all",
+                          irrigationType === it.value
+                            ? "bg-cyan-400/10 border-cyan-400/40 text-cyan-400"
+                            : "bg-background border-border text-muted-foreground hover:text-foreground"
+                        )}
+                      >
+                        <span className="text-[11px] font-semibold">{it.label}</span>
+                        <span className="text-[10px] opacity-70">{it.desc}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Volume + pH + PPM */}
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ev-volume">Volume (mL)</Label>
+                    <Input
+                      id="ev-volume"
+                      type="number"
+                      min="0"
+                      placeholder="500"
+                      value={waterAmount}
+                      onChange={(e) => setWaterAmount(e.target.value)}
+                      className="bg-background border-border"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ev-ph">pH entrada</Label>
+                    <Input
+                      id="ev-ph"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="14"
+                      placeholder="6.2"
+                      value={ph}
+                      onChange={(e) => setPh(e.target.value)}
+                      className="bg-background border-border"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ev-ppm">PPM</Label>
+                    <Input
+                      id="ev-ppm"
+                      type="number"
+                      min="0"
+                      placeholder="650"
+                      value={ppm}
+                      onChange={(e) => setPpm(e.target.value)}
+                      className="bg-background border-border"
+                    />
+                  </div>
+                </div>
+
+                {/* Fertilizers (rega_fertilizante only) */}
+                {showFertilizers && (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Fertilizantes utilizados</Label>
+                    <div className="space-y-1.5">
+                      {fertilizers.map((f) => {
+                        const sel = selectedFertilizers.find((u) => u.fertilizerId === f.id);
+                        return (
+                          <div key={f.id} className="space-y-1">
+                            <button
+                              type="button"
+                              onClick={() => toggleFertilizer(f)}
+                              className={cn(
+                                "w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border text-left transition-all",
+                                sel
+                                  ? "bg-primary/10 border-primary/30"
+                                  : "bg-background border-border hover:border-muted-foreground/30"
+                              )}
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <div className={cn(
+                                  "w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0",
+                                  sel ? "border-primary bg-primary" : "border-muted-foreground/30"
+                                )}>
+                                  {sel && <div className="w-2 h-2 rounded-full bg-primary-foreground" />}
+                                </div>
+                                <span className="text-sm font-medium text-foreground truncate">{f.name}</span>
+                                {f.brand && <span className="text-xs text-muted-foreground shrink-0">{f.brand}</span>}
+                              </div>
+                            </button>
+                            {sel && (
+                              <div className="flex items-center gap-2 pl-3">
+                                <FlaskConical size={12} className="text-muted-foreground" />
+                                <span className="text-xs text-muted-foreground flex-1">Dose (mL/L):</span>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  step="0.1"
+                                  value={sel.mlPerLiter || ""}
+                                  onChange={(e) => updateDose(f.id, e.target.value)}
+                                  className="bg-background border-border w-20 h-7 text-sm text-right"
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                                <span className="text-xs text-muted-foreground">mL/L</span>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Run Off fields */}
+            {showRunoffFields && (
+              <div className="space-y-4 rounded-xl border border-blue-300/20 bg-blue-300/5 p-3.5">
+                <p className="text-[11px] font-semibold text-blue-300 uppercase tracking-wide">Dados do Run Off</p>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ev-phrunoff">pH saída</Label>
+                    <Input
+                      id="ev-phrunoff"
+                      type="number"
+                      step="0.1"
+                      min="0"
+                      max="14"
+                      placeholder="6.5"
+                      value={phRunoff}
+                      onChange={(e) => setPhRunoff(e.target.value)}
+                      className="bg-background border-border"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ev-ppmrunoff">PPM saída</Label>
+                    <Input
+                      id="ev-ppmrunoff"
+                      type="number"
+                      min="0"
+                      placeholder="900"
+                      value={ppmRunoff}
+                      onChange={(e) => setPpmRunoff(e.target.value)}
+                      className="bg-background border-border"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ev-vol-runoff">Volume (mL)</Label>
+                    <Input
+                      id="ev-vol-runoff"
+                      type="number"
+                      min="0"
+                      placeholder="150"
+                      value={waterAmount}
+                      onChange={(e) => setWaterAmount(e.target.value)}
+                      className="bg-background border-border"
+                    />
+                  </div>
                 </div>
               </div>
             )}
@@ -268,7 +497,11 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
                 id="ev-notes"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Ex: pH 6.2, EC 1.4, 2L por planta..."
+                placeholder={
+                  showWaterFields ? "Ex: pH 6.2, PPM 650, 2L por planta..." :
+                  showRunoffFields ? "Ex: Run off alto, sinal de acúmulo de sais..." :
+                  "Anotações gerais..."
+                }
                 className="bg-background border-border min-h-[70px] resize-none"
               />
             </div>
