@@ -11,12 +11,13 @@ export function useTasks() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getTasks(user.uid);
       setTasks(data);
-    } catch {
+    } catch (err) {
+      console.error("[useTasks]", err);
       setTasks([]);
     } finally {
       setLoading(false);

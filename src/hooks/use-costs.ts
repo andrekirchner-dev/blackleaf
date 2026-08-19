@@ -11,12 +11,13 @@ export function useCosts() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getCosts(user.uid);
       setCosts(data);
-    } catch {
+    } catch (err) {
+      console.error("[useCosts]", err);
       setCosts([]);
     } finally {
       setLoading(false);

@@ -11,11 +11,14 @@ export function useFertilizers() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getUserFertilizers(user.uid);
       setFertilizers(data);
+    } catch (err) {
+      console.error("[useFertilizers]", err);
+      setFertilizers([]);
     } finally {
       setLoading(false);
     }

@@ -59,7 +59,7 @@ export async function updateHarvestLog(
   id: string,
   data: Partial<Omit<HarvestLog, "id" | "userId" | "createdAt">>
 ): Promise<void> {
-  await setDoc(doc(db, COLLECTION, id), data, { merge: true });
+  await setDoc(doc(db, COLLECTION, id), strip(data), { merge: true });
 }
 
 export async function deleteHarvestLog(id: string): Promise<void> {

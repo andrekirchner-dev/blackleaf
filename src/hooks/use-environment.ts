@@ -11,11 +11,14 @@ export function useEnvironment() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getUserEnvironmentRecords(user.uid);
       setRecords(data);
+    } catch (err) {
+      console.error("[useEnvironment]", err);
+      setRecords([]);
     } finally {
       setLoading(false);
     }

@@ -88,7 +88,9 @@ export async function germinateSeed(id: string, currentGerminated: number, curre
 }
 
 export async function updateSeed(id: string, data: Partial<CreateSeedData>): Promise<void> {
-  const update: Record<string, unknown> = { ...data };
+  const update: Record<string, unknown> = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
   if (data.storageDate) {
     update.storageDate = Timestamp.fromDate(data.storageDate);
   }

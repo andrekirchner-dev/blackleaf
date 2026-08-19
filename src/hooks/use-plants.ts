@@ -12,13 +12,14 @@ export function usePlants() {
   const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     try {
       const data = await getUserPlants(user.uid);
       setPlants(data.filter((p) => !p.archived));
-    } catch {
+    } catch (err) {
+      console.error("[usePlants]", err);
       setError("Erro ao carregar plantas.");
     } finally {
       setLoading(false);

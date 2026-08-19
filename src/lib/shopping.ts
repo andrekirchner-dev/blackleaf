@@ -97,7 +97,10 @@ export async function updateShoppingItem(
   id: string,
   data: Partial<CreateShoppingItemData>
 ): Promise<void> {
-  await updateDoc(doc(db, COLLECTION, id), data);
+  const stripped = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
+  await updateDoc(doc(db, COLLECTION, id), stripped);
 }
 
 export async function deleteShoppingItem(id: string): Promise<void> {

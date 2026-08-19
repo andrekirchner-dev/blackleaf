@@ -11,12 +11,13 @@ export function useRecipes() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getRecipes(user.uid);
       setRecipes(data);
-    } catch {
+    } catch (err) {
+      console.error("[useRecipes]", err);
       setRecipes([]);
     } finally {
       setLoading(false);

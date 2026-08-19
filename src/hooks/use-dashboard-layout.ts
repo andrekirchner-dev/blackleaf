@@ -11,18 +11,17 @@ export function useDashboardLayout() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     getUserPreferences(user.uid)
       .then((prefs) => {
         if (prefs.dashboardLayout && prefs.dashboardLayout.length > 0) {
-          // Only use what the user explicitly saved — new widgets start disabled
           const saved = prefs.dashboardLayout.filter((id) =>
             WIDGET_REGISTRY.some((w) => w.id === id)
           );
           setLayout(saved);
         }
       })
-      .catch(() => {})
+      .catch((err) => console.error("[useDashboardLayout]", err))
       .finally(() => setLoading(false));
   }, [user]);
 

@@ -11,12 +11,13 @@ export function useHarvest() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getUserHarvests(user.uid);
       setHarvests(data);
-    } catch {
+    } catch (err) {
+      console.error("[useHarvest]", err);
       setHarvests([]);
     } finally {
       setLoading(false);

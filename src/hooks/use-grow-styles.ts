@@ -11,11 +11,14 @@ export function useGrowStyles() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getUserGrowStyles(user.uid);
       setCustom(data);
+    } catch (err) {
+      console.error("[useGrowStyles]", err);
+      setCustom([]);
     } finally {
       setLoading(false);
     }
