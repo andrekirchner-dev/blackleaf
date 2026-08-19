@@ -1,19 +1,57 @@
 import { db } from "./firebase";
-import { collection, getDocs, query, orderBy, limit } from "firebase/firestore";
-import type { GrowSpace, Plant } from "./types";
+import {
+  collection,
+  addDoc,
+  getDocs,
+  query,
+  where,
+  orderBy,
+  limit,
+  serverTimestamp,
+} from "firebase/firestore";
+import type { GrowSpace, Plant, HarvestLog } from "./types";
+
+// ─── Public types ─────────────────────────────────────────────────────────────
 
 export interface PublicSpace extends Pick<GrowSpace, "id" | "userId" | "name" | "type" | "widthCm" | "depthCm" | "heightCm" | "lightType" | "lightWatts" | "createdAt"> {}
 
-export interface PublicPlant extends Pick<Plant, "id" | "userId" | "spaceId" | "name" | "strain" | "genetics" | "stage" | "environment" | "germinationDate" | "stageChangedAt" | "photoUrl" | "createdAt"> {
+export interface PublicPlant extends Pick<Plant, "id" | "userId" | "spaceId" | "name" | "strain" | "genetics" | "stage" | "environment" | "medium" | "germinationDate" | "stageChangedAt" | "photoUrl" | "createdAt"> {
   bank?: string;
 }
 
+export interface CommunityPost {
+  id: string;
+  userId: string;
+  handle: string;
+  photoUrl: string;
+  caption: string;
+  plantSnapshots: { id: string; name: string; strain: string; stage: string }[];
+  medium?: string;
+  lightType?: string;
+  weekOfGrow?: number;
+  createdAt: string;
+}
+
+export interface UserPublicProfile {
+  userId: string;
+  handle: string;
+  activePlants: PublicPlant[];
+  spaces: PublicSpace[];
+  harvestCount: number;
+  firstGrowDate: string | null;
+  totalDryWeightG: number;
+  recentPosts: CommunityPost[];
+}
+
+// Legacy type kept for any remaining imports
 export interface CommunityUser {
   userId: string;
   handle: string;
   spaces: PublicSpace[];
   plants: PublicPlant[];
 }
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function stripSensitive(doc: object, sensitiveKeys: string[]): Record<string, unknown> {
   const out: Record<string, unknown> = { ...doc };
@@ -23,6 +61,98 @@ function stripSensitive(doc: object, sensitiveKeys: string[]): Record<string, un
 
 const PLANT_SENSITIVE = ["notes", "previousGrowNotes", "bankRecommendations", "effects", "terpenes"];
 const SPACE_SENSITIVE = ["notes"];
+const POSTS_COLLECTION = "communityPosts";
+
+export function makeHandle(userId: string) {
+  return `grower_${userId.slice(-4)}`;
+}
+
+// ─── Posts ────────────────────────────────────────────────────────────────────
+
+export async function createCommunityPost(
+  userId: string,
+  data: Omit<CommunityPost, "id" | "userId" | "createdAt">
+): Promise<string> {
+  const ref = await addDoc(collection(db, POSTS_COLLECTION), {
+    ...data,
+    userId,
+    createdAt: serverTimestamp(),
+  });
+  return ref.id;
+}
+
+export async function getCommunityPosts(limitCount = 60): Promise<CommunityPost[]> {
+  const q = query(
+    collection(db, POSTS_COLLECTION),
+    orderBy("createdAt", "desc"),
+    limit(limitCount)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as CommunityPost));
+}
+
+export async function getUserPosts(userId: string, limitCount = 12): Promise<CommunityPost[]> {
+  const q = query(
+    collection(db, POSTS_COLLECTION),
+    where("userId", "==", userId),
+    orderBy("createdAt", "desc"),
+    limit(limitCount)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as CommunityPost));
+}
+
+// ─── Profile ──────────────────────────────────────────────────────────────────
+
+export async function getUserPublicProfile(userId: string): Promise<UserPublicProfile | null> {
+  const [spacesSnap, plantsSnap, harvestsSnap, postsSnap] = await Promise.all([
+    getDocs(query(collection(db, "spaces"), where("userId", "==", userId))),
+    getDocs(query(collection(db, "plants"), where("userId", "==", userId))),
+    getDocs(query(collection(db, "harvest_logs"), where("userId", "==", userId))),
+    getDocs(query(
+      collection(db, POSTS_COLLECTION),
+      where("userId", "==", userId),
+      orderBy("createdAt", "desc"),
+      limit(9)
+    )),
+  ]);
+
+  const spaces: PublicSpace[] = spacesSnap.docs.map((d) => {
+    const raw = { id: d.id, ...d.data() } as GrowSpace;
+    return stripSensitive(raw, SPACE_SENSITIVE) as unknown as PublicSpace;
+  });
+
+  const allPlants = plantsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as Plant));
+  const activePlants: PublicPlant[] = allPlants
+    .filter((p) => !p.archived)
+    .map((p) => stripSensitive(p, PLANT_SENSITIVE) as unknown as PublicPlant);
+
+  const harvests = harvestsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as HarvestLog));
+  const harvestCount = harvests.length;
+  const totalDryWeightG = harvests.reduce((sum, h) => sum + (h.dryWeightG ?? 0), 0);
+
+  // First grow date: earliest germination or creation date across all plants
+  const allDates = allPlants
+    .map((p) => p.germinationDate || p.createdAt)
+    .filter(Boolean)
+    .sort();
+  const firstGrowDate = allDates[0] ?? null;
+
+  const recentPosts: CommunityPost[] = postsSnap.docs.map((d) => ({ id: d.id, ...d.data() } as CommunityPost));
+
+  return {
+    userId,
+    handle: makeHandle(userId),
+    activePlants,
+    spaces,
+    harvestCount,
+    firstGrowDate,
+    totalDryWeightG,
+    recentPosts,
+  };
+}
+
+// ─── Legacy feed (kept for reference) ────────────────────────────────────────
 
 export async function getCommunityFeed(): Promise<CommunityUser[]> {
   const [spacesSnap, plantsSnap] = await Promise.all([
@@ -46,24 +176,14 @@ export async function getCommunityFeed(): Promise<CommunityUser[]> {
 
   for (const space of spaces) {
     if (!userMap.has(space.userId)) {
-      userMap.set(space.userId, {
-        userId: space.userId,
-        handle: `grower_${space.userId.slice(-4)}`,
-        spaces: [],
-        plants: [],
-      });
+      userMap.set(space.userId, { userId: space.userId, handle: makeHandle(space.userId), spaces: [], plants: [] });
     }
     userMap.get(space.userId)!.spaces.push(space);
   }
 
   for (const plant of plants) {
     if (!userMap.has(plant.userId)) {
-      userMap.set(plant.userId, {
-        userId: plant.userId,
-        handle: `grower_${plant.userId.slice(-4)}`,
-        spaces: [],
-        plants: [],
-      });
+      userMap.set(plant.userId, { userId: plant.userId, handle: makeHandle(plant.userId), spaces: [], plants: [] });
     }
     userMap.get(plant.userId)!.plants.push(plant);
   }
