@@ -148,6 +148,18 @@ function ActivityCard({ item, onDeleted }: { item: LogItem; onDeleted: () => voi
           {item.notes && (
             <p className="text-sm text-foreground/80 leading-relaxed">{item.notes}</p>
           )}
+
+          {/* Photo */}
+          {item.diaryEntry?.photoUrl && (
+            <div className="rounded-lg overflow-hidden border border-border mt-1">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={item.diaryEntry.photoUrl}
+                alt="Registro fotográfico"
+                className="w-full object-cover max-h-64"
+              />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -178,10 +190,17 @@ export default function DiaryPage() {
       const meta = getEntryMeta(e.type);
       const chips: string[] = [];
       if (e.pruningType) chips.push(PRUNING_BY_TYPE[e.pruningType]?.label ?? e.pruningType);
-      if (e.ph)         chips.push(`pH in: ${e.ph}`);
-      if (e.phRunoff)   chips.push(`pH out: ${e.phRunoff}`);
-      if (e.ec)         chips.push(`EC: ${e.ec} mS/cm`);
+      if (e.irrigationType) chips.push(
+        e.irrigationType === "gotejamento" ? "Gotejamento" :
+        e.irrigationType === "aspersao" ? "Aspersão" :
+        e.irrigationType === "automatico" ? "Automático" : "Manual"
+      );
       if (e.waterAmount) chips.push(`${e.waterAmount} mL`);
+      if (e.ph)         chips.push(`pH in: ${e.ph}`);
+      if (e.ppm)        chips.push(`${e.ppm} ppm`);
+      if (e.phRunoff)   chips.push(`pH out: ${e.phRunoff}`);
+      if (e.ppmRunoff)  chips.push(`${e.ppmRunoff} ppm out`);
+      if (e.ec)         chips.push(`EC: ${e.ec} mS/cm`);
       items.push({
         id: `diary_${e.id}`,
         sortDate: safeParse(e.date),

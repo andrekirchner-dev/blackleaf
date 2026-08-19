@@ -1,16 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { ImagePlus, X, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
-import { createEntry } from "@/lib/diary";
-import { ENTRY_TYPES } from "@/lib/diary-constants";
+import { createEntry, updateEntry } from "@/lib/diary";
+import { uploadDiaryPhoto } from "@/lib/storage";
+import { DIARY_ENTRY_TYPES } from "@/lib/diary-constants";
 import { PRUNING_TYPES } from "@/lib/pruning-constants";
-import type { Plant, DiaryEntry, Fertilizer, DiaryFertilizerUsage, PruningType } from "@/lib/types";
+import type {
+  Plant,
+  DiaryEntry,
+  Fertilizer,
+  DiaryFertilizerUsage,
+  PruningType,
+  WaterIrrigationType,
+} from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface DiaryFormProps {
@@ -24,150 +32,239 @@ interface DiaryFormProps {
 
 type EntryType = DiaryEntry["type"];
 
+const WATER_TYPES = new Set(["rega", "rega_fertilizante", "flush_pre_flip", "flush_pre_colheita"]);
+const RUNOFF_TYPES = new Set(["run_off"]);
+const FERTILIZER_TYPES = new Set(["nutrientes", "rega_fertilizante"]);
+
+const IRRIGATION_OPTIONS: { value: WaterIrrigationType; label: string; emoji: string }[] = [
+  { value: "manual",      label: "Manual",      emoji: "🚿" },
+  { value: "gotejamento", label: "Gotejamento",  emoji: "💦" },
+  { value: "aspersao",    label: "Aspersão",     emoji: "🌧️" },
+  { value: "automatico",  label: "Automático",   emoji: "⚙️" },
+];
+
+function getSuggestedWater(plant: Plant): number | null {
+  if (!plant.potSize) return null;
+  const L = plant.potSize;
+  switch (plant.stage) {
+    case "semente":
+    case "muda":      return Math.round(L * 50);
+    case "vegetativo":return Math.round(L * 100);
+    case "floracao":
+    case "colheita":  return Math.round(L * 135);
+    default:          return null;
+  }
+}
+
 function getStageDoseKey(stage: string): keyof NonNullable<Fertilizer["doses"]> {
-  if (stage === "muda") return "muda";
-  if (stage === "vegetativo") return "vegetativo";
-  if (stage === "floracao") return "floracao_inicio";
-  if (stage === "colheita") return "floracao_fim";
-  if (stage === "secagem") return "floracao_fim";
+  if (stage === "muda")      return "muda";
+  if (stage === "vegetativo")return "vegetativo";
+  if (stage === "floracao")  return "floracao_inicio";
+  if (stage === "colheita")  return "floracao_fim";
+  if (stage === "secagem")   return "floracao_fim";
   return "vegetativo";
 }
 
-export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultType, onSuccess, onCancel }: DiaryFormProps) {
+function nowLocal() {
+  const d = new Date();
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+export function DiaryForm({
+  plants,
+  fertilizers = [],
+  defaultPlantId,
+  defaultType,
+  onSuccess,
+  onCancel,
+}: DiaryFormProps) {
   const { user } = useAuth();
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const initPlantIds = defaultPlantId
+    ? [defaultPlantId]
+    : plants.length === 1
+    ? [plants[0].id]
+    : [];
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [form, setForm] = useState({
-    plantId: defaultPlantId ?? plants[0]?.id ?? "",
-    type: (defaultType ?? "rega") as EntryType,
-    pruningType: "" as PruningType | "",
-    date: (() => { const d = new Date(), p = (n: number) => String(n).padStart(2, "0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`; })(),
-    notes: "",
-    ph: "",
-    phRunoff: "",
-    ec: "",
-    waterAmount: "",
-  });
-
+  const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>(initPlantIds);
+  const [type, setType] = useState<EntryType>(defaultType ?? "rega");
+  const [pruningType, setPruningType] = useState<PruningType | "">("");
+  const [irrigationType, setIrrigationType] = useState<WaterIrrigationType | "">("");
+  const [date, setDate] = useState(nowLocal);
+  const [notes, setNotes] = useState("");
+  const [ph, setPh] = useState("");
+  const [ppm, setPpm] = useState("");
+  const [phRunoff, setPhRunoff] = useState("");
+  const [ppmRunoff, setPpmRunoff] = useState("");
+  const [ec, setEc] = useState("");
+  const [waterAmount, setWaterAmount] = useState("");
   const [selectedFertilizers, setSelectedFertilizers] = useState<DiaryFertilizerUsage[]>([]);
+  const [photoFile, setPhotoFile] = useState<File | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
 
-  function set<K extends keyof typeof form>(k: K, v: (typeof form)[K]) {
-    setForm((p) => ({ ...p, [k]: v }));
+  const showWater = WATER_TYPES.has(type);
+  const showRunoff = RUNOFF_TYPES.has(type);
+  const showFertilizers = FERTILIZER_TYPES.has(type) && fertilizers.length > 0;
+  const showSuggestedWater = showWater && selectedPlantIds.length > 0;
+
+  // First selected plant (for fertilizer dose suggestions)
+  const firstPlant = plants.find((p) => p.id === selectedPlantIds[0]);
+
+  function togglePlant(id: string) {
+    setSelectedPlantIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
   }
-
-  const selectedPlant = plants.find((p) => p.id === form.plantId);
 
   function toggleFertilizer(f: Fertilizer) {
     setSelectedFertilizers((prev) => {
       const exists = prev.find((u) => u.fertilizerId === f.id);
-      if (exists) {
-        return prev.filter((u) => u.fertilizerId !== f.id);
-      }
-      const stageKey = selectedPlant ? getStageDoseKey(selectedPlant.stage) : "vegetativo";
-      const suggestedDose = f.doses?.[stageKey] ?? 0;
-      return [...prev, { fertilizerId: f.id, name: f.name, mlPerLiter: suggestedDose }];
+      if (exists) return prev.filter((u) => u.fertilizerId !== f.id);
+      const stageKey = firstPlant ? getStageDoseKey(firstPlant.stage) : "vegetativo";
+      return [...prev, { fertilizerId: f.id, name: f.name, mlPerLiter: f.doses?.[stageKey] ?? 0 }];
     });
   }
 
   function updateDose(fertilizerId: string, value: string) {
     setSelectedFertilizers((prev) =>
       prev.map((u) =>
-        u.fertilizerId === fertilizerId
-          ? { ...u, mlPerLiter: Number(value) || 0 }
-          : u
+        u.fertilizerId === fertilizerId ? { ...u, mlPerLiter: Number(value) || 0 } : u
       )
     );
   }
 
+  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoFile(file);
+    const url = URL.createObjectURL(file);
+    setPhotoPreview(url);
+  }
+
+  function removePhoto() {
+    setPhotoFile(null);
+    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    setPhotoPreview(null);
+    if (fileRef.current) fileRef.current.value = "";
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!user) {
-      setError("Sessão expirada. Recarregue a página.");
-      return;
-    }
-    if (!form.plantId) {
-      setError("Selecione uma planta.");
-      return;
-    }
+    if (!user) { setError("Sessão expirada. Recarregue a página."); return; }
+    if (selectedPlantIds.length === 0) { setError("Selecione ao menos uma planta."); return; }
     setLoading(true);
     setError(null);
     try {
-      await createEntry(user.uid, {
-        plantId: form.plantId,
-        type: form.type,
-        pruningType: form.type === "poda" && form.pruningType ? form.pruningType : undefined,
-        date: form.date,
-        notes: form.notes.trim(),
-        ph: form.ph ? Number(form.ph) : undefined,
-        phRunoff: form.phRunoff ? Number(form.phRunoff) : undefined,
-        ec: form.ec ? Number(form.ec) : undefined,
-        waterAmount: form.waterAmount ? Number(form.waterAmount) : undefined,
+      const entryData: Omit<DiaryEntry, "id" | "userId" | "createdAt" | "plantId"> = {
+        type,
+        pruningType: type === "poda" && pruningType ? pruningType : undefined,
+        date,
+        notes: notes.trim(),
+        ph: ph ? Number(ph) : undefined,
+        ppm: ppm ? Number(ppm) : undefined,
+        phRunoff: phRunoff ? Number(phRunoff) : undefined,
+        ppmRunoff: ppmRunoff ? Number(ppmRunoff) : undefined,
+        ec: ec ? Number(ec) : undefined,
+        waterAmount: waterAmount ? Number(waterAmount) : undefined,
+        irrigationType: irrigationType || undefined,
         fertilizersUsed: selectedFertilizers.length > 0 ? selectedFertilizers : undefined,
-      });
+      };
+
+      const entryIds = await Promise.all(
+        selectedPlantIds.map((plantId) =>
+          createEntry(user.uid, { ...entryData, plantId })
+        )
+      );
+
+      if (photoFile && entryIds.length > 0) {
+        const photoUrl = await uploadDiaryPhoto(user.uid, entryIds[0], photoFile);
+        await Promise.all(entryIds.map((id) => updateEntry(id, { photoUrl })));
+      }
+
       onSuccess();
-    } catch {
+    } catch (err) {
+      console.error("[DiaryForm]", err);
       setError("Erro ao salvar registro. Tente novamente.");
     } finally {
       setLoading(false);
     }
   }
 
-  const showWater = form.type === "rega" || form.type === "nutrientes";
-  const showPhEc = form.type === "rega" || form.type === "nutrientes";
-  const showFertilizers = form.type === "nutrientes" && fertilizers.length > 0;
-
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
-      {/* Planta */}
-      {plants.length > 1 && (
-        <div className="space-y-1.5">
-          <Label>Planta</Label>
-          <div className="flex flex-wrap gap-2">
-            {plants.map((p) => (
-              <button
-                key={p.id}
-                type="button"
-                onClick={() => set("plantId", p.id)}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
-                  form.plantId === p.id
-                    ? "bg-primary/10 border-primary/40 text-primary"
-                    : "bg-background border-border text-muted-foreground hover:text-foreground"
+      {/* Plants */}
+      <div className="space-y-1.5">
+        <Label>Plantas</Label>
+        <div className="flex flex-wrap gap-2">
+          {plants.map((p) => {
+            const selected = selectedPlantIds.includes(p.id);
+            const suggested = showSuggestedWater ? getSuggestedWater(p) : null;
+            return (
+              <div key={p.id} className="flex flex-col items-start gap-0.5">
+                <button
+                  type="button"
+                  onClick={() => togglePlant(p.id)}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                    selected
+                      ? "bg-primary/10 border-primary/40 text-primary"
+                      : "bg-background border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  {p.name}
+                  {selected && suggested != null && (
+                    <span className="ml-1.5 text-cyan-400">~{suggested}mL</span>
+                  )}
+                </button>
+                {selected && suggested != null && waterAmount === "" && (
+                  <button
+                    type="button"
+                    onClick={() => setWaterAmount(String(suggested))}
+                    className="text-[10px] text-cyan-400 hover:underline ml-1"
+                  >
+                    Usar sugerido ({suggested} mL)
+                  </button>
                 )}
-              >
-                {p.name}
-              </button>
-            ))}
-          </div>
+              </div>
+            );
+          })}
         </div>
-      )}
+      </div>
 
-      {/* Tipo */}
+      {/* Type grid */}
       <div className="space-y-1.5">
         <Label>Tipo de Registro</Label>
         <div className="grid grid-cols-3 gap-2">
-          {ENTRY_TYPES.map((t) => (
+          {DIARY_ENTRY_TYPES.map((t) => (
             <button
               key={t.value}
               type="button"
-              onClick={() => { set("type", t.value); set("pruningType", ""); }}
+              onClick={() => {
+                setType(t.value as EntryType);
+                setPruningType("");
+                setIrrigationType("");
+              }}
               className={cn(
-                "flex flex-col items-center gap-1 py-3 px-2 rounded-xl border text-xs font-medium transition-all",
-                form.type === t.value
+                "flex flex-col items-center gap-1 py-2.5 px-2 rounded-xl border text-xs font-medium transition-all",
+                type === t.value
                   ? "bg-primary/10 border-primary/30 text-primary"
                   : "bg-background border-border text-muted-foreground hover:text-foreground"
               )}
             >
-              <span className="text-xl">{t.emoji}</span>
-              {t.label}
+              <span className="text-lg">{t.emoji}</span>
+              <span className="text-center leading-tight">{t.label}</span>
             </button>
           ))}
         </div>
       </div>
 
       {/* Pruning sub-type */}
-      {form.type === "poda" && (
+      {type === "poda" && (
         <div className="space-y-1.5">
           <Label>Tipo de Poda</Label>
           <div className="grid grid-cols-3 gap-2">
@@ -175,10 +272,10 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
               <button
                 key={p.value}
                 type="button"
-                onClick={() => set("pruningType", form.pruningType === p.value ? "" : p.value)}
+                onClick={() => setPruningType(pruningType === p.value ? "" : p.value)}
                 className={cn(
                   "flex flex-col items-start gap-0.5 py-2 px-3 rounded-xl border text-left transition-all",
-                  form.pruningType === p.value
+                  pruningType === p.value
                     ? "bg-orange-400/10 border-orange-400/40 text-orange-400"
                     : "bg-background border-border text-muted-foreground hover:text-foreground"
                 )}
@@ -191,67 +288,45 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
         </div>
       )}
 
-      {/* Data */}
+      {/* Date */}
       <div className="space-y-1.5">
         <Label htmlFor="date">Data e Hora</Label>
         <Input
           id="date"
           type="datetime-local"
-          value={form.date}
-          onChange={(e) => set("date", e.target.value)}
+          value={date}
+          onChange={(e) => setDate(e.target.value)}
           className="bg-background border-border"
         />
       </div>
 
-      {/* Campos por tipo */}
-      {showPhEc && (
+      {/* Water fields */}
+      {showWater && (
         <div className="space-y-3">
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <Label htmlFor="ph">pH entrada (Run-in)</Label>
-              <Input
-                id="ph"
-                type="number"
-                step="0.1"
-                min="0"
-                max="14"
-                placeholder="Ex: 6.2"
-                value={form.ph}
-                onChange={(e) => set("ph", e.target.value)}
-                className="bg-background border-border"
-              />
-            </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="phRunoff">pH saída (Run-off)</Label>
-              <Input
-                id="phRunoff"
-                type="number"
-                step="0.1"
-                min="0"
-                max="14"
-                placeholder="Ex: 6.8"
-                value={form.phRunoff}
-                onChange={(e) => set("phRunoff", e.target.value)}
-                className="bg-background border-border"
-              />
+          {/* Irrigation type */}
+          <div className="space-y-1.5">
+            <Label>Tipo de Irrigação</Label>
+            <div className="grid grid-cols-4 gap-2">
+              {IRRIGATION_OPTIONS.map((opt) => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setIrrigationType(irrigationType === opt.value ? "" : opt.value)}
+                  className={cn(
+                    "flex flex-col items-center gap-1 py-2 rounded-xl border text-[10px] font-medium transition-all",
+                    irrigationType === opt.value
+                      ? "bg-cyan-400/10 border-cyan-400/40 text-cyan-400"
+                      : "bg-background border-border text-muted-foreground hover:text-foreground"
+                  )}
+                >
+                  <span className="text-base">{opt.emoji}</span>
+                  {opt.label}
+                </button>
+              ))}
             </div>
           </div>
+
           <div className="grid grid-cols-2 gap-3">
-            {form.type === "nutrientes" && (
-              <div className="space-y-1.5">
-                <Label htmlFor="ec">EC (mS/cm)</Label>
-                <Input
-                  id="ec"
-                  type="number"
-                  step="0.1"
-                  min="0"
-                  placeholder="Ex: 1.4"
-                  value={form.ec}
-                  onChange={(e) => set("ec", e.target.value)}
-                  className="bg-background border-border"
-                />
-              </div>
-            )}
             <div className="space-y-1.5">
               <Label htmlFor="waterAmount">Volume (mL)</Label>
               <Input
@@ -259,8 +334,96 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
                 type="number"
                 min="0"
                 placeholder="Ex: 500"
-                value={form.waterAmount}
-                onChange={(e) => set("waterAmount", e.target.value)}
+                value={waterAmount}
+                onChange={(e) => setWaterAmount(e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ph">pH entrada</Label>
+              <Input
+                id="ph"
+                type="number"
+                step="0.1"
+                min="0"
+                max="14"
+                placeholder="Ex: 6.2"
+                value={ph}
+                onChange={(e) => setPh(e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ppm">PPM entrada</Label>
+              <Input
+                id="ppm"
+                type="number"
+                min="0"
+                placeholder="Ex: 600"
+                value={ppm}
+                onChange={(e) => setPpm(e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="phRunoff">pH Run-off</Label>
+              <Input
+                id="phRunoff"
+                type="number"
+                step="0.1"
+                min="0"
+                max="14"
+                placeholder="Ex: 6.8"
+                value={phRunoff}
+                onChange={(e) => setPhRunoff(e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="ppmRunoff">PPM Run-off</Label>
+            <Input
+              id="ppmRunoff"
+              type="number"
+              min="0"
+              placeholder="Ex: 800"
+              value={ppmRunoff}
+              onChange={(e) => setPpmRunoff(e.target.value)}
+              className="bg-background border-border w-1/2"
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Run-off only fields */}
+      {showRunoff && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="phRunoff">pH Run-off</Label>
+              <Input
+                id="phRunoff"
+                type="number"
+                step="0.1"
+                min="0"
+                max="14"
+                placeholder="Ex: 6.8"
+                value={phRunoff}
+                onChange={(e) => setPhRunoff(e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ppmRunoff">PPM Run-off</Label>
+              <Input
+                id="ppmRunoff"
+                type="number"
+                min="0"
+                placeholder="Ex: 800"
+                value={ppmRunoff}
+                onChange={(e) => setPpmRunoff(e.target.value)}
                 className="bg-background border-border"
               />
             </div>
@@ -268,14 +431,61 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
         </div>
       )}
 
-      {/* Fertilizantes */}
+      {/* Nutrientes-specific: EC */}
+      {type === "nutrientes" && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ec">EC (mS/cm)</Label>
+              <Input
+                id="ec"
+                type="number"
+                step="0.1"
+                min="0"
+                placeholder="Ex: 1.4"
+                value={ec}
+                onChange={(e) => setEc(e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ph-nut">pH entrada</Label>
+              <Input
+                id="ph-nut"
+                type="number"
+                step="0.1"
+                min="0"
+                max="14"
+                placeholder="Ex: 6.2"
+                value={ph}
+                onChange={(e) => setPh(e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ppm-nut">PPM</Label>
+              <Input
+                id="ppm-nut"
+                type="number"
+                min="0"
+                placeholder="Ex: 900"
+                value={ppm}
+                onChange={(e) => setPpm(e.target.value)}
+                className="bg-background border-border"
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Fertilizers */}
       {showFertilizers && (
         <div className="space-y-2">
           <Label>Fertilizantes utilizados</Label>
           <div className="space-y-1.5">
             {fertilizers.map((f) => {
               const selected = selectedFertilizers.find((u) => u.fertilizerId === f.id);
-              const stageKey = selectedPlant ? getStageDoseKey(selectedPlant.stage) : "vegetativo";
+              const stageKey = firstPlant ? getStageDoseKey(firstPlant.stage) : "vegetativo";
               const suggested = f.doses?.[stageKey];
               return (
                 <div key={f.id} className="space-y-1">
@@ -297,17 +507,12 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
                         {selected && <div className="w-2 h-2 rounded-full bg-primary-foreground" />}
                       </div>
                       <span className="text-sm font-medium text-foreground truncate">{f.name}</span>
-                      {f.brand && (
-                        <span className="text-xs text-muted-foreground shrink-0">{f.brand}</span>
-                      )}
+                      {f.brand && <span className="text-xs text-muted-foreground shrink-0">{f.brand}</span>}
                     </div>
                     {suggested != null && !selected && (
-                      <span className="text-xs text-muted-foreground shrink-0">
-                        {suggested} mL/L
-                      </span>
+                      <span className="text-xs text-muted-foreground shrink-0">{suggested} mL/L</span>
                     )}
                   </button>
-
                   {selected && (
                     <div className="flex items-center gap-2 pl-3">
                       <span className="text-xs text-muted-foreground flex-1">Dose (mL/L):</span>
@@ -339,21 +544,55 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
         </div>
       )}
 
-      {/* Notas */}
+      {/* Photo */}
+      <div className="space-y-1.5">
+        <Label>Foto</Label>
+        {photoPreview ? (
+          <div className="relative w-full aspect-video rounded-xl overflow-hidden border border-border">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={removePhoto}
+              className="absolute top-2 right-2 bg-black/60 hover:bg-black/80 text-white rounded-full p-1 transition-colors"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            className="w-full flex flex-col items-center gap-2 py-4 rounded-xl border border-dashed border-border text-muted-foreground hover:border-primary/40 hover:text-primary transition-colors"
+          >
+            <ImagePlus size={20} />
+            <span className="text-xs">Adicionar foto</span>
+          </button>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePhotoChange}
+        />
+      </div>
+
+      {/* Notes */}
       <div className="space-y-1.5">
         <Label htmlFor="notes">Observações</Label>
         <Textarea
           id="notes"
           placeholder={
-            form.type === "rega" ? "Ex: Planta absorveu bem, folhas firmes..." :
-            form.type === "nutrientes" ? "Ex: Nutrientes da fase de floração, diluição 1:2..." :
-            form.type === "poda" ? "Ex: Removidas folhas amareladas do baixeiro..." :
-            form.type === "treinamento" ? "Ex: LST aplicado nos ramos laterais..." :
-            form.type === "foto" ? "Descrição da foto..." :
+            type === "rega" ? "Ex: Planta absorveu bem, folhas firmes..." :
+            type === "rega_fertilizante" ? "Ex: Nutrientes da fase de floração..." :
+            type === "poda" ? "Ex: Removidas folhas amareladas do baixeiro..." :
+            type === "treino" || type === "treinamento" ? "Ex: LST aplicado nos ramos laterais..." :
+            type === "run_off" ? "Ex: Run-off coletado após rega..." :
             "Anotações gerais..."
           }
-          value={form.notes}
-          onChange={(e) => set("notes", e.target.value)}
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
           className="bg-background border-border min-h-[80px] resize-none"
         />
       </div>
@@ -370,11 +609,11 @@ export function DiaryForm({ plants, fertilizers = [], defaultPlantId, defaultTyp
         </Button>
         <Button
           type="submit"
-          disabled={loading || !form.plantId}
+          disabled={loading || selectedPlantIds.length === 0}
           className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 min-w-[120px]"
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : null}
-          {loading ? "Salvando..." : "Salvar Registro"}
+          {loading ? "Salvando..." : `Salvar${selectedPlantIds.length > 1 ? ` (${selectedPlantIds.length})` : ""}`}
         </Button>
       </div>
     </form>

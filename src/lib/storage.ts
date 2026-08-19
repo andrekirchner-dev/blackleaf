@@ -13,6 +13,18 @@ export async function uploadPlantPhoto(userId: string, plantId: string, file: Fi
   return getDownloadURL(storageRef);
 }
 
+export async function uploadDiaryPhoto(userId: string, entryId: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const storageRef = ref(storage, `diary/${userId}/${entryId}/${Date.now()}.${ext}`);
+  await new Promise<void>((resolve, reject) => {
+    const tid = setTimeout(() => reject(new Error("Upload excedeu 20s.")), 20000);
+    uploadBytes(storageRef, file)
+      .then(() => { clearTimeout(tid); resolve(); })
+      .catch(err => { clearTimeout(tid); reject(err); });
+  });
+  return getDownloadURL(storageRef);
+}
+
 export async function deletePlantPhotoByUrl(url: string): Promise<void> {
   try {
     const storageRef = ref(storage, url);

@@ -197,13 +197,16 @@ export interface DiaryEntry {
   plantId: string;
   userId: string;
   date: string;
-  type: "rega" | "nutrientes" | "poda" | "treinamento" | "observacao" | "foto" | "defoliacao";
+  type: GrowEventType | "nutrientes" | "observacao" | "treinamento" | "foto";
   pruningType?: PruningType;
   notes: string;
   ph?: number;
+  ppm?: number;
   phRunoff?: number;
+  ppmRunoff?: number;
   ec?: number;
   waterAmount?: number;
+  irrigationType?: WaterIrrigationType;
   fertilizersUsed?: DiaryFertilizerUsage[];
   photoUrl?: string;
   createdAt: string;
