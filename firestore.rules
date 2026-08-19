@@ -72,6 +72,11 @@ service cloud.firestore {
       allow create: if isOwner(request.resource.data.userId);
     }
 
+    match /userProfiles/{docId} {
+      allow read: if isAuth();
+      allow write: if (isAuth() && request.auth.uid == docId) || isAdmin();
+    }
+
     match /grow_events/{docId} {
       allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);

@@ -3,6 +3,9 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
+  setDoc,
+  doc,
   query,
   where,
   orderBy,
@@ -32,9 +35,19 @@ export interface CommunityPost {
   createdAt: string;
 }
 
+export interface UserProfileData {
+  userId: string;
+  handle: string;
+  bio?: string;
+  avatarUrl?: string;
+  updatedAt?: string;
+}
+
 export interface UserPublicProfile {
   userId: string;
   handle: string;
+  bio?: string;
+  avatarUrl?: string;
   activePlants: PublicPlant[];
   spaces: PublicSpace[];
   harvestCount: number;
@@ -65,6 +78,25 @@ const POSTS_COLLECTION = "communityPosts";
 
 export function makeHandle(userId: string) {
   return `grower_${userId.slice(-4)}`;
+}
+
+// ─── User profile ─────────────────────────────────────────────────────────────
+
+export async function getUserProfileData(userId: string): Promise<UserProfileData | null> {
+  const snap = await getDoc(doc(db, "userProfiles", userId));
+  if (!snap.exists()) return null;
+  return { userId, ...snap.data() } as UserProfileData;
+}
+
+export async function upsertUserProfileData(
+  userId: string,
+  data: Partial<Omit<UserProfileData, "userId" | "updatedAt">>
+): Promise<void> {
+  await setDoc(
+    doc(db, "userProfiles", userId),
+    { ...data, userId, updatedAt: serverTimestamp() },
+    { merge: true }
+  );
 }
 
 // ─── Posts ────────────────────────────────────────────────────────────────────
@@ -105,7 +137,7 @@ export async function getUserPosts(userId: string, limitCount = 12): Promise<Com
 // ─── Profile ──────────────────────────────────────────────────────────────────
 
 export async function getUserPublicProfile(userId: string): Promise<UserPublicProfile | null> {
-  const [spacesSnap, plantsSnap, harvestsSnap, postsSnap] = await Promise.all([
+  const [spacesSnap, plantsSnap, harvestsSnap, postsSnap, profileSnap] = await Promise.all([
     getDocs(query(collection(db, "spaces"), where("userId", "==", userId))),
     getDocs(query(collection(db, "plants"), where("userId", "==", userId))),
     getDocs(query(collection(db, "harvest_logs"), where("userId", "==", userId))),
@@ -115,7 +147,10 @@ export async function getUserPublicProfile(userId: string): Promise<UserPublicPr
       orderBy("createdAt", "desc"),
       limit(9)
     )),
+    getDoc(doc(db, "userProfiles", userId)),
   ]);
+
+  const profileData = profileSnap.exists() ? (profileSnap.data() as UserProfileData) : null;
 
   const spaces: PublicSpace[] = spacesSnap.docs.map((d) => {
     const raw = { id: d.id, ...d.data() } as GrowSpace;
@@ -142,7 +177,9 @@ export async function getUserPublicProfile(userId: string): Promise<UserPublicPr
 
   return {
     userId,
-    handle: makeHandle(userId),
+    handle: profileData?.handle ?? makeHandle(userId),
+    bio: profileData?.bio,
+    avatarUrl: profileData?.avatarUrl,
     activePlants,
     spaces,
     harvestCount,

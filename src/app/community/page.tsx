@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { STAGE_LABELS, STAGE_COLORS, MEDIUM_LABELS } from "@/lib/constants";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
-import { Users, Plus, Loader2, ImageOff, MapPin, Zap, CalendarDays } from "lucide-react";
+import { Users, Plus, ImageOff, MapPin, Zap, CalendarDays, UserCircle2 } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -145,33 +145,35 @@ export default function CommunityPage() {
       <div className="space-y-5 max-w-2xl mx-auto">
         {/* Header */}
         <MotionItem>
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
                 <Users size={18} className="text-primary" />
               </div>
               <div>
                 <h1 className="text-2xl font-bold">Comunidade</h1>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  {user && (
-                    <>
-                      <Link href={`/community/${user.uid}`} className="text-primary hover:underline text-xs">
-                        {makeHandle(user.uid)}
-                      </Link>
-                      <span className="text-muted-foreground/50"> · </span>
-                    </>
-                  )}
-                  <span className="text-xs">Seu perfil público</span>
-                </p>
+                <p className="text-xs text-muted-foreground mt-0.5">Feed de posts dos growers</p>
               </div>
             </div>
-            <Button
-              onClick={() => setOpen(true)}
-              className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90"
-            >
-              <Plus size={15} />
-              Postar
-            </Button>
+            <div className="flex items-center gap-2 shrink-0">
+              {user && (
+                <Link
+                  href={`/community/${user.uid}`}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-foreground hover:text-primary hover:border-primary/40 transition-colors"
+                >
+                  <UserCircle2 size={14} />
+                  Meu Perfil
+                </Link>
+              )}
+              <Button
+                onClick={() => setOpen(true)}
+                size="sm"
+                className="gap-1.5 bg-primary text-primary-foreground hover:bg-primary/90 text-xs"
+              >
+                <Plus size={14} />
+                Postar
+              </Button>
+            </div>
           </div>
         </MotionItem>
 

@@ -25,6 +25,18 @@ export async function uploadDiaryPhoto(userId: string, entryId: string, file: Fi
   return getDownloadURL(storageRef);
 }
 
+export async function uploadUserAvatar(userId: string, file: File): Promise<string> {
+  const ext = file.name.split(".").pop() ?? "jpg";
+  const storageRef = ref(storage, `avatars/${userId}/avatar.${ext}`);
+  await new Promise<void>((resolve, reject) => {
+    const tid = setTimeout(() => reject(new Error("Upload excedeu 20s.")), 20000);
+    uploadBytes(storageRef, file)
+      .then(() => { clearTimeout(tid); resolve(); })
+      .catch(err => { clearTimeout(tid); reject(err); });
+  });
+  return getDownloadURL(storageRef);
+}
+
 export async function uploadCommunityPostPhoto(userId: string, file: File): Promise<string> {
   const ext = file.name.split(".").pop() ?? "jpg";
   const storageRef = ref(storage, `community/${userId}/${Date.now()}.${ext}`);
