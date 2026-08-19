@@ -92,9 +92,12 @@ export async function upsertUserProfileData(
   userId: string,
   data: Partial<Omit<UserProfileData, "userId" | "updatedAt">>
 ): Promise<void> {
+  const clean = Object.fromEntries(
+    Object.entries(data).filter(([, v]) => v !== undefined)
+  );
   await setDoc(
     doc(db, "userProfiles", userId),
-    { ...data, userId, updatedAt: serverTimestamp() },
+    { ...clean, userId, updatedAt: serverTimestamp() },
     { merge: true }
   );
 }
