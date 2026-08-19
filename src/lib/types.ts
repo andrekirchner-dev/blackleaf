@@ -136,6 +136,11 @@ export interface Plant {
   germinationDate: string;
   stageChangedAt: string;
   potSize?: number;
+  // Per-phase planned durations (weeks). Used by calendar and phase tracker.
+  germWeeks?: number;
+  seedlingWeeks?: number;
+  harvestWeeks?: number;
+  dryingWeeks?: number;
   notes?: string;
   photoUrl?: string;
   photos?: string[];

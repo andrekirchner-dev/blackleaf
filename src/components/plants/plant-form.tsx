@@ -111,6 +111,11 @@ export function PlantForm({ plant }: { plant?: Plant }) {
     ruderalisPercent:    plant?.ruderalisPercent?.toString() ?? "",
     geneticsCross:       plant?.geneticsCross ?? "",
     floweringWeeks:      plant?.floweringWeeks?.toString() ?? "",
+    germWeeks:           plant?.germWeeks?.toString() ?? "",
+    seedlingWeeks:       plant?.seedlingWeeks?.toString() ?? "",
+    vegWeeks:            plant?.vegWeeks?.toString() ?? "",
+    harvestWeeks:        plant?.harvestWeeks?.toString() ?? "",
+    dryingWeeks:         plant?.dryingWeeks?.toString() ?? "",
     thcEstimate:         plant?.thcEstimate ?? "",
     cbdEstimate:         plant?.cbdEstimate ?? "",
     effects:             plant?.effects ?? "",
@@ -154,6 +159,11 @@ export function PlantForm({ plant }: { plant?: Plant }) {
       ruderalisPercent:    form.ruderalisPercent ? Number(form.ruderalisPercent) : undefined,
       geneticsCross:       form.geneticsCross.trim() || undefined,
       floweringWeeks:      form.floweringWeeks ? Number(form.floweringWeeks) : undefined,
+      germWeeks:           form.germWeeks ? Number(form.germWeeks) : undefined,
+      seedlingWeeks:       form.seedlingWeeks ? Number(form.seedlingWeeks) : undefined,
+      vegWeeks:            form.vegWeeks ? Number(form.vegWeeks) : undefined,
+      harvestWeeks:        form.harvestWeeks ? Number(form.harvestWeeks) : undefined,
+      dryingWeeks:         form.dryingWeeks ? Number(form.dryingWeeks) : undefined,
       thcEstimate:         form.thcEstimate.trim() || undefined,
       cbdEstimate:         form.cbdEstimate.trim() || undefined,
       effects:             form.effects.trim() || undefined,
@@ -654,7 +664,56 @@ export function PlantForm({ plant }: { plant?: Plant }) {
         )}
       </Section>
 
-      {/* 4 — Cultivo */}
+      {/* 4 — Cronograma de Fases */}
+      <Section
+        id="cronograma"
+        title="Cronograma de Fases"
+        summary={[
+          form.seedlingWeeks ? `Muda ${form.seedlingWeeks}s` : "",
+          form.vegWeeks ? `Veg ${form.vegWeeks}s` : "",
+          form.floweringWeeks ? `Flora ${form.floweringWeeks}s` : "",
+        ].filter(Boolean).join(" · ") || "Semanas por fase"}
+        open={open.has("cronograma")}
+        onToggle={toggle}
+      >
+        <p className="text-xs text-muted-foreground mb-3">
+          Configure a duração planejada de cada fase. Usado para calcular o progresso e o calendário de cultivo.
+        </p>
+        <div className="grid grid-cols-3 gap-3">
+          {[
+            { id: "germWeeks",     emoji: "🌱", label: "Germinação", key: "germWeeks"     as const, placeholder: "1",  min: 1, max: 4  },
+            { id: "seedlingWeeks", emoji: "🌿", label: "Muda",       key: "seedlingWeeks" as const, placeholder: "2",  min: 1, max: 8  },
+            { id: "vegWeeks",      emoji: "🍃", label: "Vegetativo", key: "vegWeeks"      as const, placeholder: "8",  min: 1, max: 20 },
+            { id: "floweringWks",  emoji: "🌸", label: "Floração",   key: "floweringWeeks" as const, placeholder: "9", min: 4, max: 20 },
+            { id: "harvestWeeks",  emoji: "🌾", label: "Colheita",   key: "harvestWeeks"  as const, placeholder: "1",  min: 1, max: 4  },
+            { id: "dryingWeeks",   emoji: "🍂", label: "Secagem",    key: "dryingWeeks"   as const, placeholder: "2",  min: 1, max: 8  },
+          ].map(({ id, emoji, label, key, placeholder, min, max }) => (
+            <div key={id} className="space-y-1.5">
+              <Label htmlFor={id} className="flex items-center gap-1.5 text-xs">
+                <span>{emoji}</span>
+                {label}
+              </Label>
+              <div className="relative">
+                <Input
+                  id={id}
+                  type="number"
+                  min={min}
+                  max={max}
+                  placeholder={placeholder}
+                  value={form[key]}
+                  onChange={(e) => set(key, e.target.value)}
+                  className="bg-background border-border pr-9"
+                />
+                <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                  sem
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Section>
+
+      {/* 5 — Cultivo */}
       <Section
         id="cultivo"
         title="Configuração do Cultivo"

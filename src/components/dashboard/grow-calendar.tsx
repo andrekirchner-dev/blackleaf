@@ -4,8 +4,6 @@ import { useMemo } from "react";
 import type { Plant, GrowStyle } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
-const SEEDLING_WEEKS = 2;
-
 const PHASE_COLORS = {
   semente: "bg-yellow-500/40",
   muda: "bg-lime-500/40",
@@ -28,7 +26,7 @@ interface PlantTimeline {
 function buildTimeline(plant: Plant, style?: GrowStyle): PlantTimeline {
   const germinationMs = new Date(plant.germinationDate).getTime();
   const nowMs = Date.now();
-  const seedlingWeeks = SEEDLING_WEEKS;
+  const seedlingWeeks = plant.seedlingWeeks ?? 2;
   const vegWeeks = plant.vegWeeks ?? style?.vegWeeks ?? 5;
   const floweringWeeks = plant.floweringWeeks ?? 9;
   const totalWeeks = seedlingWeeks + vegWeeks + floweringWeeks;
