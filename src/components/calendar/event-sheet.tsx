@@ -30,6 +30,30 @@ const IRRIGATION_TYPES: { value: WaterIrrigationType; label: string; desc: strin
 const WATER_TYPES: GrowEventType[] = ["rega", "rega_fertilizante", "flush_pre_flip", "flush_pre_colheita"];
 const RUNOFF_TYPES: GrowEventType[] = ["run_off"];
 
+function getSuggestedWater(plant: Plant): { min: number; max: number; label: string } | null {
+  if (!plant.potSize) return null;
+  const L = plant.potSize;
+  switch (plant.stage) {
+    case "semente":
+    case "muda": {
+      const v = Math.round(L * 50);
+      return { min: v, max: v, label: `~${v} mL` };
+    }
+    case "vegetativo": {
+      const v = Math.round(L * 100);
+      return { min: v, max: v, label: `~${v} mL` };
+    }
+    case "floracao":
+    case "colheita": {
+      const min = Math.round(L * 120);
+      const max = Math.round(L * 150);
+      return { min, max, label: `${min}–${max} mL` };
+    }
+    default:
+      return null;
+  }
+}
+
 interface Props {
   open: boolean;
   onClose: () => void;
@@ -468,22 +492,44 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
                 <div className="flex flex-wrap gap-2">
                   {plants.map((p) => {
                     const selected = plantIds.includes(p.id);
+                    const suggestion = (showWaterFields || showRunoffFields) ? getSuggestedWater(p) : null;
+                    const applyVolume = suggestion
+                      ? Math.round((suggestion.min + suggestion.max) / 2)
+                      : null;
                     return (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => togglePlant(p.id)}
-                        className={cn(
-                          "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all",
-                          selected
-                            ? "bg-primary/15 border-primary/40 text-primary"
-                            : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border/80"
+                      <div key={p.id} className="flex flex-col gap-0.5">
+                        <button
+                          type="button"
+                          onClick={() => togglePlant(p.id)}
+                          className={cn(
+                            "flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-all",
+                            selected
+                              ? "bg-primary/15 border-primary/40 text-primary"
+                              : "bg-background border-border text-muted-foreground hover:text-foreground hover:border-border/80"
+                          )}
+                        >
+                          {selected && <span className="text-[10px]">✓</span>}
+                          <span>{p.name}</span>
+                          {p.strain && <span className="opacity-60">· {p.strain}</span>}
+                          {suggestion && (
+                            <span className={cn(
+                              "ml-0.5 text-[10px] font-semibold",
+                              selected ? "text-cyan-400" : "text-cyan-400/60"
+                            )}>
+                              {suggestion.label}
+                            </span>
+                          )}
+                        </button>
+                        {selected && applyVolume != null && (
+                          <button
+                            type="button"
+                            onClick={() => setWaterAmount(String(applyVolume))}
+                            className="self-start ml-3 text-[10px] text-cyan-400 hover:text-cyan-300 hover:underline transition-colors"
+                          >
+                            Usar sugerido ({applyVolume} mL)
+                          </button>
                         )}
-                      >
-                        {selected && <span className="text-[10px]">✓</span>}
-                        <span>{p.name}</span>
-                        {p.strain && <span className="opacity-60">· {p.strain}</span>}
-                      </button>
+                      </div>
                     );
                   })}
                 </div>
