@@ -124,6 +124,7 @@ const PRIMARY_LINKS: NavItem[] = [
   { href: "/spaces", label: "Espaços", icon: LayoutGrid },
   { href: "/diary", label: "Diário", icon: BookOpen },
   { href: "/calendar", label: "Calendário", icon: CalendarDays },
+  { href: "/community", label: "Comunidade", icon: Users },
 ];
 
 function DrawerGroup({
@@ -220,15 +221,15 @@ const ADMIN_EMAIL = "kirchner.andre@gmail.com";
 
 // Pages that show a back button instead of (or alongside) logo
 const BACK_ROUTES: { match: (p: string) => boolean; label: string; href: string }[] = [
-  { match: (p) => p.startsWith("/tools/"),   label: "Ferramentas", href: "/dashboard" },
-  { match: (p) => p === "/tasks",            label: "Dashboard",   href: "/dashboard" },
-  { match: (p) => p === "/shopping",         label: "Dashboard",   href: "/dashboard" },
-  { match: (p) => p === "/community",        label: "Dashboard",   href: "/dashboard" },
-  { match: (p) => p === "/archive",          label: "Dashboard",   href: "/dashboard" },
-  { match: (p) => p === "/seeds",            label: "Dashboard",   href: "/dashboard" },
-  { match: (p) => p === "/nutrients",        label: "Dashboard",   href: "/dashboard" },
-  { match: (p) => p === "/admin",            label: "Dashboard",   href: "/dashboard" },
-  { match: (p) => p === "/settings",         label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p.startsWith("/tools/"),          label: "Ferramentas", href: "/dashboard" },
+  { match: (p) => p === "/tasks",                   label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/shopping",                label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/archive",                 label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/seeds",                   label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/nutrients",               label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/admin",                   label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/settings",                label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p.startsWith("/community/") && p !== "/community", label: "Comunidade", href: "/community" },
 ];
 
 export function TopNav() {
