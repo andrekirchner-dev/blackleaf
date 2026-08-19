@@ -11,11 +11,14 @@ export function useDiary() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getUserEntries(user.uid);
       setEntries(data);
+    } catch (err) {
+      console.error("[useDiary]", err);
+      setEntries([]);
     } finally {
       setLoading(false);
     }

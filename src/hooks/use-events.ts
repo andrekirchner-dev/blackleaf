@@ -11,12 +11,13 @@ export function useEvents() {
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
-    if (!user) return;
+    if (!user) { setLoading(false); return; }
     setLoading(true);
     try {
       const data = await getUserEvents(user.uid);
       setEvents(data);
-    } catch {
+    } catch (err) {
+      console.error("[useEvents]", err);
       setEvents([]);
     } finally {
       setLoading(false);
