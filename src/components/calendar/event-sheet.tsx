@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { createGrowEvent } from "@/lib/events";
+import { updatePlant } from "@/lib/plants";
 import { GROW_EVENT_TYPES } from "@/lib/event-constants";
 import { PRUNING_TYPES } from "@/lib/pruning-constants";
 import { useFertilizers } from "@/hooks/use-fertilizers";
@@ -181,6 +182,15 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
         ppmRunoff: showRunoffFields && ppmRunoff ? Number(ppmRunoff) : undefined,
         fertilizersUsed: showFertilizers && selectedFertilizers.length > 0 ? selectedFertilizers : undefined,
       });
+
+      // flip_verificacao adds 10 extra days to each selected plant's veg phase
+      if (type === "flip_verificacao" && plantIds.length > 0) {
+        await Promise.allSettled(
+          plants
+            .filter((p) => plantIds.includes(p.id))
+            .map((p) => updatePlant(p.id, { vegExtraDays: (p.vegExtraDays ?? 0) + 10 }))
+        );
+      }
 
       onSaved();
       setSaved(true);

@@ -25,7 +25,7 @@ function getStageDurationDays(plant: Plant, stage: GrowStage): number {
   switch (stage) {
     case "semente":   return plant.germWeeks      ? weeksTodays(plant.germWeeks)      : STAGE_DURATION_DEFAULTS.semente;
     case "muda":      return plant.seedlingWeeks  ? weeksTodays(plant.seedlingWeeks)  : STAGE_DURATION_DEFAULTS.muda;
-    case "vegetativo":return plant.vegWeeks       ? weeksTodays(plant.vegWeeks)       : STAGE_DURATION_DEFAULTS.vegetativo;
+    case "vegetativo":return (plant.vegWeeks ? weeksTodays(plant.vegWeeks) : STAGE_DURATION_DEFAULTS.vegetativo) + (plant.vegExtraDays ?? 0);
     case "floracao":  return plant.floweringWeeks ? weeksTodays(plant.floweringWeeks) : STAGE_DURATION_DEFAULTS.floracao;
     case "colheita":  return plant.harvestWeeks   ? weeksTodays(plant.harvestWeeks)   : STAGE_DURATION_DEFAULTS.colheita;
     case "secagem":   return plant.dryingWeeks    ? weeksTodays(plant.dryingWeeks)    : STAGE_DURATION_DEFAULTS.secagem;

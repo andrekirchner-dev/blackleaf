@@ -58,7 +58,7 @@ export type GrowEventType =
   | "flush_pre_flip" | "flush_pre_colheita" | "escuridao"
   | "colheita" | "secagem" | "germinacao" | "transplante"
   | "top_dress" | "retirar_clones" | "cura" | "defoliacao"
-  | "run_off";
+  | "run_off" | "flip" | "flip_verificacao";
 
 export type WaterIrrigationType = "manual" | "gotejamento" | "aspersao" | "automatico";
 
@@ -141,6 +141,8 @@ export interface Plant {
   seedlingWeeks?: number;
   harvestWeeks?: number;
   dryingWeeks?: number;
+  // Extra days added to veg phase (e.g. from flip_verificacao events)
+  vegExtraDays?: number;
   notes?: string;
   photoUrl?: string;
   photos?: string[];

@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { createPlant, updatePlant } from "@/lib/plants";
+import { createGrowEvent } from "@/lib/events";
 import { uploadPlantPhoto } from "@/lib/storage";
 import { useSpaces } from "@/hooks/use-spaces";
 import { getSpaceMeta } from "@/lib/space-constants";
@@ -249,6 +250,29 @@ export function PlantForm({ plant }: { plant?: Plant }) {
           setLoading(false);
           setStep("");
           return;
+        }
+
+        // Auto-register stage change event in the grow diary
+        if (form.stage !== plant.stage) {
+          const today = new Date();
+          const dateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+          const stageEventMap: Partial<Record<string, import("@/lib/types").GrowEventType>> = {
+            "vegetativo→floracao": "flip",
+            "floracao→colheita":   "colheita",
+            "colheita→secagem":    "secagem",
+            "semente→muda":        "germinacao",
+            "muda→vegetativo":     "transplante",
+          };
+          const transitionKey = `${plant.stage}→${form.stage}`;
+          const eventType = stageEventMap[transitionKey];
+          if (eventType) {
+            await createGrowEvent(user.uid, {
+              plantId: plant.id,
+              type: eventType,
+              date: dateStr,
+              notes: `Mudança de fase: ${plant.stage} → ${form.stage}`,
+            }).catch(() => { /* non-blocking */ });
+          }
         }
 
         setStep("Redirecionando...");

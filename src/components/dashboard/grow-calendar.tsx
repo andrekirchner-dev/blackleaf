@@ -27,7 +27,8 @@ function buildTimeline(plant: Plant, style?: GrowStyle): PlantTimeline {
   const germinationMs = new Date(plant.germinationDate).getTime();
   const nowMs = Date.now();
   const seedlingWeeks = plant.seedlingWeeks ?? 2;
-  const vegWeeks = plant.vegWeeks ?? style?.vegWeeks ?? 5;
+  const vegExtraDays = plant.vegExtraDays ?? 0;
+  const vegWeeks = (plant.vegWeeks ?? style?.vegWeeks ?? 5) + vegExtraDays / 7;
   const floweringWeeks = plant.floweringWeeks ?? 9;
   const totalWeeks = seedlingWeeks + vegWeeks + floweringWeeks;
   const currentWeek = Math.floor((nowMs - germinationMs) / (7 * 86_400_000));
