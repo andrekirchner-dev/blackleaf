@@ -13,6 +13,7 @@ import {
 import type { AdminStats, AdminUser, AdminPlant } from "@/lib/admin";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 import { cn } from "@/lib/utils";
+import Link from "next/link";
 import {
   Shield,
   Users,
@@ -28,6 +29,7 @@ import {
   ChevronDown,
   ChevronUp,
   Activity,
+  ArrowLeft,
 } from "lucide-react";
 import { STAGE_LABELS } from "@/lib/constants";
 import type { GrowStage } from "@/lib/types";
@@ -224,12 +226,20 @@ export default function AdminPage() {
       <div className="max-w-2xl mx-auto px-4 py-6 space-y-6">
         <MotionItem>
           <div className="flex items-center justify-between">
-            <div>
-              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
-                <Shield size={22} className="text-accent" />
-                Painel Admin
-              </h1>
-              <p className="text-muted-foreground text-sm mt-0.5">Acesso restrito ao administrador</p>
+            <div className="flex items-center gap-3">
+              <Link
+                href="/dashboard"
+                className="p-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-sidebar-accent transition-colors"
+              >
+                <ArrowLeft size={16} />
+              </Link>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                  <Shield size={22} className="text-accent" />
+                  Painel Admin
+                </h1>
+                <p className="text-muted-foreground text-sm mt-0.5">Acesso restrito ao administrador</p>
+              </div>
             </div>
             <button
               onClick={handleRefresh}
