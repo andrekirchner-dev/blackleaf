@@ -155,14 +155,31 @@ export async function POST(req: NextRequest) {
 
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({
-      model: "gemini-flash-latest",
+      model: "gemini-2.0-flash",
       generationConfig: { responseMimeType: "application/json" },
     });
 
-    const result = await model.generateContent([
+    const parts = [
       { text: prompt },
       { inlineData: { mimeType: mimeType || "image/jpeg", data: imageBase64 } },
-    ]);
+    ];
+
+    // Retry up to 3 times on 503 (transient overload)
+    let result;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        result = await model.generateContent(parts);
+        break;
+      } catch (e) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (attempt < 3 && msg.includes("503")) {
+          await new Promise((r) => setTimeout(r, attempt * 1500));
+          continue;
+        }
+        throw e;
+      }
+    }
+    if (!result) throw new Error("Falha após 3 tentativas.");
 
     const raw = JSON.parse(result.response.text());
 
