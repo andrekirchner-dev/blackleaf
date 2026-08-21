@@ -22,6 +22,7 @@ export type ShoppingCategory =
   | "equipamentos"
   | "sementes"
   | "controle"
+  | "extração"
   | "outros";
 
 export interface ShoppingItem {
@@ -123,6 +124,7 @@ export const SHOPPING_CATEGORIES: Record<
   equipamentos: { label: "Equipamentos", emoji: "🔧" },
   sementes: { label: "Sementes", emoji: "🌱" },
   controle: { label: "Controle de Pragas", emoji: "🛡️" },
+  extração: { label: "Extração", emoji: "⚗️" },
   outros: { label: "Outros", emoji: "📦" },
 };
 
