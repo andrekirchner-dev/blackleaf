@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { getPlant, deletePlant, advanceStage, archivePlant, updatePlant } from "@/lib/plants";
+import { getPlantEntries } from "@/lib/diary";
+import type { DiaryEntry } from "@/lib/types";
 import { STAGE_LABELS, STAGE_ORDER, STAGE_COLORS, STAGE_DOT, ENV_LABELS, MEDIUM_LABELS } from "@/lib/constants";
 import type { Plant, GrowStage } from "@/lib/types";
 import { differenceInDays, parseISO, format } from "date-fns";
@@ -14,7 +16,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import {
   Leaf, Calendar, Droplets, FlaskConical, Pencil, Trash2,
   ChevronRight, ChevronLeft, ArrowLeft, Thermometer, Sprout, Dna, Clock,
-  TrendingUp, BookOpen, History, Archive, MoveRight, Check,
+  TrendingUp, BookOpen, History, Archive, MoveRight, Check, Images, X,
 } from "lucide-react";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
@@ -43,6 +45,8 @@ export default function PlantDetailPage() {
   const { spaces } = useSpaces();
   const [plant, setPlant] = useState<Plant | null>(null);
   const [loading, setLoading] = useState(true);
+  const [diaryEntries, setDiaryEntries] = useState<DiaryEntry[]>([]);
+  const [lightboxSrc, setLightboxSrc] = useState<string | null>(null);
   const [advancing, setAdvancing] = useState(false);
   const [regressing, setRegressing] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -61,6 +65,7 @@ export default function PlantDetailPage() {
 
   useEffect(() => {
     getPlant(id).then(setPlant).finally(() => setLoading(false));
+    getPlantEntries(id).then(setDiaryEntries).catch(() => {});
   }, [id]);
 
   async function handleAdvanceStage() {
@@ -379,6 +384,48 @@ export default function PlantDetailPage() {
         </CardContent>
       </Card>
 
+      {/* Timeline fotográfica */}
+      {(() => {
+        const diaryPhotos = diaryEntries
+          .filter((e) => e.photoUrl)
+          .map((e) => ({ src: e.photoUrl!, date: e.date, label: e.type }));
+        const plantPhotos = (plant.photos ?? [])
+          .filter((url) => url !== plant.photoUrl)
+          .map((url) => ({ src: url, date: plant.createdAt?.slice(0, 10) ?? "", label: "foto" }));
+        const allPhotos = [...diaryPhotos, ...plantPhotos];
+        if (allPhotos.length === 0) return null;
+        return (
+          <Card className="bg-card border-border overflow-hidden">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <Images size={14} />
+                Timeline de Fotos
+                <span className="text-[10px] normal-case font-normal bg-muted/40 px-1.5 py-0.5 rounded-full">{allPhotos.length}</span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-0 pb-4">
+              <div className="flex gap-2.5 overflow-x-auto px-5 pb-1 scrollbar-hide snap-x snap-mandatory">
+                {allPhotos.map((p, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setLightboxSrc(p.src)}
+                    className="shrink-0 snap-start group relative w-28 h-28 rounded-xl overflow-hidden border border-border hover:border-primary/40 transition-colors"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={p.src} alt="" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                    {p.date && (
+                      <div className="absolute bottom-0 inset-x-0 bg-black/60 px-1.5 py-1 text-[9px] text-white/80 truncate">
+                        {p.date}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       {/* Histórico de cultivos anteriores */}
       {plant.previousGrowNotes && (
         <Card className="bg-card border-border">
@@ -409,6 +456,28 @@ export default function PlantDetailPage() {
       <p className="text-xs text-muted-foreground/50 text-center pb-2">
         Cadastrada em {format(parseISO(plant.createdAt || new Date().toISOString()), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
       </p>
+
+      {/* Lightbox */}
+      {lightboxSrc && (
+        <div
+          className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center p-4"
+          onClick={() => setLightboxSrc(null)}
+        >
+          <button
+            className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors"
+            onClick={() => setLightboxSrc(null)}
+          >
+            <X size={24} />
+          </button>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={lightboxSrc}
+            alt=""
+            className="max-w-full max-h-[90vh] object-contain rounded-xl"
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
 
       {/* Move to space sheet */}
       <Sheet open={moveSheetOpen} onOpenChange={setMoveSheetOpen}>

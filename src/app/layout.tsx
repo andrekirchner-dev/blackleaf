@@ -9,6 +9,7 @@ const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"]
 export const metadata: Metadata = {
   title: "Blackleaf — Grow Monitor",
   description: "Tecnologia • Cannabis • Exclusividade",
+  manifest: "/manifest.json",
   icons: {
     icon: "/logo-icon.png",
     apple: "/logo-icon.png",

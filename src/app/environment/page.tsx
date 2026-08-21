@@ -16,9 +16,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Thermometer, Droplets, Wind, Plus, Trash2, Loader2, Star, Lightbulb, ArrowUp, ArrowDown } from "lucide-react";
-import { format } from "date-fns";
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
+import type { TooltipContentProps } from "recharts";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
+import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 function fmt(date: string) {
@@ -35,6 +39,33 @@ function fmtShort(date: string) {
   } catch {
     return date.slice(5, 10);
   }
+}
+
+function fmtChartLabel(date: string, multiDay: boolean) {
+  try {
+    const d = parseISO(date);
+    return multiDay ? format(d, "dd/MM HH:mm") : format(d, "HH:mm");
+  } catch {
+    return date.slice(11, 16);
+  }
+}
+
+function EnvAreaTooltip({ active, payload, label }: TooltipContentProps<ValueType, NameType>) {
+  if (!active || !payload || payload.length === 0) return null;
+  return (
+    <div className="bg-card border border-border rounded-xl px-3 py-2 text-xs shadow-lg space-y-1">
+      <p className="text-muted-foreground mb-1">{label}</p>
+      {payload.map((entry) => (
+        <div key={String(entry.dataKey)} className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: entry.color as string }} />
+          <span className="text-foreground font-medium">
+            {entry.name}: {entry.value != null ? String(entry.value) : "—"}
+            {entry.dataKey === "temperature" ? "°C" : "%"}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 function localDatetimeStr(d = new Date()) {
@@ -399,6 +430,85 @@ export default function EnvironmentPage() {
       </div>
       </MotionItem>
 
+      {/* Temp & Humidity Area Chart */}
+      {filteredRecords.length > 1 && (() => {
+        const last20 = [...filteredRecords].reverse().slice(-20);
+        const spanMs = new Date(last20[last20.length - 1].recordedAt).getTime() - new Date(last20[0].recordedAt).getTime();
+        const multiDay = spanMs > 1000 * 60 * 60 * 24;
+        const chartData = last20.map((r) => ({
+          label: fmtChartLabel(r.recordedAt, multiDay),
+          temperature: r.temperature ?? null,
+          humidity: r.humidity ?? null,
+        }));
+        return (
+          <MotionItem>
+          <Card className="bg-card border-border">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold">Temperatura & Umidade</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <AreaChart data={chartData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                  <defs>
+                    <linearGradient id="gradTemp" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="gradHum" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis
+                    dataKey="label"
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    tickLine={false}
+                    axisLine={false}
+                    interval="equidistantPreserveStart"
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <Tooltip content={<EnvAreaTooltip />} />
+                  <Legend
+                    iconType="circle"
+                    iconSize={8}
+                    wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                    formatter={(value) =>
+                      value === "temperature" ? "Temperatura (°C)" : "Umidade (%)"
+                    }
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="temperature"
+                    name="temperature"
+                    stroke="hsl(var(--primary))"
+                    strokeWidth={2}
+                    fill="url(#gradTemp)"
+                    dot={false}
+                    connectNulls
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="humidity"
+                    name="humidity"
+                    stroke="#22d3ee"
+                    strokeWidth={2}
+                    fill="url(#gradHum)"
+                    dot={false}
+                    connectNulls
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          </MotionItem>
+        );
+      })()}
+
       {/* History */}
       <MotionItem>
       <Card className="bg-card border-border">
@@ -414,7 +524,11 @@ export default function EnvironmentPage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-xs text-muted-foreground py-4 text-center">Carregando...</p>
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 rounded-xl" />
+              ))}
+            </div>
           ) : filteredRecords.length === 0 ? (
             <div className="py-8 text-center">
               <Thermometer size={28} className="mx-auto text-muted-foreground/30 mb-2" />

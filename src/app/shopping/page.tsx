@@ -16,11 +16,18 @@ import {
 } from "@/lib/shopping";
 import { cn } from "@/lib/utils";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
-import { motion, AnimatePresence } from "framer-motion";
+import {
+  motion,
+  AnimatePresence,
+  useMotionValue,
+  useTransform,
+  useAnimation,
+} from "framer-motion";
 import { Plus, Trash2, ShoppingCart, Check, X, ExternalLink, Link2, Minus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface ItemFormData {
   name: string;
@@ -284,77 +291,133 @@ function ShoppingItemRow({
   const category = SHOPPING_CATEGORIES[item.category];
   const purchased = item.status === "purchased";
 
+  const x = useMotionValue(0);
+  const controls = useAnimation();
+
+  // Background colours: right = green (toggle), left = red (delete)
+  const rightBgOpacity = useTransform(x, [0, 80], [0, 1]);
+  const leftBgOpacity = useTransform(x, [-80, 0], [1, 0]);
+
+  async function handleDragEnd(
+    _event: MouseEvent | TouchEvent | PointerEvent,
+    info: { offset: { x: number } }
+  ) {
+    const threshold = 60;
+
+    if (info.offset.x > threshold) {
+      // Swipe right → toggle
+      await controls.start({ x: 0, transition: { type: "spring", stiffness: 400, damping: 40 } });
+      toggleShoppingItem(item.id, item.status);
+    } else if (info.offset.x < -threshold) {
+      // Swipe left → delete
+      await controls.start({ x: 0, transition: { type: "spring", stiffness: 400, damping: 40 } });
+      deleteShoppingItem(item.id);
+    } else {
+      // Not enough → snap back
+      controls.start({ x: 0, transition: { type: "spring", stiffness: 400, damping: 40 } });
+    }
+  }
+
   return (
     <motion.div
       layout
       initial={{ opacity: 0, x: -8 }}
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 8 }}
-      className={cn(
-        "flex items-center gap-3 p-3 rounded-xl border transition-all",
-        purchased ? "bg-muted/10 border-border/50 opacity-60" : "bg-card border-border"
-      )}
+      className="relative rounded-xl overflow-hidden"
     >
-      {/* Toggle */}
-      <button
-        onClick={() => toggleShoppingItem(item.id, item.status)}
+      {/* Right background — toggle (green) */}
+      <motion.div
+        style={{ opacity: rightBgOpacity }}
+        className="absolute inset-0 bg-green-600 flex items-center justify-start pl-5 z-0"
+        aria-hidden="true"
+      >
+        <Check size={20} className="text-white" />
+      </motion.div>
+
+      {/* Left background — delete (red) */}
+      <motion.div
+        style={{ opacity: leftBgOpacity }}
+        className="absolute inset-0 bg-red-600 flex items-center justify-end pr-5 z-0"
+        aria-hidden="true"
+      >
+        <Trash2 size={20} className="text-white" />
+      </motion.div>
+
+      {/* Draggable row */}
+      <motion.div
+        drag="x"
+        dragConstraints={{ left: -100, right: 100 }}
+        dragElastic={0.1}
+        style={{ x }}
+        animate={controls}
+        onDragEnd={handleDragEnd}
         className={cn(
-          "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
-          purchased ? "bg-primary border-primary" : "border-muted-foreground/40 hover:border-primary"
+          "relative z-10 flex items-center gap-3 p-3 rounded-xl border transition-all touch-pan-y",
+          purchased ? "bg-muted/10 border-border/50 opacity-60" : "bg-card border-border"
         )}
       >
-        {purchased && <Check size={10} className="text-primary-foreground" />}
-      </button>
-
-      <span className="text-base shrink-0">{category.emoji}</span>
-
-      {/* Main info — clickable to edit */}
-      <button
-        onClick={() => onEdit(item)}
-        className="flex-1 min-w-0 text-left"
-      >
-        <p className={cn("text-sm font-medium truncate", purchased ? "line-through text-muted-foreground" : "text-foreground")}>
-          {item.name}
-          {item.quantity && item.quantity > 1 && (
-            <span className="ml-1.5 text-[10px] font-normal text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded-full">
-              ×{item.quantity}
-            </span>
+        {/* Toggle */}
+        <button
+          onClick={() => toggleShoppingItem(item.id, item.status)}
+          className={cn(
+            "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all",
+            purchased ? "bg-primary border-primary" : "border-muted-foreground/40 hover:border-primary"
           )}
-        </p>
-        <div className="flex items-center gap-1.5 mt-0.5">
-          <span className={cn("text-[10px] font-medium", urgency.color)}>{urgency.label}</span>
-          {item.estimatedPrice != null && (
-            <>
-              <span className="text-muted-foreground/30">·</span>
-              <span className="text-[10px] text-muted-foreground">
-                R$ {item.estimatedPrice.toFixed(2)}
-                {item.quantity && item.quantity > 1 && (
-                  <span className="text-muted-foreground/60"> × {item.quantity} = R$ {(item.estimatedPrice * item.quantity).toFixed(2)}</span>
-                )}
-              </span>
-            </>
-          )}
-          {item.notes && (
-            <>
-              <span className="text-muted-foreground/30">·</span>
-              <span className="text-[10px] text-muted-foreground truncate">{item.notes}</span>
-            </>
-          )}
-        </div>
-      </button>
-
-      {/* External link */}
-      {item.link && (
-        <a
-          href={item.link}
-          target="_blank"
-          rel="noopener noreferrer"
-          onClick={(e) => e.stopPropagation()}
-          className="text-muted-foreground/50 hover:text-primary transition-colors shrink-0 p-1"
         >
-          <ExternalLink size={13} />
-        </a>
-      )}
+          {purchased && <Check size={10} className="text-primary-foreground" />}
+        </button>
+
+        <span className="text-base shrink-0">{category.emoji}</span>
+
+        {/* Main info — clickable to edit */}
+        <button
+          onClick={() => onEdit(item)}
+          className="flex-1 min-w-0 text-left"
+        >
+          <p className={cn("text-sm font-medium truncate", purchased ? "line-through text-muted-foreground" : "text-foreground")}>
+            {item.name}
+            {item.quantity && item.quantity > 1 && (
+              <span className="ml-1.5 text-[10px] font-normal text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded-full">
+                ×{item.quantity}
+              </span>
+            )}
+          </p>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className={cn("text-[10px] font-medium", urgency.color)}>{urgency.label}</span>
+            {item.estimatedPrice != null && (
+              <>
+                <span className="text-muted-foreground/30">·</span>
+                <span className="text-[10px] text-muted-foreground">
+                  R$ {item.estimatedPrice.toFixed(2)}
+                  {item.quantity && item.quantity > 1 && (
+                    <span className="text-muted-foreground/60"> × {item.quantity} = R$ {(item.estimatedPrice * item.quantity).toFixed(2)}</span>
+                  )}
+                </span>
+              </>
+            )}
+            {item.notes && (
+              <>
+                <span className="text-muted-foreground/30">·</span>
+                <span className="text-[10px] text-muted-foreground truncate">{item.notes}</span>
+              </>
+            )}
+          </div>
+        </button>
+
+        {/* External link */}
+        {item.link && (
+          <a
+            href={item.link}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-muted-foreground/50 hover:text-primary transition-colors shrink-0 p-1"
+          >
+            <ExternalLink size={13} />
+          </a>
+        )}
+      </motion.div>
     </motion.div>
   );
 }
@@ -455,8 +518,10 @@ export default function ShoppingPage() {
       </MotionItem>
 
       {loading ? (
-        <div className="flex justify-center py-12">
-          <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="space-y-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-14 rounded-xl" />
+          ))}
         </div>
       ) : filtered.length === 0 ? (
         <MotionItem>
