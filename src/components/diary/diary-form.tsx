@@ -28,6 +28,7 @@ interface DiaryFormProps {
   defaultType?: EntryType;
   onSuccess: () => void;
   onCancel: () => void;
+  editEntry?: DiaryEntry;
 }
 
 type EntryType = DiaryEntry["type"];
@@ -78,11 +79,15 @@ export function DiaryForm({
   defaultType,
   onSuccess,
   onCancel,
+  editEntry,
 }: DiaryFormProps) {
   const { user } = useAuth();
   const fileRef = useRef<HTMLInputElement>(null);
+  const isEditMode = !!editEntry;
 
-  const initPlantIds = defaultPlantId
+  const initPlantIds = editEntry
+    ? [editEntry.plantId]
+    : defaultPlantId
     ? [defaultPlantId]
     : plants.length === 1
     ? [plants[0].id]
@@ -92,20 +97,21 @@ export function DiaryForm({
   const [error, setError] = useState<string | null>(null);
 
   const [selectedPlantIds, setSelectedPlantIds] = useState<string[]>(initPlantIds);
-  const [type, setType] = useState<EntryType>(defaultType ?? "rega");
-  const [pruningType, setPruningType] = useState<PruningType | "">("");
-  const [irrigationType, setIrrigationType] = useState<WaterIrrigationType | "">("");
-  const [date, setDate] = useState(nowLocal);
-  const [notes, setNotes] = useState("");
-  const [ph, setPh] = useState("");
-  const [ppm, setPpm] = useState("");
-  const [phRunoff, setPhRunoff] = useState("");
-  const [ppmRunoff, setPpmRunoff] = useState("");
-  const [ec, setEc] = useState("");
-  const [waterAmount, setWaterAmount] = useState("");
-  const [selectedFertilizers, setSelectedFertilizers] = useState<DiaryFertilizerUsage[]>([]);
+  const [type, setType] = useState<EntryType>(editEntry?.type ?? defaultType ?? "rega");
+  const [pruningType, setPruningType] = useState<PruningType | "">(editEntry?.pruningType ?? "");
+  const [irrigationType, setIrrigationType] = useState<WaterIrrigationType | "">(editEntry?.irrigationType ?? "");
+  const [date, setDate] = useState(editEntry?.date ?? nowLocal());
+  const [notes, setNotes] = useState(editEntry?.notes ?? "");
+  const [ph, setPh] = useState(editEntry?.ph?.toString() ?? "");
+  const [ppm, setPpm] = useState(editEntry?.ppm?.toString() ?? "");
+  const [phRunoff, setPhRunoff] = useState(editEntry?.phRunoff?.toString() ?? "");
+  const [ppmRunoff, setPpmRunoff] = useState(editEntry?.ppmRunoff?.toString() ?? "");
+  const [ec, setEc] = useState(editEntry?.ec?.toString() ?? "");
+  const [waterAmount, setWaterAmount] = useState(editEntry?.waterAmount?.toString() ?? "");
+  const [selectedFertilizers, setSelectedFertilizers] = useState<DiaryFertilizerUsage[]>(editEntry?.fertilizersUsed ?? []);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
-  const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [photoPreview, setPhotoPreview] = useState<string | null>(editEntry?.photoUrl ?? null);
+  const [existingPhotoUrl, setExistingPhotoUrl] = useState<string | null>(editEntry?.photoUrl ?? null);
 
   const showWater = WATER_TYPES.has(type);
   const showRunoff = RUNOFF_TYPES.has(type);
@@ -148,8 +154,9 @@ export function DiaryForm({
 
   function removePhoto() {
     setPhotoFile(null);
-    if (photoPreview) URL.revokeObjectURL(photoPreview);
+    if (photoPreview && !existingPhotoUrl) URL.revokeObjectURL(photoPreview);
     setPhotoPreview(null);
+    setExistingPhotoUrl(null);
     if (fileRef.current) fileRef.current.value = "";
   }
 
@@ -160,7 +167,7 @@ export function DiaryForm({
     setLoading(true);
     setError(null);
     try {
-      const entryData: Omit<DiaryEntry, "id" | "userId" | "createdAt" | "plantId"> = {
+      const entryData = {
         type,
         pruningType: type === "poda" && pruningType ? pruningType : undefined,
         date,
@@ -174,6 +181,18 @@ export function DiaryForm({
         irrigationType: irrigationType || undefined,
         fertilizersUsed: selectedFertilizers.length > 0 ? selectedFertilizers : undefined,
       };
+
+      if (isEditMode && editEntry) {
+        await updateEntry(editEntry.id, entryData);
+        if (photoFile) {
+          const photoUrl = await uploadDiaryPhoto(user.uid, editEntry.id, photoFile);
+          await updateEntry(editEntry.id, { photoUrl });
+        } else if (!existingPhotoUrl && editEntry.photoUrl) {
+          await updateEntry(editEntry.id, { photoUrl: undefined });
+        }
+        onSuccess();
+        return;
+      }
 
       const entryIds = await Promise.all(
         selectedPlantIds.map((plantId) =>
@@ -613,7 +632,7 @@ export function DiaryForm({
           className="gap-2 bg-primary text-primary-foreground hover:bg-primary/90 min-w-[120px]"
         >
           {loading ? <Loader2 size={14} className="animate-spin" /> : null}
-          {loading ? "Salvando..." : `Salvar${selectedPlantIds.length > 1 ? ` (${selectedPlantIds.length})` : ""}`}
+          {loading ? "Salvando..." : isEditMode ? "Salvar alterações" : `Salvar${selectedPlantIds.length > 1 ? ` (${selectedPlantIds.length})` : ""}`}
         </Button>
       </div>
     </form>

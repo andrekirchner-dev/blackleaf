@@ -192,6 +192,7 @@ export default function DiaryPage() {
 
   const [open, setOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<GrowEvent | null>(null);
+  const [editingEntry, setEditingEntry] = useState<DiaryEntry | null>(null);
   const [sourceFilter, setSourceFilter] = useState<LogSource | "all">("all");
   const [plantFilter, setPlantFilter] = useState<string>("all");
 
@@ -230,6 +231,7 @@ export default function DiaryPage() {
         plantId: e.plantId,
         diaryEntry: e,
         onDelete: async () => { await deleteEntry(e.id); refreshDiary(); },
+        onEdit: () => setEditingEntry(e),
       });
     }
 
@@ -496,6 +498,27 @@ export default function DiaryPage() {
         plants={plants}
         editEvent={editingEvent ?? undefined}
       />
+
+      {/* Edit diary entry sheet */}
+      <Sheet open={!!editingEntry} onOpenChange={(v) => { if (!v) setEditingEntry(null); }}>
+        <SheetContent side="right" className="w-full sm:max-w-md bg-card border-border overflow-y-auto">
+          <SheetHeader className="mb-5">
+            <SheetTitle className="flex items-center gap-2">
+              <Pencil size={18} className="text-primary" />
+              Editar Registro
+            </SheetTitle>
+          </SheetHeader>
+          {editingEntry && (
+            <DiaryForm
+              plants={plants}
+              fertilizers={fertilizers}
+              editEntry={editingEntry}
+              onSuccess={() => { setEditingEntry(null); refreshDiary(); }}
+              onCancel={() => setEditingEntry(null)}
+            />
+          )}
+        </SheetContent>
+      </Sheet>
 
       {/* New diary entry sheet */}
       <Sheet open={open} onOpenChange={setOpen}>
