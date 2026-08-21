@@ -6,6 +6,7 @@ import { useShopping } from "@/hooks/use-shopping";
 import {
   addShoppingItem,
   toggleShoppingItem,
+  updateShoppingItem,
   deleteShoppingItem,
   type ShoppingCategory,
   type ShoppingUrgency,
@@ -16,42 +17,78 @@ import {
 import { cn } from "@/lib/utils";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 import { motion, AnimatePresence } from "framer-motion";
-import { Plus, Trash2, ShoppingCart, Check, X } from "lucide-react";
+import { Plus, Trash2, ShoppingCart, Check, X, ExternalLink, Link2, Minus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
 
-function AddItemModal({
+interface ItemFormData {
+  name: string;
+  category: ShoppingCategory;
+  urgency: ShoppingUrgency;
+  estimatedPrice: string;
+  quantity: string;
+  link: string;
+  notes: string;
+}
+
+function ItemModal({
+  item,
   onClose,
-  onAdd,
+  onSave,
+  onDelete,
 }: {
+  item?: ShoppingItem;
   onClose: () => void;
-  onAdd: (data: { name: string; category: ShoppingCategory; urgency: ShoppingUrgency; estimatedPrice?: number; notes?: string }) => Promise<void>;
+  onSave: (data: ItemFormData) => Promise<void>;
+  onDelete?: () => Promise<void>;
 }) {
-  const [name, setName] = useState("");
-  const [category, setCategory] = useState<ShoppingCategory>("outros");
-  const [urgency, setUrgency] = useState<ShoppingUrgency>("soon");
-  const [price, setPrice] = useState("");
-  const [notes, setNotes] = useState("");
+  const isEdit = !!item;
+  const [form, setForm] = useState<ItemFormData>({
+    name:           item?.name ?? "",
+    category:       item?.category ?? "outros",
+    urgency:        item?.urgency ?? "soon",
+    estimatedPrice: item?.estimatedPrice?.toString() ?? "",
+    quantity:       item?.quantity?.toString() ?? "",
+    link:           item?.link ?? "",
+    notes:          item?.notes ?? "",
+  });
   const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  function set<K extends keyof ItemFormData>(key: K, value: ItemFormData[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function adjustQty(delta: number) {
+    const current = parseInt(form.quantity) || 0;
+    const next = Math.max(1, current + delta);
+    set("quantity", String(next));
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!name.trim()) return;
+    if (!form.name.trim()) return;
     setSaving(true);
     setError(null);
     try {
-      await onAdd({
-        name: name.trim(),
-        category,
-        urgency,
-        ...(price ? { estimatedPrice: parseFloat(price) } : {}),
-        ...(notes.trim() ? { notes: notes.trim() } : {}),
-      });
+      await onSave(form);
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erro ao salvar item.");
+      setError(err instanceof Error ? err.message : "Erro ao salvar.");
       setSaving(false);
+    }
+  }
+
+  async function handleDelete() {
+    if (!onDelete) return;
+    setDeleting(true);
+    try {
+      await onDelete();
+      onClose();
+    } catch {
+      setDeleting(false);
     }
   }
 
@@ -69,35 +106,42 @@ function AddItemModal({
         animate={{ y: 0, opacity: 1 }}
         exit={{ y: 40, opacity: 0 }}
         transition={{ type: "spring", stiffness: 380, damping: 38 }}
-        className="relative w-full max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl p-5 space-y-4"
+        className="relative w-full max-w-md bg-card border border-border rounded-t-2xl sm:rounded-2xl p-5 space-y-4 max-h-[90vh] overflow-y-auto"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-base font-bold text-foreground">Novo Item</h2>
+          <h2 className="text-base font-bold text-foreground">
+            {isEdit ? "Editar Item" : "Novo Item"}
+          </h2>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
             <X size={18} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
-          <Input
-            autoFocus
-            placeholder="Nome do item..."
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className="bg-background border-border"
-          />
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Name */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] text-muted-foreground font-medium">Nome</Label>
+            <Input
+              autoFocus
+              placeholder="Nome do item..."
+              value={form.name}
+              onChange={(e) => set("name", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
 
-          <div>
-            <p className="text-[11px] text-muted-foreground mb-1.5 font-medium">Categoria</p>
-            <div className="grid grid-cols-3 gap-1.5 sm:grid-cols-4">
+          {/* Category */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] text-muted-foreground font-medium">Categoria</Label>
+            <div className="grid grid-cols-4 gap-1.5">
               {(Object.entries(SHOPPING_CATEGORIES) as [ShoppingCategory, { label: string; emoji: string }][]).map(([key, cfg]) => (
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setCategory(key)}
+                  onClick={() => set("category", key)}
                   className={cn(
                     "flex flex-col items-center gap-0.5 py-2 px-1 rounded-xl text-[10px] font-medium border transition-colors",
-                    category === key
+                    form.category === key
                       ? "bg-primary/10 border-primary/30 text-primary"
                       : "border-border text-muted-foreground hover:bg-muted/30"
                   )}
@@ -109,8 +153,9 @@ function AddItemModal({
             </div>
           </div>
 
-          <div>
-            <p className="text-[11px] text-muted-foreground mb-1.5 font-medium">Urgência</p>
+          {/* Urgency */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] text-muted-foreground font-medium">Urgência</Label>
             <div className="grid grid-cols-3 gap-1.5">
               {(["urgent", "soon", "ok"] as ShoppingUrgency[]).map((u) => {
                 const cfg = URGENCY_CONFIG[u];
@@ -118,10 +163,10 @@ function AddItemModal({
                   <button
                     key={u}
                     type="button"
-                    onClick={() => setUrgency(u)}
+                    onClick={() => set("urgency", u)}
                     className={cn(
                       "py-2 rounded-xl text-xs font-medium border transition-colors",
-                      urgency === u ? cn(cfg.bg, cfg.color) : "border-border text-muted-foreground hover:bg-muted/30"
+                      form.urgency === u ? cn(cfg.bg, cfg.color) : "border-border text-muted-foreground hover:bg-muted/30"
                     )}
                   >
                     {cfg.label}
@@ -131,43 +176,110 @@ function AddItemModal({
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <p className="text-[11px] text-muted-foreground mb-1 font-medium">Preço estimado (R$)</p>
+          {/* Quantity + Price */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Quantity stepper */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-muted-foreground font-medium">Quantidade</Label>
+              <div className="flex items-center gap-1">
+                <button
+                  type="button"
+                  onClick={() => adjustQty(-1)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors shrink-0"
+                >
+                  <Minus size={13} />
+                </button>
+                <Input
+                  type="number"
+                  min="1"
+                  placeholder="—"
+                  value={form.quantity}
+                  onChange={(e) => set("quantity", e.target.value)}
+                  className="bg-background border-border text-center px-1"
+                />
+                <button
+                  type="button"
+                  onClick={() => adjustQty(1)}
+                  className="w-8 h-8 flex items-center justify-center rounded-lg border border-border bg-background text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors shrink-0"
+                >
+                  <Plus size={13} />
+                </button>
+              </div>
+            </div>
+
+            {/* Price */}
+            <div className="space-y-1.5">
+              <Label className="text-[11px] text-muted-foreground font-medium">Preço estimado (R$)</Label>
               <Input
                 type="number"
                 min="0"
                 step="0.01"
                 placeholder="0,00"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                className="bg-background border-border"
-              />
-            </div>
-            <div>
-              <p className="text-[11px] text-muted-foreground mb-1 font-medium">Notas</p>
-              <Input
-                placeholder="Opcional..."
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
+                value={form.estimatedPrice}
+                onChange={(e) => set("estimatedPrice", e.target.value)}
                 className="bg-background border-border"
               />
             </div>
           </div>
 
+          {/* Link */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] text-muted-foreground font-medium flex items-center gap-1.5">
+              <Link2 size={11} />
+              Link da loja
+            </Label>
+            <Input
+              type="url"
+              placeholder="https://..."
+              value={form.link}
+              onChange={(e) => set("link", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+
+          {/* Notes */}
+          <div className="space-y-1.5">
+            <Label className="text-[11px] text-muted-foreground font-medium">Notas</Label>
+            <Input
+              placeholder="Observações opcionais..."
+              value={form.notes}
+              onChange={(e) => set("notes", e.target.value)}
+              className="bg-background border-border"
+            />
+          </div>
+
           {error && (
             <p className="text-xs text-destructive bg-destructive/10 border border-destructive/20 px-3 py-2 rounded-lg">{error}</p>
           )}
-          <Button type="submit" disabled={!name.trim() || saving} className="w-full">
-            {saving ? "Salvando..." : "Adicionar Item"}
-          </Button>
+
+          <div className="flex gap-2 pt-1">
+            {isEdit && onDelete && (
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="p-2 rounded-xl border border-border text-muted-foreground hover:text-destructive hover:border-destructive/40 transition-colors"
+              >
+                <Trash2 size={15} />
+              </button>
+            )}
+            <Button type="submit" disabled={!form.name.trim() || saving} className="flex-1">
+              {saving ? "Salvando..." : isEdit ? "Salvar alterações" : "Adicionar Item"}
+            </Button>
+          </div>
         </form>
       </motion.div>
     </div>
   );
 }
 
-function ShoppingItemRow({ item }: { item: ShoppingItem }) {
+function ShoppingItemRow({
+  item,
+  onEdit,
+}: {
+  item: ShoppingItem;
+  onEdit: (item: ShoppingItem) => void;
+}) {
   const urgency = URGENCY_CONFIG[item.urgency];
   const category = SHOPPING_CATEGORIES[item.category];
   const purchased = item.status === "purchased";
@@ -183,6 +295,7 @@ function ShoppingItemRow({ item }: { item: ShoppingItem }) {
         purchased ? "bg-muted/10 border-border/50 opacity-60" : "bg-card border-border"
       )}
     >
+      {/* Toggle */}
       <button
         onClick={() => toggleShoppingItem(item.id, item.status)}
         className={cn(
@@ -195,17 +308,29 @@ function ShoppingItemRow({ item }: { item: ShoppingItem }) {
 
       <span className="text-base shrink-0">{category.emoji}</span>
 
-      <div className="flex-1 min-w-0">
+      {/* Main info — clickable to edit */}
+      <button
+        onClick={() => onEdit(item)}
+        className="flex-1 min-w-0 text-left"
+      >
         <p className={cn("text-sm font-medium truncate", purchased ? "line-through text-muted-foreground" : "text-foreground")}>
           {item.name}
+          {item.quantity && item.quantity > 1 && (
+            <span className="ml-1.5 text-[10px] font-normal text-muted-foreground bg-muted/40 px-1.5 py-0.5 rounded-full">
+              ×{item.quantity}
+            </span>
+          )}
         </p>
         <div className="flex items-center gap-1.5 mt-0.5">
           <span className={cn("text-[10px] font-medium", urgency.color)}>{urgency.label}</span>
-          {item.estimatedPrice && (
+          {item.estimatedPrice != null && (
             <>
               <span className="text-muted-foreground/30">·</span>
               <span className="text-[10px] text-muted-foreground">
                 R$ {item.estimatedPrice.toFixed(2)}
+                {item.quantity && item.quantity > 1 && (
+                  <span className="text-muted-foreground/60"> × {item.quantity} = R$ {(item.estimatedPrice * item.quantity).toFixed(2)}</span>
+                )}
               </span>
             </>
           )}
@@ -216,14 +341,20 @@ function ShoppingItemRow({ item }: { item: ShoppingItem }) {
             </>
           )}
         </div>
-      </div>
-
-      <button
-        onClick={() => deleteShoppingItem(item.id)}
-        className="text-muted-foreground/40 hover:text-destructive transition-colors shrink-0 p-1"
-      >
-        <Trash2 size={13} />
       </button>
+
+      {/* External link */}
+      {item.link && (
+        <a
+          href={item.link}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={(e) => e.stopPropagation()}
+          className="text-muted-foreground/50 hover:text-primary transition-colors shrink-0 p-1"
+        >
+          <ExternalLink size={13} />
+        </a>
+      )}
     </motion.div>
   );
 }
@@ -232,23 +363,44 @@ export default function ShoppingPage() {
   const { user } = useAuth();
   const { items, loading } = useShopping();
   const [showAdd, setShowAdd] = useState(false);
+  const [editItem, setEditItem] = useState<ShoppingItem | null>(null);
   const [filter, setFilter] = useState<"all" | "pending" | "purchased">("pending");
 
   const pending = items.filter((i) => i.status === "pending");
   const purchased = items.filter((i) => i.status === "purchased");
-
   const urgentCount = pending.filter((i) => i.urgency === "urgent").length;
-
   const filtered = filter === "all" ? items : filter === "pending" ? pending : purchased;
+  const totalEstimated = pending.reduce((sum, i) => sum + (i.estimatedPrice ?? 0) * (i.quantity ?? 1), 0);
 
-  const totalEstimated = pending.reduce((sum, i) => sum + (i.estimatedPrice ?? 0), 0);
-
-  async function handleAdd(data: Parameters<typeof addShoppingItem>[1]) {
+  async function handleAdd(data: ItemFormData) {
     if (!user) return;
-    await addShoppingItem(user.uid, data).catch((err) => {
-      console.error("[Shopping] addItem error:", err);
-      throw err;
+    await addShoppingItem(user.uid, {
+      name: data.name,
+      category: data.category,
+      urgency: data.urgency,
+      ...(data.estimatedPrice ? { estimatedPrice: parseFloat(data.estimatedPrice) } : {}),
+      ...(data.quantity ? { quantity: parseInt(data.quantity) } : {}),
+      ...(data.link.trim() ? { link: data.link.trim() } : {}),
+      ...(data.notes.trim() ? { notes: data.notes.trim() } : {}),
     });
+  }
+
+  async function handleEdit(data: ItemFormData) {
+    if (!editItem) return;
+    await updateShoppingItem(editItem.id, {
+      name: data.name,
+      category: data.category,
+      urgency: data.urgency,
+      estimatedPrice: data.estimatedPrice ? parseFloat(data.estimatedPrice) : undefined,
+      quantity: data.quantity ? parseInt(data.quantity) : undefined,
+      link: data.link.trim() || undefined,
+      notes: data.notes.trim() || undefined,
+    });
+  }
+
+  async function handleDelete() {
+    if (!editItem) return;
+    await deleteShoppingItem(editItem.id);
   }
 
   return (
@@ -322,7 +474,7 @@ export default function ShoppingPage() {
         <div className="space-y-2">
           <AnimatePresence>
             {filtered.map((item) => (
-              <ShoppingItemRow key={item.id} item={item} />
+              <ShoppingItemRow key={item.id} item={item} onEdit={setEditItem} />
             ))}
           </AnimatePresence>
         </div>
@@ -330,7 +482,19 @@ export default function ShoppingPage() {
 
       <AnimatePresence>
         {showAdd && (
-          <AddItemModal onClose={() => setShowAdd(false)} onAdd={handleAdd} />
+          <ItemModal
+            onClose={() => setShowAdd(false)}
+            onSave={handleAdd}
+          />
+        )}
+        {editItem && (
+          <ItemModal
+            key={editItem.id}
+            item={editItem}
+            onClose={() => setEditItem(null)}
+            onSave={handleEdit}
+            onDelete={handleDelete}
+          />
         )}
       </AnimatePresence>
     </MotionPage>

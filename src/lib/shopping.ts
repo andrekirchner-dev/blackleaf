@@ -31,6 +31,8 @@ export interface ShoppingItem {
   category: ShoppingCategory;
   urgency: ShoppingUrgency;
   estimatedPrice?: number;
+  quantity?: number;
+  link?: string;
   notes?: string;
   status: ShoppingStatus;
   createdAt: Timestamp;
@@ -42,6 +44,8 @@ export interface CreateShoppingItemData {
   category: ShoppingCategory;
   urgency: ShoppingUrgency;
   estimatedPrice?: number;
+  quantity?: number;
+  link?: string;
   notes?: string;
 }
 
@@ -76,6 +80,8 @@ export async function addShoppingItem(
     createdAt: serverTimestamp(),
   };
   if (data.estimatedPrice != null) payload.estimatedPrice = data.estimatedPrice;
+  if (data.quantity != null) payload.quantity = data.quantity;
+  if (data.link) payload.link = data.link;
   if (data.notes) payload.notes = data.notes;
   const ref = await addDoc(collection(db, COLLECTION), payload);
   return ref.id;
