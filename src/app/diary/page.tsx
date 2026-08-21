@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { BookOpen, Plus, Filter, Trash2, Droplets, FlaskConical, Thermometer, Wind } from "lucide-react";
+import { BookOpen, Plus, Filter, Trash2, Droplets, FlaskConical, Thermometer, Wind, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -18,6 +18,8 @@ import { EVENT_BY_TYPE } from "@/lib/event-constants";
 import { PRUNING_BY_TYPE } from "@/lib/pruning-constants";
 import { deleteEntry } from "@/lib/diary";
 import { deleteGrowEvent } from "@/lib/events";
+import { EventSheet } from "@/components/calendar/event-sheet";
+import type { GrowEvent } from "@/lib/types";
 import { deleteEnvironmentRecord, calcVPD } from "@/lib/environment";
 import { deleteHarvestLog } from "@/lib/harvest";
 import type { DiaryEntry } from "@/lib/types";
@@ -41,6 +43,8 @@ interface LogItem {
   plantId?: string;
   diaryEntry?: DiaryEntry;
   onDelete: () => Promise<void>;
+  onEdit?: () => void;
+  rawEvent?: GrowEvent;
 }
 
 const SOURCE_OPTIONS: { value: LogSource | "all"; label: string; emoji: string }[] = [
@@ -79,6 +83,7 @@ function ActivityCard({ item, onDeleted }: { item: LogItem; onDeleted: () => voi
     await item.onDelete();
     onDeleted();
   }
+  const canEdit = !!item.onEdit;
 
   return (
     <div className="flex gap-3 group">
@@ -109,12 +114,22 @@ function ActivityCard({ item, onDeleted }: { item: LogItem; onDeleted: () => voi
               </div>
               <p className="text-[11px] text-muted-foreground mt-1">{fmtDate(item.sortDate)}</p>
             </div>
-            <button
-              onClick={handleDelete}
-              className="text-muted-foreground/40 hover:text-destructive transition-colors opacity-0 group-hover:opacity-100 p-1 shrink-0"
-            >
-              <Trash2 size={13} />
-            </button>
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity shrink-0">
+              {canEdit && (
+                <button
+                  onClick={item.onEdit}
+                  className="text-muted-foreground/40 hover:text-primary transition-colors p-1"
+                >
+                  <Pencil size={13} />
+                </button>
+              )}
+              <button
+                onClick={handleDelete}
+                className="text-muted-foreground/40 hover:text-destructive transition-colors p-1"
+              >
+                <Trash2 size={13} />
+              </button>
+            </div>
           </div>
 
           {/* Metrics chips */}
@@ -176,6 +191,7 @@ export default function DiaryPage() {
   const { fertilizers } = useFertilizers();
 
   const [open, setOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<GrowEvent | null>(null);
   const [sourceFilter, setSourceFilter] = useState<LogSource | "all">("all");
   const [plantFilter, setPlantFilter] = useState<string>("all");
 
@@ -256,7 +272,9 @@ export default function DiaryPage() {
         notes: ev.notes || undefined,
         plantId: plantIds[0],
         diaryEntry: evAsDiaryLike,
+        rawEvent: ev,
         onDelete: async () => { await deleteGrowEvent(ev.id); refreshEvents(); },
+        onEdit: () => setEditingEvent(ev),
       });
     }
 
@@ -469,6 +487,15 @@ export default function DiaryPage() {
         </div>
       )}
       </MotionItem>
+
+      {/* Edit grow event sheet */}
+      <EventSheet
+        open={!!editingEvent}
+        onClose={() => setEditingEvent(null)}
+        onSaved={() => { setEditingEvent(null); refreshEvents(); }}
+        plants={plants}
+        editEvent={editingEvent ?? undefined}
+      />
 
       {/* New diary entry sheet */}
       <Sheet open={open} onOpenChange={setOpen}>

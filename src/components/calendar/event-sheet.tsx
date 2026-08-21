@@ -6,13 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { createGrowEvent } from "@/lib/events";
+import { createGrowEvent, updateGrowEvent } from "@/lib/events";
 import { updatePlant } from "@/lib/plants";
 import { GROW_EVENT_TYPES } from "@/lib/event-constants";
 import { PRUNING_TYPES } from "@/lib/pruning-constants";
 import { useFertilizers } from "@/hooks/use-fertilizers";
 import { useAuth } from "@/contexts/auth-context";
-import type { Plant, GrowEventType, PruningType, WaterIrrigationType, DiaryFertilizerUsage, Fertilizer } from "@/lib/types";
+import type { Plant, GrowEvent, GrowEventType, PruningType, WaterIrrigationType, DiaryFertilizerUsage, Fertilizer } from "@/lib/types";
 import { CheckCircle2, FlaskConical, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,9 +64,11 @@ interface Props {
   defaultTime?: string;
   defaultType?: GrowEventType;
   isGcalConnected?: boolean;
+  editEvent?: GrowEvent;
 }
 
-export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaultTime, defaultType, isGcalConnected }: Props) {
+export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaultTime, defaultType, isGcalConnected, editEvent }: Props) {
+  const isEditMode = !!editEvent;
   const { user } = useAuth();
   const { fertilizers } = useFertilizers();
   const [type, setType] = useState<GrowEventType>(defaultType ?? "rega");
@@ -91,21 +93,37 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
 
   useEffect(() => {
     if (open) {
-      setType(defaultType ?? "rega");
-      setPruningType("");
-      setTime(defaultTime ?? "");
-      setDate(defaultDate ?? localDateStr());
-      setPlantIds([]);
-      setNotes("");
+      if (editEvent) {
+        setType(editEvent.type);
+        setPruningType(editEvent.pruningType ?? "");
+        setDate(editEvent.date);
+        setTime(editEvent.time ?? "");
+        setPlantIds(editEvent.plantIds ?? (editEvent.plantId ? [editEvent.plantId] : []));
+        setNotes(editEvent.notes ?? "");
+        setWaterAmount(editEvent.waterAmount?.toString() ?? "");
+        setIrrigationType(editEvent.irrigationType ?? "");
+        setPh(editEvent.ph?.toString() ?? "");
+        setPpm(editEvent.ppm?.toString() ?? "");
+        setPhRunoff(editEvent.phRunoff?.toString() ?? "");
+        setPpmRunoff(editEvent.ppmRunoff?.toString() ?? "");
+        setSelectedFertilizers(editEvent.fertilizersUsed ?? []);
+      } else {
+        setType(defaultType ?? "rega");
+        setPruningType("");
+        setTime(defaultTime ?? "");
+        setDate(defaultDate ?? localDateStr());
+        setPlantIds([]);
+        setNotes("");
+        setWaterAmount("");
+        setIrrigationType("");
+        setPh("");
+        setPpm("");
+        setPhRunoff("");
+        setPpmRunoff("");
+        setSelectedFertilizers([]);
+      }
       setSaved(false);
       setError(null);
-      setWaterAmount("");
-      setIrrigationType("");
-      setPh("");
-      setPpm("");
-      setPhRunoff("");
-      setPpmRunoff("");
-      setSelectedFertilizers([]);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -165,7 +183,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
         : "";
       const title = `${selectedType.emoji} ${selectedType.label}${plantLabel}`;
 
-      const eventId = await createGrowEvent(user.uid, {
+      const payload = {
         type,
         pruningType: type === "poda" && pruningType ? pruningType : undefined,
         plantIds: plantIds.length > 0 ? plantIds : undefined,
@@ -173,15 +191,25 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
         date,
         time: time || undefined,
         notes: notes.trim() || undefined,
-        // Water fields
         waterAmount: waterAmount ? Number(waterAmount) : undefined,
         irrigationType: (showWaterFields || showRunoffFields) && irrigationType ? irrigationType : undefined,
-        ph: (showWaterFields) && ph ? Number(ph) : undefined,
-        ppm: (showWaterFields) && ppm ? Number(ppm) : undefined,
+        ph: showWaterFields && ph ? Number(ph) : undefined,
+        ppm: showWaterFields && ppm ? Number(ppm) : undefined,
         phRunoff: showRunoffFields && phRunoff ? Number(phRunoff) : undefined,
         ppmRunoff: showRunoffFields && ppmRunoff ? Number(ppmRunoff) : undefined,
         fertilizersUsed: showFertilizers && selectedFertilizers.length > 0 ? selectedFertilizers : undefined,
-      });
+      };
+
+      let eventId: string;
+      if (isEditMode && editEvent) {
+        await updateGrowEvent(editEvent.id, payload);
+        eventId = editEvent.id;
+        onSaved();
+        handleClose();
+        return;
+      } else {
+        eventId = await createGrowEvent(user.uid, payload);
+      }
 
       // flip_verificacao adds 10 extra days to each selected plant's veg phase
       if (type === "flip_verificacao" && plantIds.length > 0) {
@@ -224,7 +252,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
     <Sheet open={open} onOpenChange={(v) => !v && handleClose()}>
       <SheetContent side="bottom" className="rounded-t-2xl max-h-[92dvh] overflow-y-auto bg-card border-border pb-8">
         <SheetHeader className="pb-4">
-          <SheetTitle className="text-base font-semibold">Novo Evento</SheetTitle>
+          <SheetTitle className="text-base font-semibold">{isEditMode ? "Editar Evento" : "Novo Evento"}</SheetTitle>
         </SheetHeader>
 
         {saved ? (
@@ -578,7 +606,7 @@ export function EventSheet({ open, onClose, onSaved, plants, defaultDate, defaul
                 disabled={saving || !date}
                 className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 gap-2"
               >
-                {saving ? <><Loader2 size={14} className="animate-spin" /> Salvando...</> : "Salvar Evento"}
+                {saving ? <><Loader2 size={14} className="animate-spin" /> Salvando...</> : isEditMode ? "Salvar alterações" : "Salvar Evento"}
               </Button>
             </div>
           </div>
