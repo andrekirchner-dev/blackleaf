@@ -34,6 +34,7 @@ import {
   Users,
   Bell,
   Calculator,
+  HelpCircle,
 } from "lucide-react";
 import { getUnreadCount } from "@/lib/notifications";
 
@@ -334,6 +335,11 @@ export function Sidebar() {
 
       {/* Bottom controls */}
       <div className={cn("pb-2 space-y-1", collapsed ? "px-1.5" : "px-3")}>
+        <NavLink
+          item={{ href: "/help", label: "Guia do App", icon: HelpCircle }}
+          pathname={pathname}
+          collapsed={collapsed}
+        />
         <NavLink
           item={{ href: "/settings", label: "Configurações", icon: Settings }}
           pathname={pathname}
