@@ -6,11 +6,13 @@ import {
   getDoc,
   setDoc,
   doc,
+  deleteDoc,
   query,
   where,
   orderBy,
   limit,
   serverTimestamp,
+  runTransaction,
 } from "firebase/firestore";
 import type { GrowSpace, Plant, HarvestLog } from "./types";
 
@@ -26,12 +28,15 @@ export interface CommunityPost {
   id: string;
   userId: string;
   handle: string;
+  avatarUrl?: string;
   photoUrl: string;
   caption: string;
   plantSnapshots: { id: string; name: string; strain: string; stage: string }[];
   medium?: string;
   lightType?: string;
   weekOfGrow?: number;
+  likesCount: number;
+  commentsCount: number;
   createdAt: string;
 }
 
@@ -106,11 +111,13 @@ export async function upsertUserProfileData(
 
 export async function createCommunityPost(
   userId: string,
-  data: Omit<CommunityPost, "id" | "userId" | "createdAt">
+  data: Omit<CommunityPost, "id" | "userId" | "createdAt" | "likesCount" | "commentsCount">
 ): Promise<string> {
   const ref = await addDoc(collection(db, POSTS_COLLECTION), {
     ...data,
     userId,
+    likesCount: 0,
+    commentsCount: 0,
     createdAt: serverTimestamp(),
   });
   return ref.id;
@@ -126,6 +133,16 @@ export async function getCommunityPosts(limitCount = 60): Promise<CommunityPost[
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as CommunityPost));
 }
 
+export async function getTopCommunityPosts(limitN = 30): Promise<CommunityPost[]> {
+  const q = query(
+    collection(db, POSTS_COLLECTION),
+    orderBy("likesCount", "desc"),
+    limit(limitN)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as CommunityPost));
+}
+
 export async function getUserPosts(userId: string, limitCount = 12): Promise<CommunityPost[]> {
   const q = query(
     collection(db, POSTS_COLLECTION),
@@ -135,6 +152,176 @@ export async function getUserPosts(userId: string, limitCount = 12): Promise<Com
   );
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() } as CommunityPost));
+}
+
+export async function deleteCommunityPost(postId: string): Promise<void> {
+  await deleteDoc(doc(db, POSTS_COLLECTION, postId));
+}
+
+// ─── Likes ────────────────────────────────────────────────────────────────────
+
+export async function likePost(userId: string, postId: string): Promise<void> {
+  const postRef = doc(db, POSTS_COLLECTION, postId);
+  const likeRef = doc(db, POSTS_COLLECTION, postId, "likes", userId);
+  await runTransaction(db, async (tx) => {
+    const likeSnap = await tx.get(likeRef);
+    if (likeSnap.exists()) return;
+    const postSnap = await tx.get(postRef);
+    const current = (postSnap.data()?.likesCount ?? 0) as number;
+    tx.set(likeRef, { userId, createdAt: serverTimestamp() });
+    tx.update(postRef, { likesCount: current + 1 });
+  });
+  const postSnap = await getDoc(postRef);
+  const ownerId = postSnap.data()?.userId as string | undefined;
+  if (ownerId && ownerId !== userId) {
+    const profileSnap = await getDoc(doc(db, "userProfiles", userId));
+    const fromHandle = (profileSnap.data()?.handle as string | undefined) ?? "grower";
+    const fromAvatarUrl = (profileSnap.data()?.avatarUrl as string | undefined) ?? null;
+    await addDoc(collection(db, "notifications", ownerId, "items"), {
+      type: "like",
+      fromUserId: userId,
+      fromHandle,
+      fromAvatarUrl,
+      postId,
+      postPhotoUrl: (postSnap.data()?.photoUrl as string | undefined) ?? null,
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+  }
+}
+
+export async function unlikePost(userId: string, postId: string): Promise<void> {
+  const postRef = doc(db, POSTS_COLLECTION, postId);
+  const likeRef = doc(db, POSTS_COLLECTION, postId, "likes", userId);
+  await runTransaction(db, async (tx) => {
+    const likeSnap = await tx.get(likeRef);
+    if (!likeSnap.exists()) return;
+    const postSnap = await tx.get(postRef);
+    const current = (postSnap.data()?.likesCount ?? 1) as number;
+    tx.delete(likeRef);
+    tx.update(postRef, { likesCount: Math.max(0, current - 1) });
+  });
+}
+
+export async function isPostLiked(userId: string, postId: string): Promise<boolean> {
+  const snap = await getDoc(doc(db, POSTS_COLLECTION, postId, "likes", userId));
+  return snap.exists();
+}
+
+export async function getPostsLikedByUser(userId: string, postIds: string[]): Promise<Set<string>> {
+  const liked = new Set<string>();
+  await Promise.all(
+    postIds.map(async (postId) => {
+      const snap = await getDoc(doc(db, POSTS_COLLECTION, postId, "likes", userId));
+      if (snap.exists()) liked.add(postId);
+    })
+  );
+  return liked;
+}
+
+// ─── Comments ─────────────────────────────────────────────────────────────────
+
+import type { CommunityComment } from "@/lib/types";
+
+export async function addComment(
+  userId: string,
+  postId: string,
+  text: string,
+  handle: string,
+  avatarUrl?: string
+): Promise<string> {
+  const postRef = doc(db, POSTS_COLLECTION, postId);
+  const commentRef = await addDoc(collection(db, POSTS_COLLECTION, postId, "comments"), {
+    postId,
+    userId,
+    handle,
+    avatarUrl: avatarUrl ?? null,
+    text: text.trim(),
+    createdAt: serverTimestamp(),
+  });
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(postRef);
+    const current = (snap.data()?.commentsCount ?? 0) as number;
+    tx.update(postRef, { commentsCount: current + 1 });
+  });
+  const postSnap = await getDoc(postRef);
+  const ownerId = postSnap.data()?.userId as string | undefined;
+  if (ownerId && ownerId !== userId) {
+    await addDoc(collection(db, "notifications", ownerId, "items"), {
+      type: "comment",
+      fromUserId: userId,
+      fromHandle: handle,
+      fromAvatarUrl: avatarUrl ?? null,
+      postId,
+      postPhotoUrl: (postSnap.data()?.photoUrl as string | undefined) ?? null,
+      read: false,
+      createdAt: serverTimestamp(),
+    });
+  }
+  return commentRef.id;
+}
+
+export async function getComments(postId: string): Promise<CommunityComment[]> {
+  const q = query(
+    collection(db, POSTS_COLLECTION, postId, "comments"),
+    orderBy("createdAt", "asc"),
+    limit(100)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as CommunityComment));
+}
+
+export async function deleteComment(postId: string, commentId: string): Promise<void> {
+  await deleteDoc(doc(db, POSTS_COLLECTION, postId, "comments", commentId));
+  const postRef = doc(db, POSTS_COLLECTION, postId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(postRef);
+    const current = (snap.data()?.commentsCount ?? 1) as number;
+    tx.update(postRef, { commentsCount: Math.max(0, current - 1) });
+  });
+}
+
+// ─── Saved posts ──────────────────────────────────────────────────────────────
+
+import type { SavedPost } from "@/lib/types";
+
+export async function savePost(userId: string, postId: string, postPhotoUrl: string): Promise<void> {
+  await setDoc(doc(db, "savedPosts", userId, "posts", postId), {
+    userId,
+    postId,
+    postPhotoUrl,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function unsavePost(userId: string, postId: string): Promise<void> {
+  await deleteDoc(doc(db, "savedPosts", userId, "posts", postId));
+}
+
+export async function isPostSaved(userId: string, postId: string): Promise<boolean> {
+  const snap = await getDoc(doc(db, "savedPosts", userId, "posts", postId));
+  return snap.exists();
+}
+
+export async function getSavedPosts(userId: string): Promise<SavedPost[]> {
+  const q = query(
+    collection(db, "savedPosts", userId, "posts"),
+    orderBy("createdAt", "desc"),
+    limit(50)
+  );
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() } as SavedPost));
+}
+
+export async function getSavedPostIds(userId: string, postIds: string[]): Promise<Set<string>> {
+  const saved = new Set<string>();
+  await Promise.all(
+    postIds.map(async (postId) => {
+      const snap = await getDoc(doc(db, "savedPosts", userId, "posts", postId));
+      if (snap.exists()) saved.add(postId);
+    })
+  );
+  return saved;
 }
 
 // ─── Profile ──────────────────────────────────────────────────────────────────
@@ -169,7 +356,6 @@ export async function getUserPublicProfile(userId: string): Promise<UserPublicPr
   const harvestCount = harvests.length;
   const totalDryWeightG = harvests.reduce((sum, h) => sum + (h.dryWeightG ?? 0), 0);
 
-  // First grow date: earliest germination or creation date across all plants
   const allDates = allPlants
     .map((p) => p.germinationDate || p.createdAt)
     .filter(Boolean)

@@ -247,6 +247,7 @@ export interface SavedPost {
   id: string;
   userId: string;
   postId: string;
+  postPhotoUrl?: string;
   createdAt: import("firebase/firestore").Timestamp;
 }
 

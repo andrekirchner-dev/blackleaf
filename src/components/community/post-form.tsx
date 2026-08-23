@@ -12,6 +12,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { differenceInWeeks, parseISO } from "date-fns";
+import { db } from "@/lib/firebase";
+import { collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
 
 interface PostFormProps {
   plants: Plant[];
@@ -30,6 +32,30 @@ const LIGHT_LABELS: Record<string, string> = {
 
 const MEDIUM_OPTIONS = Object.entries(MEDIUM_LABELS).map(([v, l]) => ({ value: v, label: l }));
 const LIGHT_OPTIONS = Object.entries(LIGHT_LABELS).map(([v, l]) => ({ value: v, label: l }));
+
+const RATE_LIMIT_MS = 60_000;
+
+function validateImage(file: File): string | null {
+  if (file.size > 8 * 1024 * 1024) return "Imagem muito grande. Máximo 8MB.";
+  if (!["image/jpeg", "image/png", "image/webp", "image/heic"].includes(file.type)) {
+    return "Formato não suportado. Use JPEG, PNG ou WebP.";
+  }
+  return null;
+}
+
+async function checkRateLimit(userId: string): Promise<boolean> {
+  const q = query(
+    collection(db, "communityPosts"),
+    where("userId", "==", userId),
+    orderBy("createdAt", "desc"),
+    limit(1)
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return true;
+  const lastPost = snap.docs[0].data();
+  const lastTime = lastPost.createdAt?.toDate?.()?.getTime() ?? 0;
+  return Date.now() - lastTime >= RATE_LIMIT_MS;
+}
 
 export function PostForm({ plants, onSuccess, onCancel }: PostFormProps) {
   const { user } = useAuth();
@@ -67,6 +93,13 @@ export function PostForm({ plants, onSuccess, onCancel }: PostFormProps) {
   function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const validationError = validateImage(file);
+    if (validationError) {
+      setError(validationError);
+      if (fileRef.current) fileRef.current.value = "";
+      return;
+    }
+    setError(null);
     setPhotoFile(file);
     const url = URL.createObjectURL(file);
     setPhotoPreview(url);
@@ -86,6 +119,12 @@ export function PostForm({ plants, onSuccess, onCancel }: PostFormProps) {
     if (!caption.trim()) { setError("Escreva uma legenda."); return; }
     setLoading(true); setError(null);
     try {
+      const allowed = await checkRateLimit(user.uid);
+      if (!allowed) {
+        setError("Aguarde 1 minuto entre posts.");
+        setLoading(false);
+        return;
+      }
       const photoUrl = await uploadCommunityPostPhoto(user.uid, photoFile);
       const plantSnapshots = selectedPlants.map((p) => ({
         id: p.id,
