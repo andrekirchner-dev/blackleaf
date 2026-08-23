@@ -3,9 +3,9 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
-import { LandingPage } from "@/components/layout/landing-page";
+import { LoginPage } from "@/components/layout/login-page";
 
-export default function Home() {
+export default function Login() {
   const { user, loading } = useAuth();
   const router = useRouter();
 
@@ -22,5 +22,5 @@ export default function Home() {
   }
 
   if (user) return null;
-  return <LandingPage />;
+  return <LoginPage />;
 }
