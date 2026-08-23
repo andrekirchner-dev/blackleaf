@@ -38,6 +38,7 @@ import {
   DollarSign,
   BarChart2,
   Shield,
+  HelpCircle,
 } from "lucide-react";
 
 interface NavItem {
@@ -229,6 +230,7 @@ const BACK_ROUTES: { match: (p: string) => boolean; label: string; href: string 
   { match: (p) => p === "/nutrients",               label: "Dashboard",   href: "/dashboard" },
   { match: (p) => p === "/admin",                   label: "Dashboard",   href: "/dashboard" },
   { match: (p) => p === "/settings",                label: "Dashboard",   href: "/dashboard" },
+  { match: (p) => p === "/help",                    label: "Dashboard",   href: "/dashboard" },
   { match: (p) => p.startsWith("/community/") && p !== "/community", label: "Comunidade", href: "/community" },
 ];
 
@@ -392,6 +394,22 @@ export function TopNav() {
                 ))}
 
                 <div className="pt-2 border-t border-sidebar-border space-y-0.5">
+                  <Link
+                    href="/help"
+                    onClick={() => setDrawerOpen(false)}
+                    className={cn(
+                      "flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all",
+                      pathname === "/help"
+                        ? "bg-primary/10 text-primary border border-primary/20"
+                        : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-foreground"
+                    )}
+                  >
+                    <HelpCircle
+                      size={16}
+                      className={pathname === "/help" ? "text-primary" : "text-muted-foreground"}
+                    />
+                    Guia do App
+                  </Link>
                   <Link
                     href="/settings"
                     onClick={() => setDrawerOpen(false)}
