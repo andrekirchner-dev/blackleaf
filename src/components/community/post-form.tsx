@@ -183,7 +183,7 @@ export function PostForm({ plants, onSuccess, onCancel }: PostFormProps) {
             <span className="text-xs text-muted-foreground/60">JPG, PNG, WEBP ou HEIC</span>
           </button>
         )}
-        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoChange} />
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
       </div>
 
       {/* Caption */}

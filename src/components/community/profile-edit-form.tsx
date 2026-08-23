@@ -123,7 +123,7 @@ export function ProfileEditForm({ userId, current, onSuccess, onCancel }: Profil
         >
           {avatarPreview ? "Trocar foto" : "Adicionar foto"}
         </button>
-        <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={onAvatarChange} />
+        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onAvatarChange} />
       </div>
 
       {/* Handle */}

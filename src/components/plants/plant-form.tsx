@@ -910,7 +910,7 @@ export function PlantForm({ plant }: { plant?: Plant }) {
             <input
               type="file"
               accept="image/*"
-              capture="environment"
+             
               multiple
               className="hidden"
               onChange={async (e) => {

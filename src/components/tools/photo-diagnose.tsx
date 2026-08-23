@@ -180,7 +180,7 @@ export function PhotoDiagnose({ category, title, hint }: Props) {
             ref={inputRef}
             type="file"
             accept="image/*"
-            capture="environment"
+           
             className="hidden"
             onChange={handleFileInput}
           />
