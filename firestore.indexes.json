@@ -142,6 +142,7 @@
       "collectionGroup": "communityPosts",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "likesCount", "order": "DESCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
       ]
     },
@@ -151,13 +152,6 @@
       "fields": [
         { "fieldPath": "resolved", "order": "ASCENDING" },
         { "fieldPath": "createdAt", "order": "DESCENDING" }
-      ]
-    },
-    {
-      "collectionGroup": "comments",
-      "queryScope": "COLLECTION_GROUP",
-      "fields": [
-        { "fieldPath": "createdAt", "order": "ASCENDING" }
       ]
     },
     {
