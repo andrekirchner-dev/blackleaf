@@ -127,29 +127,47 @@ export default function DashboardPage() {
     [chartRecords]
   );
 
+  const DASH_WATER_TYPES = new Set(["rega", "rega_fertilizante", "flush_pre_flip", "flush_pre_colheita"]);
+
+  const spPlantIds = useMemo(() => {
+    if (!selectedChartSpace) return [] as string[];
+    return plants.filter((p) => p.spaceId === selectedChartSpace).map((p) => p.id);
+  }, [selectedChartSpace, plants]);
+
   const filteredEntries = useMemo(() => {
-    if (!selectedChartSpace) return [];
     const withPh = entries.filter((e) => e.ph != null || e.phRunoff != null);
-    const spPlantIds = plants.filter((p) => p.spaceId === selectedChartSpace).map((p) => p.id);
+    // If no plants are assigned to this space, show all pH entries as fallback
+    if (spPlantIds.length === 0) return withPh.slice(-14).reverse();
     return withPh.filter((e) => spPlantIds.includes(e.plantId)).slice(-14).reverse();
-  }, [entries, selectedChartSpace, plants]);
+  }, [entries, spPlantIds]);
 
   const phInData = filteredEntries.map((e) => ({ label: fmt(e.date), value: e.ph ?? null }));
   const phOutData = filteredEntries.map((e) => ({ label: fmt(e.date), value: e.phRunoff ?? null }));
 
   const waterData = useMemo(() => {
-    if (!selectedChartSpace) return [];
-    const spPlantIds = plants.filter((p) => p.spaceId === selectedChartSpace).map((p) => p.id);
-    return entries
-      .filter((e) =>
-        (e.type === "rega" || e.type === "nutrientes") &&
-        e.waterAmount != null &&
-        spPlantIds.includes(e.plantId)
-      )
+    // Diary entries with water amounts
+    const fromDiary = entries
+      .filter((e) => DASH_WATER_TYPES.has(e.type as string) && e.waterAmount != null)
+      .filter((e) => spPlantIds.length === 0 || spPlantIds.includes(e.plantId))
+      .map((e) => ({ id: e.id, date: e.date, waterAmount: e.waterAmount }));
+
+    // Grow events (Calendar) with water amounts
+    const fromEvents = events
+      .filter((e) => DASH_WATER_TYPES.has(e.type) && e.waterAmount != null)
+      .filter((e) => {
+        if (spPlantIds.length === 0) return true;
+        const ids = e.plantIds ?? (e.plantId ? [e.plantId] : []);
+        return ids.some((id) => spPlantIds.includes(id));
+      })
+      .map((e) => ({ id: e.id, date: e.date, waterAmount: e.waterAmount }));
+
+    const seen = new Set<string>();
+    return [...fromDiary, ...fromEvents]
+      .filter((r) => { if (seen.has(r.id)) return false; seen.add(r.id); return true; })
+      .sort((a, b) => a.date.localeCompare(b.date))
       .slice(-20)
-      .reverse()
       .map((e) => ({ label: fmt(e.date), value: e.waterAmount ?? null }));
-  }, [entries, selectedChartSpace, plants]);
+  }, [entries, events, spPlantIds]);
   const activeSheet = spacesWithPlants.find((s) => s.space.id === activeSpaceId);
   const loading = loadingPlants || loadingSpaces;
 
