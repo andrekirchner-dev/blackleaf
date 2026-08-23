@@ -147,8 +147,8 @@ export function LandingPage() {
       {/* ── Navbar ── */}
       <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-5 py-3.5 bg-background/80 backdrop-blur-md border-b border-border/40">
         <div className="flex items-center gap-2.5">
-          <div className="relative w-8 h-8">
-            <Image src="/logo-icon.png" alt="Blackleaf" fill className="object-contain mix-blend-screen" />
+          <div className="relative w-8 h-8" style={{ mixBlendMode: "screen" }}>
+            <Image src="/logo-icon.png" alt="Blackleaf" fill className="object-contain" />
           </div>
           <span className="text-sm font-bold tracking-widest uppercase">
             <span className="gradient-text">Black</span>
@@ -200,16 +200,16 @@ export function LandingPage() {
           >
             <div className="relative">
               <motion.div
-                animate={{ scale: [1, 1.14, 1], opacity: [0.25, 0.5, 0.25] }}
+                animate={{ scale: [1, 1.14, 1], opacity: [0.2, 0.45, 0.2] }}
                 transition={{ duration: 3.5, repeat: Infinity, ease: "easeInOut" }}
-                className="absolute inset-0 rounded-full bg-primary/25 blur-2xl"
+                className="absolute -inset-6 rounded-full bg-primary/20 blur-3xl pointer-events-none"
               />
-              <div className="relative w-28 h-28">
+              <div className="relative w-28 h-28" style={{ mixBlendMode: "screen" }}>
                 <Image
                   src="/logo-icon.png"
                   alt="Blackleaf"
                   fill
-                  className="object-contain mix-blend-screen drop-shadow-[0_0_40px_rgba(34,197,94,0.35)]"
+                  className="object-contain"
                   priority
                 />
               </div>
@@ -447,8 +447,8 @@ export function LandingPage() {
       {/* ── Footer ── */}
       <footer className="border-t border-border/40 px-5 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <div className="relative w-5 h-5">
-            <Image src="/logo-icon.png" alt="Blackleaf" fill className="object-contain mix-blend-screen" />
+          <div className="relative w-5 h-5" style={{ mixBlendMode: "screen" }}>
+            <Image src="/logo-icon.png" alt="Blackleaf" fill className="object-contain" />
           </div>
           <span className="text-xs font-bold tracking-widest uppercase">
             <span className="gradient-text">Black</span>
