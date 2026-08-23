@@ -3,11 +3,12 @@
 import { useMemo, useState } from "react";
 import { useEvents } from "@/hooks/use-events";
 import { usePlants } from "@/hooks/use-plants";
+import { useDiary } from "@/hooks/use-diary";
 import { useAuth } from "@/contexts/auth-context";
 import { EnvChart } from "@/components/dashboard/env-chart";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Droplets, FlaskConical, Filter } from "lucide-react";
-import type { GrowEvent } from "@/lib/types";
+import type { GrowEvent, DiaryEntry } from "@/lib/types";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
@@ -15,6 +16,47 @@ import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 
 const WATER_TYPES = new Set(["rega", "rega_fertilizante", "flush_pre_flip", "flush_pre_colheita"]);
 const RUNOFF_TYPE = "run_off";
+
+// Unified shape for records from both grow_events and diary collections
+interface WaterRecord {
+  id: string;
+  date: string;
+  time?: string;
+  type: string;
+  plantIds: string[];
+  waterAmount?: number;
+  ph?: number;
+  ppm?: number;
+  phRunoff?: number;
+  ppmRunoff?: number;
+  irrigationType?: string;
+  fertilizersUsed?: GrowEvent["fertilizersUsed"];
+  notes?: string;
+}
+
+function fromGrowEvent(ev: GrowEvent): WaterRecord {
+  return {
+    ...ev,
+    plantIds: ev.plantIds ?? (ev.plantId ? [ev.plantId] : []),
+  };
+}
+
+function fromDiaryEntry(e: DiaryEntry): WaterRecord {
+  return {
+    id: e.id,
+    date: e.date,
+    type: e.type,
+    plantIds: e.plantId ? [e.plantId] : [],
+    waterAmount: e.waterAmount,
+    ph: e.ph,
+    ppm: e.ppm,
+    phRunoff: e.phRunoff,
+    ppmRunoff: e.ppmRunoff,
+    irrigationType: e.irrigationType,
+    fertilizersUsed: e.fertilizersUsed,
+    notes: e.notes || undefined,
+  };
+}
 
 function fmt(dateStr: string) {
   try { return format(parseISO(dateStr), "dd/MM HH:mm", { locale: ptBR }); }
@@ -38,57 +80,73 @@ function last(arr: (number | undefined)[]): number | null {
 
 export default function WaterPage() {
   const { user } = useAuth();
-  const { events, loading } = useEvents();
+  const { events, loading: evLoading } = useEvents();
+  const { entries, loading: diaryLoading } = useDiary();
   const { plants } = usePlants();
   const [plantFilter, setPlantFilter] = useState<string>("all");
 
+  const loading = evLoading || diaryLoading;
   const plantMap = useMemo(() => new Map(plants.map((p) => [p.id, p])), [plants]);
 
-  const waterEvents = useMemo(() =>
-    events
-      .filter((ev) => WATER_TYPES.has(ev.type))
-      .filter((ev) => {
+  // Merge grow_events + diary entries into a unified list, deduplicated by id
+  const allRecords = useMemo<WaterRecord[]>(() => {
+    const fromEvents = events
+      .filter((ev) => WATER_TYPES.has(ev.type) || ev.type === RUNOFF_TYPE)
+      .map(fromGrowEvent);
+    const fromDiary = entries
+      .filter((e) => WATER_TYPES.has(e.type as string) || e.type === RUNOFF_TYPE)
+      .map(fromDiaryEntry);
+    const seen = new Set<string>();
+    const merged: WaterRecord[] = [];
+    for (const r of [...fromEvents, ...fromDiary]) {
+      if (!seen.has(r.id)) { seen.add(r.id); merged.push(r); }
+    }
+    return merged;
+  }, [events, entries]);
+
+  const waterRecords = useMemo(() =>
+    allRecords
+      .filter((r) => WATER_TYPES.has(r.type))
+      .filter((r) => {
         if (plantFilter === "all") return true;
-        const ids = ev.plantIds ?? (ev.plantId ? [ev.plantId] : []);
-        return ids.includes(plantFilter);
+        return r.plantIds.includes(plantFilter);
       })
       .sort((a, b) => a.date.localeCompare(b.date)),
-  [events, plantFilter]);
+  [allRecords, plantFilter]);
 
-  const runoffEvents = useMemo(() =>
-    events
-      .filter((ev) => ev.type === RUNOFF_TYPE)
-      .filter((ev) => {
+  const runoffRecords = useMemo(() =>
+    allRecords
+      .filter((r) => r.type === RUNOFF_TYPE)
+      .filter((r) => {
         if (plantFilter === "all") return true;
-        const ids = ev.plantIds ?? (ev.plantId ? [ev.plantId] : []);
-        return ids.includes(plantFilter);
+        return r.plantIds.includes(plantFilter);
       })
       .sort((a, b) => a.date.localeCompare(b.date)),
-  [events, plantFilter]);
+  [allRecords, plantFilter]);
 
-  const allWaterEvents = useMemo(
-    () => [...waterEvents, ...runoffEvents].sort((a, b) => {
+  const historyRecords = useMemo(
+    () => [...waterRecords, ...runoffRecords].sort((a, b) => {
       const da = `${a.date}T${a.time ?? "00:00"}`;
       const db = `${b.date}T${b.time ?? "00:00"}`;
       return db.localeCompare(da);
     }),
-    [waterEvents, runoffEvents]
+    [waterRecords, runoffRecords]
   );
 
-  function toChartData(evs: GrowEvent[], key: keyof GrowEvent) {
-    return evs.map((ev) => ({
-      label: fmtShort(ev.date),
-      value: (ev[key] as number | undefined) ?? null,
+  function toChartData(recs: WaterRecord[], key: keyof WaterRecord) {
+    return recs.map((r) => ({
+      label: fmtShort(r.date),
+      value: (r[key] as number | undefined) ?? null,
     }));
   }
 
-  const avgVolume   = avg(waterEvents.map((e) => e.waterAmount));
-  const avgPh       = avg(waterEvents.map((e) => e.ph));
-  const avgPpm      = avg(waterEvents.map((e) => e.ppm));
-  const avgPhRunoff = avg(runoffEvents.map((e) => e.phRunoff));
-  const lastPh      = last(waterEvents.map((e) => e.ph));
-  const lastPpm     = last(waterEvents.map((e) => e.ppm));
-  const lastPhRo    = last(runoffEvents.map((e) => e.phRunoff));
+  const avgVolume   = avg(waterRecords.map((r) => r.waterAmount));
+  const avgPh       = avg(waterRecords.map((r) => r.ph));
+  const avgPpm      = avg(waterRecords.map((r) => r.ppm));
+  const avgPhRunoff = avg(runoffRecords.map((r) => r.phRunoff));
+  const lastPh      = last(waterRecords.map((r) => r.ph));
+  const lastPpm     = last(waterRecords.map((r) => r.ppm));
+  const lastPhRo    = last(runoffRecords.map((r) => r.phRunoff));
 
   if (!user) return null;
 
@@ -157,7 +215,7 @@ export default function WaterPage() {
             <p className="text-2xl font-bold">
               {avgVolume != null ? `${Math.round(avgVolume)} mL` : "—"}
             </p>
-            <p className="text-[11px] text-muted-foreground mt-1">{waterEvents.length} rega{waterEvents.length !== 1 ? "s" : ""}</p>
+            <p className="text-[11px] text-muted-foreground mt-1">{waterRecords.length} rega{waterRecords.length !== 1 ? "s" : ""}</p>
           </CardContent>
         </Card>
 
@@ -226,7 +284,7 @@ export default function WaterPage() {
         <EnvChart
           title="Volume por rega (mL)"
           unit=" mL"
-          data={toChartData(waterEvents, "waterAmount")}
+          data={toChartData(waterRecords, "waterAmount")}
           color="#22d3ee"
           decimals={0}
           emptyMessage="Nenhuma rega registrada"
@@ -234,7 +292,7 @@ export default function WaterPage() {
         <EnvChart
           title="pH entrada"
           unit=""
-          data={toChartData(waterEvents, "ph")}
+          data={toChartData(waterRecords, "ph")}
           color="#60a5fa"
           refMin={5.8}
           refMax={6.5}
@@ -243,7 +301,7 @@ export default function WaterPage() {
         <EnvChart
           title="PPM entrada"
           unit=" ppm"
-          data={toChartData(waterEvents, "ppm")}
+          data={toChartData(waterRecords, "ppm")}
           color="#c084fc"
           decimals={0}
           emptyMessage="Sem dados de PPM"
@@ -251,7 +309,7 @@ export default function WaterPage() {
         <EnvChart
           title="pH Run Off"
           unit=""
-          data={toChartData(runoffEvents, "phRunoff")}
+          data={toChartData(runoffRecords, "phRunoff")}
           color="#93c5fd"
           refMin={5.8}
           refMax={6.5}
@@ -269,7 +327,7 @@ export default function WaterPage() {
         <CardContent>
           {loading ? (
             <p className="text-xs text-muted-foreground text-center py-4">Carregando...</p>
-          ) : allWaterEvents.length === 0 ? (
+          ) : historyRecords.length === 0 ? (
             <div className="py-8 text-center">
               <Droplets size={28} className="mx-auto text-muted-foreground/30 mb-2" />
               <p className="text-sm text-muted-foreground">Nenhuma rega registrada.</p>
@@ -279,16 +337,16 @@ export default function WaterPage() {
             </div>
           ) : (
             <div className="space-y-2">
-              {allWaterEvents.map((ev) => {
-                const isRunoff = ev.type === RUNOFF_TYPE;
-                const plantLabels = (ev.plantIds ?? (ev.plantId ? [ev.plantId] : []))
+              {historyRecords.map((r) => {
+                const isRunoff = r.type === RUNOFF_TYPE;
+                const plantLabels = r.plantIds
                   .map((id) => plantMap.get(id)?.name)
                   .filter(Boolean)
                   .join(", ");
 
                 return (
                   <div
-                    key={ev.id}
+                    key={r.id}
                     className={cn(
                       "flex flex-col gap-2 rounded-xl border px-3 py-2.5",
                       isRunoff
@@ -303,57 +361,55 @@ export default function WaterPage() {
                           "text-xs font-semibold",
                           isRunoff ? "text-blue-300" : "text-cyan-400"
                         )}>
-                          {isRunoff ? "Run Off" : ev.type === "rega_fertilizante" ? "Rega c/ Fertilizante" : "Rega"}
+                          {isRunoff ? "Run Off" : r.type === "rega_fertilizante" ? "Rega c/ Fertilizante" : "Rega"}
                         </span>
                         {plantLabels && (
                           <span className="text-xs text-muted-foreground">· {plantLabels}</span>
                         )}
                       </div>
                       <span className="text-[11px] text-muted-foreground shrink-0">
-                        {fmt(`${ev.date}${ev.time ? `T${ev.time}` : "T00:00"}`)}
+                        {fmt(`${r.date}${r.time ? `T${r.time}` : "T00:00"}`)}
                       </span>
                     </div>
 
-                    {/* Water chips */}
                     <div className="flex flex-wrap gap-1.5">
-                      {ev.waterAmount != null && (
+                      {r.waterAmount != null && (
                         <span className="text-[11px] bg-cyan-400/10 border border-cyan-400/20 text-cyan-400 rounded-lg px-2 py-0.5 font-medium">
-                          {ev.waterAmount} mL
+                          {r.waterAmount} mL
                         </span>
                       )}
-                      {ev.ph != null && (
+                      {r.ph != null && (
                         <span className="text-[11px] bg-blue-400/10 border border-blue-400/20 text-blue-400 rounded-lg px-2 py-0.5 font-medium">
-                          pH in: {ev.ph}
+                          pH in: {r.ph}
                         </span>
                       )}
-                      {ev.ppm != null && (
+                      {r.ppm != null && (
                         <span className="text-[11px] bg-purple-400/10 border border-purple-400/20 text-purple-400 rounded-lg px-2 py-0.5 font-medium">
-                          {ev.ppm} ppm
+                          {r.ppm} ppm
                         </span>
                       )}
-                      {ev.phRunoff != null && (
+                      {r.phRunoff != null && (
                         <span className="text-[11px] bg-blue-300/10 border border-blue-300/20 text-blue-300 rounded-lg px-2 py-0.5 font-medium">
-                          pH out: {ev.phRunoff}
+                          pH out: {r.phRunoff}
                         </span>
                       )}
-                      {ev.ppmRunoff != null && (
+                      {r.ppmRunoff != null && (
                         <span className="text-[11px] bg-blue-300/10 border border-blue-300/20 text-blue-300 rounded-lg px-2 py-0.5 font-medium">
-                          {ev.ppmRunoff} ppm out
+                          {r.ppmRunoff} ppm out
                         </span>
                       )}
-                      {ev.irrigationType && (
+                      {r.irrigationType && (
                         <span className="text-[11px] bg-muted/40 border border-border text-muted-foreground rounded-lg px-2 py-0.5">
-                          {ev.irrigationType === "gotejamento" ? "Gotejamento" :
-                           ev.irrigationType === "aspersao" ? "Aspersão" :
-                           ev.irrigationType === "automatico" ? "Automático" : "Manual"}
+                          {r.irrigationType === "gotejamento" ? "Gotejamento" :
+                           r.irrigationType === "aspersao" ? "Aspersão" :
+                           r.irrigationType === "automatico" ? "Automático" : "Manual"}
                         </span>
                       )}
                     </div>
 
-                    {/* Fertilizers */}
-                    {ev.fertilizersUsed && ev.fertilizersUsed.length > 0 && (
+                    {r.fertilizersUsed && r.fertilizersUsed.length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
-                        {ev.fertilizersUsed.map((f) => (
+                        {r.fertilizersUsed.map((f) => (
                           <span
                             key={f.fertilizerId}
                             className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-400"
@@ -366,8 +422,8 @@ export default function WaterPage() {
                       </div>
                     )}
 
-                    {ev.notes && (
-                      <p className="text-xs text-foreground/70">{ev.notes}</p>
+                    {r.notes && (
+                      <p className="text-xs text-foreground/70">{r.notes}</p>
                     )}
                   </div>
                 );
