@@ -1,5 +1,7 @@
 "use client";
 
+"use client";
+
 import { useState } from "react";
 import { useHarvest } from "@/hooks/use-harvest";
 import { usePlants } from "@/hooks/use-plants";
@@ -8,11 +10,16 @@ import { HarvestForm } from "@/components/harvest/harvest-form";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
-import { Wheat, Plus, Trash2, Star, Droplets, Wind, Package } from "lucide-react";
+import { Wheat, Plus, Trash2, Star, Droplets, Wind, Package, BarChart2 } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import type { HarvestLog } from "@/lib/types";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
+} from "recharts";
+import type { TooltipContentProps } from "recharts";
+import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
 
 const TRICHOME_LABELS: Record<NonNullable<HarvestLog["trichomeStage"]>, string> = {
   transparente: "Transparente",
@@ -27,6 +34,17 @@ const TRICHOME_COLORS: Record<NonNullable<HarvestLog["trichomeStage"]>, string> 
   ambar_50: "bg-amber-500/15 border-amber-500/30 text-amber-400",
   ambar_100: "bg-orange-500/15 border-orange-500/30 text-orange-400",
 };
+
+function HarvestTooltip({ active, payload }: TooltipContentProps<ValueType, NameType>) {
+  if (!active || !payload || payload.length === 0) return null;
+  const entry = payload[0];
+  return (
+    <div className="bg-card border border-border rounded-xl px-3 py-2 text-xs shadow-lg space-y-0.5">
+      <p className="text-muted-foreground">{entry.payload.strain}</p>
+      <p className="text-foreground font-semibold">{entry.value != null ? `${String(entry.value)}g` : "—"}</p>
+    </div>
+  );
+}
 
 function StarRating({ value }: { value: number }) {
   return (
@@ -246,6 +264,70 @@ export default function HarvestPage() {
           </div>
         )}
       </div>
+
+      {/* Comparison chart */}
+      {!loading && harvests.length >= 2 && (() => {
+        const chartData = harvests
+          .filter((h) => h.dryWeightG != null && h.dryWeightG > 0)
+          .slice(0, 10)
+          .map((h) => ({
+            name: h.plantName.length > 12 ? h.plantName.slice(0, 11) + "…" : h.plantName,
+            strain: h.strain,
+            dryWeightG: h.dryWeightG ?? 0,
+          }))
+          .reverse(); // oldest first for chronological order
+
+        if (chartData.length < 2) return null;
+
+        const BAR_COLORS = [
+          "hsl(var(--primary))", "#22d3ee", "#f97316", "#a855f7", "#ec4899",
+          "#84cc16", "#f59e0b", "#06b6d4", "#8b5cf6", "#ef4444",
+        ];
+
+        return (
+          <MotionItem>
+            <div className="bg-card border border-border rounded-2xl p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <BarChart2 size={16} className="text-primary" />
+                <h2 className="text-sm font-semibold">Comparativo de Colheitas</h2>
+                <span className="ml-auto text-[10px] text-muted-foreground">Peso seco (g)</span>
+              </div>
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={chartData} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                  <XAxis
+                    dataKey="name"
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    tickLine={false}
+                    axisLine={false}
+                  />
+                  <YAxis
+                    tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                    tickLine={false}
+                    axisLine={false}
+                    unit="g"
+                  />
+                  <Tooltip content={(props) => <HarvestTooltip {...props} />} />
+                  <Bar dataKey="dryWeightG" radius={[6, 6, 0, 0]}>
+                    {chartData.map((_, i) => (
+                      <Cell key={i} fill={BAR_COLORS[i % BAR_COLORS.length]} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </MotionItem>
+        );
+      })()}
+
+      {!loading && harvests.length < 2 && harvests.length > 0 && (
+        <MotionItem>
+          <div className="bg-card border border-border rounded-2xl p-4 text-center py-6">
+            <BarChart2 size={24} className="mx-auto text-muted-foreground/20 mb-2" />
+            <p className="text-xs text-muted-foreground">Adicione mais colheitas para comparar</p>
+          </div>
+        </MotionItem>
+      )}
 
       <HarvestForm
         open={formOpen}

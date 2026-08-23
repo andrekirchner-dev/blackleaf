@@ -45,12 +45,22 @@ const TYPE_LABELS: Record<TaskType, string> = {
   outro: "Outro",
 };
 
+// Human-readable labels for each recurrence type
 const RECURRENCE_LABELS: Record<TaskRecurrence, string> = {
-  none: "Sem recorrência",
+  none: "Nenhuma",
   daily: "Diária",
   every2days: "A cada 2 dias",
   weekly: "Semanal",
   biweekly: "Quinzenal",
+};
+
+// How many days ahead the next occurrence will be created
+const RECURRENCE_DAYS: Record<TaskRecurrence, number> = {
+  none: 0,
+  daily: 1,
+  every2days: 2,
+  weekly: 7,
+  biweekly: 14,
 };
 
 const p = (n: number) => String(n).padStart(2, "0");
@@ -219,6 +229,8 @@ export default function TasksPage() {
                   <div className="bg-card border border-border rounded-2xl divide-y divide-border/30">
                     {group.map((task) => {
                       const linkedPlants = plants.filter((pl) => task.plantIds?.includes(pl.id));
+                      const isRecurring = task.recurrence !== "none";
+                      const nextDays = RECURRENCE_DAYS[task.recurrence];
                       return (
                         <div key={task.id} className="flex items-center gap-3 px-4 py-3">
                           <button
@@ -232,19 +244,31 @@ export default function TasksPage() {
                           </button>
                           <span className="text-base shrink-0">{TYPE_EMOJI[task.type]}</span>
                           <div className="flex-1 min-w-0">
-                            <p className={cn(
-                              "text-sm font-medium truncate",
-                              task.completed ? "line-through text-muted-foreground" : "text-foreground"
-                            )}>
-                              {task.title}
-                            </p>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <p className={cn(
+                                "text-sm font-medium truncate",
+                                task.completed ? "line-through text-muted-foreground" : "text-foreground"
+                              )}>
+                                {task.title}
+                              </p>
+                              {isRecurring && (
+                                <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 rounded-full px-1.5 py-0.5 font-medium shrink-0">
+                                  ♻️ {RECURRENCE_LABELS[task.recurrence]}
+                                </span>
+                              )}
+                            </div>
                             {linkedPlants.length > 0 && (
                               <p className="text-[11px] text-muted-foreground truncate">
                                 {linkedPlants.map((pl) => pl.name).join(", ")}
                               </p>
                             )}
+                            {task.completed && isRecurring && nextDays > 0 && (
+                              <p className="text-[11px] text-primary/70 mt-0.5">
+                                🔁 Próxima em {nextDays} dia{nextDays !== 1 ? "s" : ""}
+                              </p>
+                            )}
                           </div>
-                          {task.recurrence !== "none" && (
+                          {isRecurring && !task.completed && (
                             <RefreshCw size={11} className="shrink-0 text-muted-foreground/40" />
                           )}
                           <span className={cn(
@@ -320,15 +344,31 @@ export default function TasksPage() {
 
             <div className="space-y-1.5">
               <Label>Recorrência</Label>
-              <select
-                value={form.recurrence}
-                onChange={(e) => setForm((f) => ({ ...f, recurrence: e.target.value as TaskRecurrence }))}
-                className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground"
-              >
+              <div className="flex gap-2 flex-wrap">
                 {(Object.keys(RECURRENCE_LABELS) as TaskRecurrence[]).map((r) => (
-                  <option key={r} value={r}>{RECURRENCE_LABELS[r]}</option>
+                  <button
+                    key={r}
+                    onClick={() => setForm((f) => ({ ...f, recurrence: r }))}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                      form.recurrence === r
+                        ? "bg-primary/10 border-primary/30 text-primary"
+                        : "bg-card border-border text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    {r !== "none" && "♻️ "}{RECURRENCE_LABELS[r]}
+                  </button>
                 ))}
-              </select>
+              </div>
+              {form.recurrence !== "none" && (
+                <p className="text-[11px] text-muted-foreground/70 mt-1 flex items-center gap-1">
+                  🔁 Próxima tarefa em{" "}
+                  <span className="font-medium text-primary">
+                    {RECURRENCE_DAYS[form.recurrence]} dia{RECURRENCE_DAYS[form.recurrence] !== 1 ? "s" : ""}
+                  </span>{" "}
+                  após a conclusão
+                </p>
+              )}
             </div>
 
             {plants.length > 0 && (

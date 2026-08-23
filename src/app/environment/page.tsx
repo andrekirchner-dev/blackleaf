@@ -19,7 +19,7 @@ import { Thermometer, Droplets, Wind, Plus, Trash2, Loader2, Star, Lightbulb, Ar
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts";
 import type { TooltipContentProps } from "recharts";
 import type { ValueType, NameType } from "recharts/types/component/DefaultTooltipContent";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, subDays, startOfDay, endOfDay } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -472,7 +472,7 @@ export default function EnvironmentPage() {
                     tickLine={false}
                     axisLine={false}
                   />
-                  <Tooltip content={<EnvAreaTooltip />} />
+                  <Tooltip content={(props) => <EnvAreaTooltip {...props} />} />
                   <Legend
                     iconType="circle"
                     iconSize={8}
@@ -505,6 +505,106 @@ export default function EnvironmentPage() {
               </ResponsiveContainer>
             </CardContent>
           </Card>
+          </MotionItem>
+        );
+      })()}
+
+      {/* 7-day History Chart */}
+      {filteredRecords.length > 0 && (() => {
+        const DAY_ABBR = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+        const today = new Date();
+
+        // Build 7 buckets for the last 7 days (oldest first)
+        const sevenDayData = Array.from({ length: 7 }, (_, i) => {
+          const day = subDays(today, 6 - i);
+          const dayStart = startOfDay(day).getTime();
+          const dayEnd   = endOfDay(day).getTime();
+
+          const dayRecords = filteredRecords.filter((r) => {
+            const t = new Date(r.recordedAt).getTime();
+            return t >= dayStart && t <= dayEnd;
+          });
+
+          const temps = dayRecords.map((r) => r.temperature).filter((v): v is number => v != null);
+          const hums  = dayRecords.map((r) => r.humidity).filter((v): v is number => v != null);
+
+          const avgT = temps.length ? temps.reduce((a, b) => a + b, 0) / temps.length : null;
+          const avgH = hums.length  ? hums.reduce((a, b) => a + b, 0)  / hums.length  : null;
+
+          return {
+            label: DAY_ABBR[day.getDay()],
+            temperature: avgT !== null ? parseFloat(avgT.toFixed(1)) : null,
+            humidity:    avgH !== null ? parseFloat(avgH.toFixed(1)) : null,
+          };
+        });
+
+        const hasData = sevenDayData.some((d) => d.temperature !== null || d.humidity !== null);
+        if (!hasData) return null;
+
+        return (
+          <MotionItem>
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold">Histórico (7 dias)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ResponsiveContainer width="100%" height={220}>
+                  <AreaChart data={sevenDayData} margin={{ top: 8, right: 8, left: -16, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="grad7dTemp" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="grad7dHum" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#22d3ee" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#22d3ee" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
+                    <XAxis
+                      dataKey="label"
+                      tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <YAxis
+                      tick={{ fontSize: 10, fill: "hsl(var(--muted-foreground))" }}
+                      tickLine={false}
+                      axisLine={false}
+                    />
+                    <Tooltip content={(props) => <EnvAreaTooltip {...props} />} />
+                    <Legend
+                      iconType="circle"
+                      iconSize={8}
+                      wrapperStyle={{ fontSize: "11px", paddingTop: "8px" }}
+                      formatter={(value) =>
+                        value === "temperature" ? "Temperatura (°C)" : "Umidade (%)"
+                      }
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="temperature"
+                      name="temperature"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      fill="url(#grad7dTemp)"
+                      dot={{ r: 3, fill: "hsl(var(--primary))", strokeWidth: 0 }}
+                      connectNulls
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="humidity"
+                      name="humidity"
+                      stroke="#22d3ee"
+                      strokeWidth={2}
+                      fill="url(#grad7dHum)"
+                      dot={{ r: 3, fill: "#22d3ee", strokeWidth: 0 }}
+                      connectNulls
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
           </MotionItem>
         );
       })()}

@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { motion, AnimatePresence } from "framer-motion";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   Leaf,
@@ -32,12 +32,16 @@ import {
   Zap,
   Droplets,
   Users,
+  Bell,
+  Calculator,
 } from "lucide-react";
+import { getUnreadCount } from "@/lib/notifications";
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ElementType;
+  badge?: number;
 }
 
 interface NavGroup {
@@ -81,6 +85,7 @@ const NAV_GROUPS: NavGroup[] = [
     collapsible: false,
     items: [
       { href: "/community", label: "Comunidade", icon: Users },
+      { href: "/community/notifications", label: "Notificações", icon: Bell },
     ],
   },
   {
@@ -95,6 +100,7 @@ const NAV_GROUPS: NavGroup[] = [
       { href: "/tools/dli", label: "Calculadora DLI", icon: Sun },
       { href: "/tools/energy", label: "Custo de Energia", icon: Zap },
       { href: "/tools/flush", label: "Flush & Colheita", icon: Droplets },
+      { href: "/tools/yield-calculator", label: "Calculadora de Yield", icon: Calculator },
     ],
   },
 ];
@@ -110,6 +116,8 @@ function NavLink({
 }) {
   const active = pathname === item.href || pathname.startsWith(item.href + "/");
   const Icon = item.icon;
+  const badgeCount = item.badge ?? 0;
+  const badgeLabel = badgeCount >= 10 ? "9+" : String(badgeCount);
   return (
     <Link href={item.href} title={collapsed ? item.label : undefined}>
       <motion.div
@@ -140,17 +148,29 @@ function NavLink({
             transition={{ type: "spring", stiffness: 400, damping: 35 }}
           />
         )}
-        <Icon
-          size={15}
-          className={cn(
-            "relative z-10 transition-colors shrink-0",
-            active ? "text-primary" : "text-muted-foreground"
+        <span className="relative z-10 shrink-0">
+          <Icon
+            size={15}
+            className={cn(
+              "transition-colors",
+              active ? "text-primary" : "text-muted-foreground"
+            )}
+          />
+          {collapsed && badgeCount > 0 && (
+            <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-destructive text-[8px] font-bold text-white flex items-center justify-center leading-none">
+              {badgeLabel}
+            </span>
           )}
-        />
+        </span>
         {!collapsed && (
           <>
             <span className="relative z-10 truncate text-[13px]">{item.label}</span>
-            {active && (
+            {badgeCount > 0 && !active && (
+              <span className="ml-auto relative z-10 px-1.5 py-0.5 rounded-full bg-destructive text-[9px] font-bold text-white leading-none shrink-0">
+                {badgeLabel}
+              </span>
+            )}
+            {active && badgeCount === 0 && (
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
@@ -239,6 +259,25 @@ export function Sidebar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+
+  // Fetch unread notification count; re-fetch on route change
+  useEffect(() => {
+    if (!user) return;
+    getUnreadCount(user.uid)
+      .then(setUnreadNotifications)
+      .catch(() => {});
+  }, [user, pathname]);
+
+  // Inject badge count into the notifications nav item
+  const navGroupsWithBadges = NAV_GROUPS.map((group) => ({
+    ...group,
+    items: group.items.map((item) =>
+      item.href === "/community/notifications"
+        ? { ...item, badge: unreadNotifications }
+        : item
+    ),
+  }));
 
   return (
     <aside
@@ -282,7 +321,7 @@ export function Sidebar() {
           collapsed ? "px-1.5" : "px-3"
         )}
       >
-        {NAV_GROUPS.map((group, i) => (
+        {navGroupsWithBadges.map((group, i) => (
           <NavGroupSection
             key={group.label}
             group={group}

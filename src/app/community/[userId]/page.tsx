@@ -1,21 +1,30 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/contexts/auth-context";
 import { getUserPublicProfile, makeHandle } from "@/lib/community";
 import type { UserPublicProfile, CommunityPost, PublicPlant } from "@/lib/community";
+import { followUser, unfollowUser, isFollowing } from "@/lib/social";
 import { ProfileEditForm } from "@/components/community/profile-edit-form";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { STAGE_LABELS, STAGE_COLORS, MEDIUM_LABELS } from "@/lib/constants";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
-import { ChevronLeft, Leaf, Sprout, Award, CalendarDays, Scale, ImageOff, Pencil } from "lucide-react";
+import {
+  ChevronLeft, Leaf, Sprout, Award, CalendarDays, Scale, ImageOff,
+  Pencil, UserPlus, UserCheck, Loader2, Users,
+} from "lucide-react";
 import { differenceInDays, format, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { cn } from "@/lib/utils";
+import { getDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+
+// Suppress unused import warning — MEDIUM_LABELS is available for future use
+void MEDIUM_LABELS;
 
 const LIGHT_LABELS: Record<string, string> = {
   led: "LED", hps: "HPS", cmh: "CMH",
@@ -99,16 +108,61 @@ export default function UserProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [editOpen, setEditOpen] = useState(false);
 
-  useEffect(() => {
-    if (!userId) return;
-    getUserPublicProfile(userId)
-      .then(setProfile)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : "Erro ao carregar perfil."))
-      .finally(() => setLoading(false));
-  }, [userId]);
+  // Follow state
+  const [following, setFollowing] = useState(false);
+  const [followLoading, setFollowLoading] = useState(false);
+  const [followersCount, setFollowersCount] = useState(0);
+  const [followingCount, setFollowingCount] = useState(0);
 
   const isMe = user?.uid === userId;
-  const displayHandle = profile ? (isMe ? profile.handle : profile.handle) : makeHandle(userId ?? "");
+
+  const loadProfile = useCallback(async () => {
+    if (!userId) return;
+    try {
+      const data = await getUserPublicProfile(userId);
+      setProfile(data);
+
+      // Load social counts from userProfiles
+      const profileSnap = await getDoc(doc(db, "userProfiles", userId));
+      const profileData = profileSnap.data();
+      setFollowersCount((profileData?.followersCount as number | undefined) ?? 0);
+      setFollowingCount((profileData?.followingCount as number | undefined) ?? 0);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Erro ao carregar perfil.");
+    } finally {
+      setLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    loadProfile();
+  }, [loadProfile]);
+
+  // Check follow status once user and userId are known
+  useEffect(() => {
+    if (!user || !userId || isMe) return;
+    isFollowing(user.uid, userId).then(setFollowing).catch(() => {});
+  }, [user, userId, isMe]);
+
+  async function handleFollow() {
+    if (!user || !userId) return;
+    setFollowLoading(true);
+    try {
+      if (following) {
+        await unfollowUser(user.uid, userId);
+        setFollowing(false);
+        setFollowersCount((c) => Math.max(0, c - 1));
+      } else {
+        await followUser(user.uid, userId);
+        setFollowing(true);
+        setFollowersCount((c) => c + 1);
+      }
+    } finally {
+      setFollowLoading(false);
+    }
+  }
+
+  const displayHandle = profile ? profile.handle : makeHandle(userId ?? "");
 
   const firstGrowLabel = profile?.firstGrowDate
     ? format(parseISO(profile.firstGrowDate), "MMM yyyy", { locale: ptBR })
@@ -150,7 +204,7 @@ export default function UserProfilePage() {
               </div>
               <Skeleton className="h-40 rounded-xl" />
               <div className="grid grid-cols-3 gap-2">
-                {[1,2,3,4,5,6].map((i) => <Skeleton key={i} className="aspect-square rounded-xl" />)}
+                {[1, 2, 3, 4, 5, 6].map((i) => <Skeleton key={i} className="aspect-square rounded-xl" />)}
               </div>
             </div>
           </MotionItem>
@@ -168,10 +222,10 @@ export default function UserProfilePage() {
             <MotionItem>
               <div className="bg-card border border-border rounded-2xl p-5">
                 <div className="flex items-start gap-4">
-                  <Avatar handle={profile.handle} avatarUrl={profile.avatarUrl} size="lg" />
+                  <Avatar handle={displayHandle} avatarUrl={profile.avatarUrl} size="lg" />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h1 className="text-xl font-bold text-foreground">@{profile.handle}</h1>
+                      <h1 className="text-xl font-bold text-foreground">@{displayHandle}</h1>
                       {isMe && (
                         <span className="text-[10px] bg-primary/10 text-primary border border-primary/20 rounded-full px-2 py-0.5 font-medium">
                           Você
@@ -185,10 +239,20 @@ export default function UserProfilePage() {
                     {profile.bio && (
                       <p className="text-sm text-foreground/70 mt-2 leading-relaxed">{profile.bio}</p>
                     )}
+
+                    {/* Follower / following counts */}
+                    <div className="flex items-center gap-1.5 mt-2 text-[11px] text-muted-foreground">
+                      <Users size={11} className="shrink-0" />
+                      <span>
+                        <span className="font-semibold text-foreground">{followersCount}</span> seguidores
+                        {" · "}
+                        <span className="font-semibold text-foreground">{followingCount}</span> seguindo
+                      </span>
+                    </div>
                   </div>
                 </div>
 
-                {isMe && (
+                {isMe ? (
                   <Button
                     variant="outline"
                     size="sm"
@@ -198,16 +262,39 @@ export default function UserProfilePage() {
                     <Pencil size={13} />
                     Editar Perfil
                   </Button>
-                )}
+                ) : user ? (
+                  <Button
+                    size="sm"
+                    onClick={handleFollow}
+                    disabled={followLoading}
+                    variant={following ? "default" : "outline"}
+                    className={cn(
+                      "mt-4 w-full gap-2 text-xs",
+                      following
+                        ? "bg-primary text-primary-foreground hover:bg-primary/90"
+                        : "border-border"
+                    )}
+                  >
+                    {followLoading ? (
+                      <Loader2 size={13} className="animate-spin" />
+                    ) : following ? (
+                      <UserCheck size={13} />
+                    ) : (
+                      <UserPlus size={13} />
+                    )}
+                    {following ? "Seguindo" : "Seguir"}
+                  </Button>
+                ) : null}
               </div>
             </MotionItem>
 
             {/* Stats */}
             <MotionItem>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 <StatCard icon={<Award size={12} />} label="Ciclos" value={String(profile.harvestCount)} />
                 <StatCard icon={<Scale size={12} />} label="Colhido" value={profile.totalDryWeightG > 0 ? `${profile.totalDryWeightG}g` : "—"} />
                 <StatCard icon={<CalendarDays size={12} />} label="1º cultivo" value={firstGrowLabel} />
+                <StatCard icon={<ImageOff size={12} />} label="Posts" value={String(profile.recentPosts.length)} />
               </div>
             </MotionItem>
 
