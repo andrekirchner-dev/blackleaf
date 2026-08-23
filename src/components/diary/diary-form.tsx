@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { compressImageToFile } from "@/lib/image-utils";
 import { ImagePlus, X, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { createEntry, updateEntry } from "@/lib/diary";
@@ -144,12 +145,18 @@ export function DiaryForm({
     );
   }
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setPhotoFile(file);
-    const url = URL.createObjectURL(file);
-    setPhotoPreview(url);
+    if (file.size > 20 * 1024 * 1024) return;
+    try {
+      const compressed = await compressImageToFile(file, 1280, 0.85);
+      setPhotoFile(compressed);
+      setPhotoPreview(URL.createObjectURL(compressed));
+    } catch {
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
   }
 
   function removePhoto() {
@@ -592,6 +599,7 @@ export function DiaryForm({
           ref={fileRef}
           type="file"
           accept="image/*"
+          capture="environment"
           className="hidden"
           onChange={handlePhotoChange}
         />

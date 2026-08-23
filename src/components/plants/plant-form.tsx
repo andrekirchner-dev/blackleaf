@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { compressImageToFile } from "@/lib/image-utils";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/contexts/auth-context";
 import { createPlant, updatePlant } from "@/lib/plants";
@@ -909,17 +910,23 @@ export function PlantForm({ plant }: { plant?: Plant }) {
             <input
               type="file"
               accept="image/*"
+              capture="environment"
               multiple
               className="hidden"
-              onChange={(e) => {
+              onChange={async (e) => {
                 const files = Array.from(e.target.files ?? []);
-                const newItems: PhotoItem[] = files.map((f) => ({
-                  type: "pending",
-                  file: f,
-                  preview: URL.createObjectURL(f),
-                }));
-                setPhotos((prev) => [...prev, ...newItems]);
                 e.target.value = "";
+                const newItems: PhotoItem[] = await Promise.all(
+                  files.map(async (f) => {
+                    try {
+                      const compressed = await compressImageToFile(f, 1280, 0.85);
+                      return { type: "pending" as const, file: compressed, preview: URL.createObjectURL(compressed) };
+                    } catch {
+                      return { type: "pending" as const, file: f, preview: URL.createObjectURL(f) };
+                    }
+                  })
+                );
+                setPhotos((prev) => [...prev, ...newItems]);
               }}
             />
           </label>

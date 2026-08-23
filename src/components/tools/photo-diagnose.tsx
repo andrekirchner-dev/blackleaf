@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { Camera, Upload, X, Loader2, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { compressImageToBase64, isImageFile } from "@/lib/image-utils";
 
 interface VisualChecklist {
   burnedEdgesTips: "SIM" | "NÃO";
@@ -82,20 +83,25 @@ export function PhotoDiagnose({ category, title, hint }: Props) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  function processFile(file: File) {
-    if (!file.type.startsWith("image/")) return;
-    setMimeType(file.type);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const dataUrl = e.target?.result as string;
-      setPreview(dataUrl);
-      // Strip the data URL prefix, keep only the base64 payload
-      const base64 = dataUrl.split(",")[1];
+  async function processFile(file: File) {
+    if (!isImageFile(file)) {
+      setError("Selecione uma imagem (JPEG, PNG, WEBP ou HEIC).");
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      setError("Imagem muito grande. Máximo 20MB.");
+      return;
+    }
+    setError(null);
+    setDiagnosis(null);
+    try {
+      const { base64, preview } = await compressImageToBase64(file, 1280, 0.85);
+      setPreview(preview);
       setImageBase64(base64);
-      setDiagnosis(null);
-      setError(null);
-    };
-    reader.readAsDataURL(file);
+      setMimeType("image/jpeg");
+    } catch {
+      setError("Não foi possível processar a imagem. Tente outro formato.");
+    }
   }
 
   function handleFileInput(e: React.ChangeEvent<HTMLInputElement>) {
@@ -108,6 +114,7 @@ export function PhotoDiagnose({ category, title, hint }: Props) {
     setDragging(false);
     const file = e.dataTransfer.files?.[0];
     if (file) processFile(file);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   function clear() {
@@ -167,8 +174,8 @@ export function PhotoDiagnose({ category, title, hint }: Props) {
           )}
         >
           <Upload size={22} className="text-muted-foreground/50" />
-          <p className="text-xs text-muted-foreground">Arraste uma foto ou clique para selecionar</p>
-          <p className="text-[10px] text-muted-foreground/50">JPG, PNG, WEBP</p>
+          <p className="text-xs text-muted-foreground">Tire uma foto ou selecione da galeria</p>
+          <p className="text-[10px] text-muted-foreground/50">JPG, PNG, WEBP, HEIC</p>
           <input
             ref={inputRef}
             type="file"

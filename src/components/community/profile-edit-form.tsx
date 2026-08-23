@@ -1,6 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
+import { compressImageToFile } from "@/lib/image-utils";
 import { Camera, Loader2, X } from "lucide-react";
 import { upsertUserProfileData } from "@/lib/community";
 import { uploadUserAvatar } from "@/lib/storage";
@@ -36,12 +37,17 @@ export function ProfileEditForm({ userId, current, onSuccess, onCancel }: Profil
     ? "3–24 caracteres. Apenas letras, números e _"
     : null;
 
-  function onAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function onAvatarChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setAvatarFile(file);
-    const url = URL.createObjectURL(file);
-    setAvatarPreview(url);
+    try {
+      const compressed = await compressImageToFile(file, 512, 0.90);
+      setAvatarFile(compressed);
+      setAvatarPreview(URL.createObjectURL(compressed));
+    } catch {
+      setAvatarFile(file);
+      setAvatarPreview(URL.createObjectURL(file));
+    }
   }
 
   function removeAvatar() {
@@ -117,7 +123,7 @@ export function ProfileEditForm({ userId, current, onSuccess, onCancel }: Profil
         >
           {avatarPreview ? "Trocar foto" : "Adicionar foto"}
         </button>
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={onAvatarChange} />
+        <input ref={fileRef} type="file" accept="image/*" capture="user" className="hidden" onChange={onAvatarChange} />
       </div>
 
       {/* Handle */}

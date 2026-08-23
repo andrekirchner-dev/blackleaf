@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { ImagePlus, X, Loader2 } from "lucide-react";
 import { useAuth } from "@/contexts/auth-context";
 import { createCommunityPost, makeHandle } from "@/lib/community";
+import { compressImageToFile } from "@/lib/image-utils";
 import { uploadCommunityPostPhoto } from "@/lib/storage";
 import { STAGE_LABELS, MEDIUM_LABELS } from "@/lib/constants";
 import type { Plant } from "@/lib/types";
@@ -36,10 +37,9 @@ const LIGHT_OPTIONS = Object.entries(LIGHT_LABELS).map(([v, l]) => ({ value: v, 
 const RATE_LIMIT_MS = 60_000;
 
 function validateImage(file: File): string | null {
-  if (file.size > 8 * 1024 * 1024) return "Imagem muito grande. Máximo 8MB.";
-  if (!["image/jpeg", "image/png", "image/webp", "image/heic"].includes(file.type)) {
-    return "Formato não suportado. Use JPEG, PNG ou WebP.";
-  }
+  if (file.size > 20 * 1024 * 1024) return "Imagem muito grande. Máximo 20MB.";
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/heic", "image/heif", ""];
+  if (!allowed.includes(file.type)) return "Formato não suportado. Use JPEG, PNG, WEBP ou HEIC.";
   return null;
 }
 
@@ -90,7 +90,7 @@ export function PostForm({ plants, onSuccess, onCancel }: PostFormProps) {
     });
   }
 
-  function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
+  async function handlePhotoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
     const validationError = validateImage(file);
@@ -100,9 +100,14 @@ export function PostForm({ plants, onSuccess, onCancel }: PostFormProps) {
       return;
     }
     setError(null);
-    setPhotoFile(file);
-    const url = URL.createObjectURL(file);
-    setPhotoPreview(url);
+    try {
+      const compressed = await compressImageToFile(file, 1280, 0.85);
+      setPhotoFile(compressed);
+      setPhotoPreview(URL.createObjectURL(compressed));
+    } catch {
+      setPhotoFile(file);
+      setPhotoPreview(URL.createObjectURL(file));
+    }
   }
 
   function removePhoto() {
@@ -175,10 +180,10 @@ export function PostForm({ plants, onSuccess, onCancel }: PostFormProps) {
           >
             <ImagePlus size={24} />
             <span className="text-sm font-medium">Toque para adicionar foto</span>
-            <span className="text-xs text-muted-foreground/60">JPG, PNG ou WEBP</span>
+            <span className="text-xs text-muted-foreground/60">JPG, PNG, WEBP ou HEIC</span>
           </button>
         )}
-        <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoChange} />
+        <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={handlePhotoChange} />
       </div>
 
       {/* Caption */}
