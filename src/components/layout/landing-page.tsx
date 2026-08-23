@@ -148,7 +148,7 @@ export function LandingPage() {
       <header className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-5 py-3.5 bg-background/80 backdrop-blur-md border-b border-border/40">
         <div className="flex items-center gap-2.5">
           <div className="relative w-8 h-8">
-            <Image src="/logo-icon.png" alt="Blackleaf" fill className="object-contain" />
+            <Image src="/logo-icon.png" alt="Blackleaf" fill className="object-contain mix-blend-screen" />
           </div>
           <span className="text-sm font-bold tracking-widest uppercase">
             <span className="gradient-text">Black</span>
@@ -209,7 +209,7 @@ export function LandingPage() {
                   src="/logo-icon.png"
                   alt="Blackleaf"
                   fill
-                  className="object-contain drop-shadow-[0_0_40px_rgba(34,197,94,0.35)]"
+                  className="object-contain mix-blend-screen drop-shadow-[0_0_40px_rgba(34,197,94,0.35)]"
                   priority
                 />
               </div>
@@ -432,7 +432,7 @@ export function LandingPage() {
           <Link href="/login">
             <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
               <Button className="gap-2.5 bg-accent text-accent-foreground hover:bg-accent/90 font-bold h-12 px-8 text-sm shadow-[0_4px_30px_rgba(251,191,36,0.2)]">
-                Criar conta gratuita
+                Criar conta
                 <ArrowRight size={15} />
               </Button>
             </motion.div>
@@ -448,7 +448,7 @@ export function LandingPage() {
       <footer className="border-t border-border/40 px-5 py-6 flex flex-col sm:flex-row items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="relative w-5 h-5">
-            <Image src="/logo-icon.png" alt="Blackleaf" fill className="object-contain" />
+            <Image src="/logo-icon.png" alt="Blackleaf" fill className="object-contain mix-blend-screen" />
           </div>
           <span className="text-xs font-bold tracking-widest uppercase">
             <span className="gradient-text">Black</span>
