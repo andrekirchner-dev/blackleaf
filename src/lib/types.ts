@@ -223,3 +223,76 @@ export interface GrowEnvironment {
   co2?: number;
   recordedAt: string;
 }
+
+// ─── Social / Community ───────────────────────────────────────────────────────
+
+export interface CommunityComment {
+  id: string;
+  postId: string;
+  userId: string;
+  handle: string;
+  avatarUrl?: string;
+  text: string;
+  createdAt: import("firebase/firestore").Timestamp;
+}
+
+export interface CommunityFollow {
+  id: string;
+  followerId: string;
+  targetUserId: string;
+  createdAt: import("firebase/firestore").Timestamp;
+}
+
+export interface SavedPost {
+  id: string;
+  userId: string;
+  postId: string;
+  createdAt: import("firebase/firestore").Timestamp;
+}
+
+export type NotificationType = "like" | "comment" | "follow";
+
+export interface AppNotification {
+  id: string;
+  userId: string;
+  type: NotificationType;
+  fromUserId: string;
+  fromHandle: string;
+  fromAvatarUrl?: string;
+  postId?: string;
+  postPhotoUrl?: string;
+  read: boolean;
+  createdAt: import("firebase/firestore").Timestamp;
+}
+
+export interface PostReport {
+  id: string;
+  postId: string;
+  postPhotoUrl?: string;
+  reporterId: string;
+  reporterHandle?: string;
+  reason: string;
+  resolved: boolean;
+  createdAt: import("firebase/firestore").Timestamp;
+}
+
+// ─── Tasks ────────────────────────────────────────────────────────────────────
+
+export type TaskPriority = "baixa" | "media" | "alta";
+export type TaskStatus = "pendente" | "concluida";
+export type RecurrenceType = "nenhuma" | "diaria" | "dias" | "semanal" | "quinzenal" | "mensal";
+
+export interface GrowTask {
+  id: string;
+  userId: string;
+  plantId?: string;
+  title: string;
+  notes?: string;
+  dueDate?: string;
+  priority: TaskPriority;
+  status: TaskStatus;
+  recurrence: RecurrenceType;
+  recurrenceIntervalDays?: number;
+  createdAt: string;
+  completedAt?: string;
+}
