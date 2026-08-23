@@ -11,6 +11,10 @@ import {
   adminDeletePlant,
 } from "@/lib/admin";
 import type { AdminStats, AdminUser, AdminPlant } from "@/lib/admin";
+import { getReports, resolveReport } from "@/lib/reports";
+import type { PostReport } from "@/lib/types";
+import { deleteDoc, doc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { MotionPage, MotionItem } from "@/components/ui/motion-wrapper";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
@@ -22,7 +26,6 @@ import {
   Trophy,
   Zap,
   CheckSquare,
-  DollarSign,
   AlertTriangle,
   Trash2,
   RefreshCw,
@@ -30,13 +33,14 @@ import {
   ChevronUp,
   Activity,
   ArrowLeft,
+  Flag,
 } from "lucide-react";
 import { STAGE_LABELS } from "@/lib/constants";
 import type { GrowStage } from "@/lib/types";
 
 const ADMIN_EMAIL = "kirchner.andre@gmail.com";
 
-type Tab = "overview" | "users" | "plants" | "diagnostics";
+type Tab = "overview" | "users" | "plants" | "diagnostics" | "community";
 
 function StatCard({
   label,
@@ -159,6 +163,127 @@ function PlantRow({
   );
 }
 
+function ReportCard({
+  report,
+  onDeletePost,
+  onDismiss,
+}: {
+  report: PostReport;
+  onDeletePost: (report: PostReport) => Promise<void>;
+  onDismiss: (reportId: string) => Promise<void>;
+}) {
+  const [confirming, setConfirming] = useState(false);
+  const [working, setWorking] = useState(false);
+
+  const createdAt = report.createdAt
+    ? (typeof report.createdAt === "object" && "toDate" in report.createdAt
+        ? (report.createdAt as import("firebase/firestore").Timestamp).toDate()
+        : new Date(report.createdAt as unknown as string))
+    : null;
+
+  async function handleDeletePost() {
+    setWorking(true);
+    try {
+      await onDeletePost(report);
+    } finally {
+      setWorking(false);
+      setConfirming(false);
+    }
+  }
+
+  async function handleDismiss() {
+    setWorking(true);
+    try {
+      await onDismiss(report.id);
+    } finally {
+      setWorking(false);
+    }
+  }
+
+  return (
+    <div className="p-4 space-y-3">
+      <div className="flex items-start gap-3">
+        {report.postPhotoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={report.postPhotoUrl}
+            alt="Post denunciado"
+            className="w-14 h-14 rounded-xl object-cover border border-border shrink-0"
+          />
+        ) : (
+          <div className="w-14 h-14 rounded-xl bg-muted/30 border border-border shrink-0 flex items-center justify-center">
+            <Flag size={20} className="text-muted-foreground/40" />
+          </div>
+        )}
+        <div className="flex-1 min-w-0 space-y-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-xs font-medium text-foreground">
+              {report.reporterHandle ?? report.reporterId.slice(-6)}
+            </span>
+            <span className="text-[10px] text-muted-foreground">denunciou</span>
+          </div>
+          <p className="text-xs text-muted-foreground font-mono truncate">
+            post: {report.postId}
+          </p>
+          <p className="text-xs text-foreground bg-destructive/10 border border-destructive/20 rounded-lg px-2 py-1 inline-block">
+            {report.reason}
+          </p>
+          {createdAt && (
+            <p className="text-[10px] text-muted-foreground">
+              {createdAt.toLocaleDateString("pt-BR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })}
+            </p>
+          )}
+        </div>
+      </div>
+
+      <div className="flex items-center gap-2">
+        {confirming ? (
+          <>
+            <button
+              onClick={handleDeletePost}
+              disabled={working}
+              className="flex-1 py-2 text-xs font-medium text-destructive border border-destructive/30 rounded-xl hover:bg-destructive/10 transition-colors disabled:opacity-50"
+            >
+              {working ? "Excluindo..." : "Confirmar exclusão"}
+            </button>
+            <button
+              onClick={() => setConfirming(false)}
+              disabled={working}
+              className="py-2 px-3 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancelar
+            </button>
+          </>
+        ) : (
+          <>
+            <button
+              onClick={() => setConfirming(true)}
+              disabled={working}
+              className="flex-1 py-2 text-xs font-medium text-destructive border border-destructive/30 rounded-xl hover:bg-destructive/10 transition-colors flex items-center justify-center gap-1.5 disabled:opacity-50"
+            >
+              <Trash2 size={12} />
+              Excluir Post
+            </button>
+            <button
+              onClick={handleDismiss}
+              disabled={working}
+              className="flex-1 py-2 text-xs font-medium text-muted-foreground border border-border rounded-xl hover:bg-muted/20 hover:text-foreground transition-colors disabled:opacity-50"
+            >
+              {working ? "..." : "Dispensar"}
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { user } = useAuth();
   const router = useRouter();
@@ -167,6 +292,7 @@ export default function AdminPage() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [plants, setPlants] = useState<AdminPlant[]>([]);
   const [orphans, setOrphans] = useState<AdminPlant[]>([]);
+  const [reports, setReports] = useState<PostReport[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -180,16 +306,18 @@ export default function AdminPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, u, p, d] = await Promise.all([
+      const [s, u, p, d, r] = await Promise.all([
         getAdminStats(),
         getAdminUsers(),
         getAdminPlants(),
         getAdminDiagnostics(),
+        getReports(true),
       ]);
       setStats(s);
       setUsers(u);
       setPlants(p);
       setOrphans(d.orphanedPlants);
+      setReports(r);
     } finally {
       setLoading(false);
     }
@@ -212,6 +340,17 @@ export default function AdminPage() {
     if (stats) setStats({ ...stats, totalPlants: stats.totalPlants - 1 });
   }
 
+  async function handleDeletePost(report: PostReport) {
+    await deleteDoc(doc(db, "communityPosts", report.postId));
+    await resolveReport(report.id);
+    setReports((rs) => rs.filter((r) => r.id !== report.id));
+  }
+
+  async function handleDismissReport(reportId: string) {
+    await resolveReport(reportId);
+    setReports((rs) => rs.filter((r) => r.id !== reportId));
+  }
+
   if (!isAdmin) return null;
 
   const TABS: { id: Tab; label: string }[] = [
@@ -219,6 +358,7 @@ export default function AdminPage() {
     { id: "users", label: "Usuários" },
     { id: "plants", label: "Plantas" },
     { id: "diagnostics", label: "Diagnóstico" },
+    { id: "community", label: "Comunidade" },
   ];
 
   return (
@@ -425,6 +565,39 @@ export default function AdminPage() {
                         </span>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </MotionItem>
+            )}
+
+            {tab === "community" && (
+              <MotionItem>
+                <div className="space-y-4">
+                  <div className="bg-card border border-border rounded-2xl overflow-hidden">
+                    <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                      <h2 className="text-sm font-semibold flex items-center gap-2">
+                        <Flag size={14} className="text-destructive" />
+                        Denúncias pendentes
+                      </h2>
+                      <span className="text-[10px] text-muted-foreground">{reports.length} pendente{reports.length !== 1 ? "s" : ""}</span>
+                    </div>
+
+                    {reports.length === 0 ? (
+                      <div className="px-4 py-10 text-center text-muted-foreground text-sm">
+                        Nenhuma denúncia pendente
+                      </div>
+                    ) : (
+                      <div className="divide-y divide-border/30">
+                        {reports.map((report) => (
+                          <ReportCard
+                            key={report.id}
+                            report={report}
+                            onDeletePost={handleDeletePost}
+                            onDismiss={handleDismissReport}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               </MotionItem>

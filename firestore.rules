@@ -14,14 +14,16 @@ service cloud.firestore {
       return isAuth() && request.auth.token.email == "kirchner.andre@gmail.com";
     }
 
+    // ─── Private grow collections ────────────────────────────────────────────────
+
     match /plants/{docId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (request.auth.uid == resource.data.userId || isAdmin());
       allow update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
 
     match /spaces/{docId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (request.auth.uid == resource.data.userId || isAdmin());
       allow update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
     }
@@ -61,20 +63,9 @@ service cloud.firestore {
     }
 
     match /harvest_logs/{docId} {
-      allow read: if isAuth();
+      allow read: if isAuth() && (request.auth.uid == resource.data.userId || isAdmin());
       allow update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
-    }
-
-    match /communityPosts/{docId} {
-      allow read: if isAuth();
-      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
-      allow create: if isOwner(request.resource.data.userId);
-    }
-
-    match /userProfiles/{docId} {
-      allow read: if isAuth();
-      allow write: if (isAuth() && request.auth.uid == docId) || isAdmin();
     }
 
     match /grow_events/{docId} {
@@ -95,6 +86,69 @@ service cloud.firestore {
     match /nutrition_recipes/{docId} {
       allow read, update, delete: if isOwner(resource.data.userId) || isAdmin();
       allow create: if isOwner(request.resource.data.userId);
+    }
+
+    // ─── Community / Social collections ─────────────────────────────────────────
+
+    match /communityPosts/{postId} {
+      // Any authenticated user can read and create posts
+      allow read: if isAuth();
+      allow create: if isAuth() && request.auth.uid == request.resource.data.userId;
+      // Only the post owner or admin can update or delete
+      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
+
+      // Likes subcollection: doc ID is the liker's userId
+      match /likes/{likerId} {
+        allow read: if isAuth();
+        allow write, delete: if isOwner(likerId);
+      }
+
+      // Comments subcollection
+      match /comments/{commentId} {
+        allow read: if isAuth();
+        allow create: if isAuth() && request.auth.uid == request.resource.data.userId;
+        allow delete: if (isAuth() && request.auth.uid == resource.data.userId) || isAdmin();
+        allow update: if false;
+      }
+    }
+
+    // User profiles: any auth user can read; only the owner or admin can write
+    match /userProfiles/{userId} {
+      allow read: if isAuth();
+      allow write: if isOwner(userId) || isAdmin();
+    }
+
+    // Follow relationships
+    match /userFollows/{userId}/following/{followedId} {
+      allow read: if isAuth();
+      allow write, delete: if isOwner(userId);
+    }
+
+    match /userFollows/{userId}/followers/{followerId} {
+      allow read: if isAuth();
+      allow write, delete: if isAuth() && (
+        request.auth.uid == followerId ||
+        (resource != null && request.auth.uid == resource.data.followerId)
+      );
+    }
+
+    // Saved posts: private per user
+    match /savedPosts/{userId}/posts/{postId} {
+      allow read, write, delete: if isOwner(userId);
+    }
+
+    // Notifications: only the recipient can read; any auth user can create/update (system-side)
+    match /notifications/{userId}/items/{notifId} {
+      allow read, delete: if isOwner(userId);
+      allow create, update: if isAuth();
+    }
+
+    // Reports: create-only from client; admin reads via server-side (no client reads)
+    match /reports/{reportId} {
+      allow create: if isAuth() && request.auth.uid == request.resource.data.reporterId;
+      allow read: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if false;
     }
   }
 }
