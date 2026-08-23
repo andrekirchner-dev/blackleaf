@@ -84,7 +84,7 @@ export default function HarvestPage() {
 
   return (
     <MotionPage>
-      <div className="max-w-4xl mx-auto space-y-5 p-4 md:p-6">
+      <div className="max-w-4xl mx-auto space-y-5">
         {/* Header */}
         <MotionItem>
           <div className="flex items-center justify-between gap-3">

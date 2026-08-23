@@ -289,6 +289,7 @@ export function TopNav() {
           {PRIMARY_LINKS.map((link) => {
             const active = pathname === link.href || pathname.startsWith(link.href + "/");
             const Icon = link.icon;
+            const isCommunity = link.href === "/community";
             return (
               <Link
                 key={link.href}
@@ -297,6 +298,8 @@ export function TopNav() {
                   "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[13px] font-medium transition-colors",
                   active
                     ? "bg-primary/10 text-primary"
+                    : isCommunity
+                    ? "bg-accent/10 text-accent border border-accent/20 hover:bg-accent/20"
                     : "text-muted-foreground hover:text-foreground hover:bg-sidebar-accent"
                 )}
               >

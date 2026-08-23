@@ -35,12 +35,12 @@ export default function SpacesPage() {
 
   return (
     <MotionPage>
-    <div className="space-y-6">
+    <div className="space-y-6 max-w-4xl mx-auto">
       {/* Header */}
       <MotionItem>
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2 text-foreground">
+          <h1 className="text-2xl font-bold flex items-center gap-2 text-foreground">
             <LayoutGrid size={20} className="text-primary" />
             Espaços de Cultivo
           </h1>

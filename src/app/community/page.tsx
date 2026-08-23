@@ -109,7 +109,7 @@ export default function CommunityPage() {
 
   return (
     <MotionPage>
-      <div className="space-y-5 max-w-2xl mx-auto">
+      <div className="space-y-5 max-w-4xl mx-auto">
         {/* Header */}
         <MotionItem>
           <div className="flex items-center justify-between gap-3">
