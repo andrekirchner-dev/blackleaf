@@ -19,7 +19,7 @@ interface PlantTimeline {
   vegWeeks: number;
   floweringWeeks: number;
   totalWeeks: number;
-  currentWeek: number;
+  currentDayExact: number;
   style?: GrowStyle;
 }
 
@@ -31,8 +31,8 @@ function buildTimeline(plant: Plant, style?: GrowStyle): PlantTimeline {
   const vegWeeks = (plant.vegWeeks ?? style?.vegWeeks ?? 5) + vegExtraDays / 7;
   const floweringWeeks = plant.floweringWeeks ?? 9;
   const totalWeeks = seedlingWeeks + vegWeeks + floweringWeeks;
-  const currentWeek = Math.floor((nowMs - germinationMs) / (7 * 86_400_000));
-  return { plant, germinationMs, seedlingWeeks, vegWeeks, floweringWeeks, totalWeeks, currentWeek, style };
+  const currentDayExact = (nowMs - germinationMs) / 86_400_000;
+  return { plant, germinationMs, seedlingWeeks, vegWeeks, floweringWeeks, totalWeeks, currentDayExact, style };
 }
 
 function PhaseBar({ weeks, total, color, label }: {
@@ -77,54 +77,121 @@ export function GrowCalendar({ plants, styles }: Props) {
     );
   }
 
-  const maxWeeks = Math.max(...timelines.map((t) => Math.max(t.totalWeeks, t.currentWeek + 1)));
+  const maxWeeks = Math.max(...timelines.map((t) => Math.max(t.totalWeeks, Math.ceil(t.currentDayExact / 7) + 1)));
+  const maxDays = maxWeeks * 7;
 
   return (
     <div className="bg-card border border-border rounded-2xl p-4 overflow-x-auto">
-      {/* Week header */}
-      <div className="flex mb-3 pl-[140px] min-w-[500px]">
-        {Array.from({ length: maxWeeks + 1 }, (_, i) => (
-          <div key={i} className="flex-1 text-center text-[9px] text-muted-foreground/60 font-medium">
-            {i > 0 && `S${i}`}
-          </div>
-        ))}
+      {/* ── Régua ────────────────────────────────────────────────── */}
+      <div className="pl-[140px] min-w-[500px] mb-3">
+
+        {/* Linha 1 — Semanas com highlight alternado */}
+        <div className="flex rounded-t-md overflow-hidden">
+          {Array.from({ length: maxWeeks }, (_, wIdx) => (
+            <div
+              key={wIdx}
+              className={cn(
+                "flex-1 text-center text-[9px] font-semibold py-1 border-r border-black/10 last:border-0 leading-none",
+                wIdx % 2 === 0
+                  ? "bg-primary/10 text-primary/70"
+                  : "bg-muted/30 text-muted-foreground/50"
+              )}
+            >
+              S{wIdx + 1}
+            </div>
+          ))}
+        </div>
+
+        {/* Linha 2 — Dias (1–7 dentro de cada semana) */}
+        <div className="flex rounded-b-md overflow-hidden">
+          {Array.from({ length: maxWeeks }, (_, wIdx) => (
+            <div
+              key={wIdx}
+              className={cn(
+                "flex-1 flex",
+                wIdx % 2 === 0 ? "bg-primary/[0.04]" : "bg-muted/10"
+              )}
+            >
+              {Array.from({ length: 7 }, (_, d) => (
+                <div
+                  key={d}
+                  className={cn(
+                    "flex-1 h-3.5 flex items-center justify-center border-r border-black/[0.06] last:border-0",
+                    d === 0 ? "border-l-0" : ""
+                  )}
+                >
+                  <span
+                    className={cn(
+                      "text-[6.5px] font-medium leading-none",
+                      d === 0
+                        ? "text-primary/50"
+                        : "text-muted-foreground/25"
+                    )}
+                  >
+                    {d + 1}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
 
+      {/* ── Barras das plantas ───────────────────────────────────── */}
       <div className="space-y-3 min-w-[500px]">
-        {timelines.map(({ plant, seedlingWeeks, vegWeeks, floweringWeeks, totalWeeks, currentWeek, style }) => {
-          const clampedWeek = Math.min(currentWeek, maxWeeks);
-          const todayPct = (clampedWeek / maxWeeks) * 100;
+        {timelines.map(({ plant, seedlingWeeks, vegWeeks, floweringWeeks, totalWeeks, currentDayExact, style }) => {
+          const clampedDay = Math.min(currentDayExact, maxDays);
+          const todayPct = (clampedDay / maxDays) * 100;
+          const isActive = currentDayExact >= 0 && currentDayExact <= maxDays + 7;
 
           return (
             <div key={plant.id} className="flex items-center gap-3 group">
-              {/* Plant name */}
+              {/* Nome da planta */}
               <div className="w-[132px] shrink-0 text-right">
                 <p className="text-xs font-semibold text-foreground truncate">{plant.name}</p>
                 <p className="text-[10px] text-muted-foreground truncate">{plant.strain}</p>
               </div>
 
-              {/* Timeline bar */}
+              {/* Barra de timeline */}
               <div className="flex-1 relative">
-                <div className="relative h-6 flex rounded-full overflow-hidden">
-                  <PhaseBar weeks={seedlingWeeks} total={maxWeeks} color={PHASE_COLORS.semente} label="Muda" />
-                  <PhaseBar weeks={vegWeeks} total={maxWeeks} color={PHASE_COLORS.vegetativo} label="Vegetativo" />
-                  <PhaseBar weeks={floweringWeeks} total={maxWeeks} color={PHASE_COLORS.floracao} label="Floração" />
-                  {/* Remaining (future) */}
-                  <div
-                    className="h-full bg-border/20 rounded-r-full"
-                    style={{ width: `${((maxWeeks - totalWeeks) / maxWeeks) * 100}%` }}
-                  />
-
-                  {/* Today marker */}
-                  {currentWeek >= 0 && currentWeek <= maxWeeks && (
+                {/* Barra de fases */}
+                <div className="relative h-6 flex rounded-full overflow-visible">
+                  {/* Clip inner para arredondamento */}
+                  <div className="absolute inset-0 rounded-full overflow-hidden flex w-full">
+                    <PhaseBar weeks={seedlingWeeks} total={maxWeeks} color={PHASE_COLORS.semente} label="Muda" />
+                    <PhaseBar weeks={vegWeeks} total={maxWeeks} color={PHASE_COLORS.vegetativo} label="Vegetativo" />
+                    <PhaseBar weeks={floweringWeeks} total={maxWeeks} color={PHASE_COLORS.floracao} label="Floração" />
+                    {/* Futuro */}
                     <div
-                      className="absolute top-0 bottom-0 w-0.5 bg-white/90 z-10 shadow-[0_0_4px_rgba(255,255,255,0.8)]"
-                      style={{ left: `${todayPct}%` }}
+                      className="h-full bg-border/20 rounded-r-full"
+                      style={{ width: `${((maxWeeks - totalWeeks) / maxWeeks) * 100}%` }}
                     />
+                  </div>
+
+                  {/* Marcador do dia atual — cruza a barra + sobe até a régua */}
+                  {isActive && (
+                    <div
+                      className="absolute z-10 pointer-events-none"
+                      style={{ left: `${todayPct}%` }}
+                    >
+                      {/* Linha vertical — sobe 32px acima (régua) + desce toda a barra */}
+                      <div className="absolute w-[1.5px] bg-white/90 shadow-[0_0_5px_rgba(255,255,255,0.9)]"
+                        style={{
+                          top: '-34px',   /* sobe até a régua */
+                          height: 'calc(34px + 100%)',
+                          left: '-0.5px',
+                        }}
+                      />
+                      {/* Losango no topo (indicador "hoje" na régua) */}
+                      <div
+                        className="absolute w-2 h-2 bg-white shadow-[0_0_6px_rgba(255,255,255,0.8)] rotate-45"
+                        style={{ top: '-38px', left: '-4px' }}
+                      />
+                    </div>
                   )}
                 </div>
 
-                {/* Style events */}
+                {/* Eventos do estilo de cultivo */}
                 {style?.events && style.events.length > 0 && (
                   <div className="relative h-4 mt-0.5">
                     {style.events.map((ev, idx) => {
@@ -147,10 +214,12 @@ export function GrowCalendar({ plants, styles }: Props) {
                 )}
               </div>
 
-              {/* Week badge */}
+              {/* Badge da semana atual */}
               <div className="w-12 shrink-0 text-right">
                 <span className="text-[10px] text-muted-foreground">
-                  {currentWeek > 0 ? `S${currentWeek}` : "Início"}
+                  {currentDayExact > 0
+                    ? `S${Math.floor(currentDayExact / 7) + 1} D${(Math.floor(currentDayExact) % 7) + 1}`
+                    : "Início"}
                 </span>
               </div>
             </div>
@@ -158,8 +227,8 @@ export function GrowCalendar({ plants, styles }: Props) {
         })}
       </div>
 
-      {/* Legend */}
-      <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border">
+      {/* ── Legenda ──────────────────────────────────────────────── */}
+      <div className="flex items-center gap-4 mt-4 pt-3 border-t border-border flex-wrap">
         {[
           { color: PHASE_COLORS.semente, label: "Muda" },
           { color: PHASE_COLORS.vegetativo, label: "Vegetativo" },
@@ -171,6 +240,7 @@ export function GrowCalendar({ plants, styles }: Props) {
             <span className="text-[10px] text-muted-foreground">{label}</span>
           </div>
         ))}
+        <span className="text-[9px] text-muted-foreground/40 ml-auto">S = Semana · D = Dia</span>
       </div>
     </div>
   );
